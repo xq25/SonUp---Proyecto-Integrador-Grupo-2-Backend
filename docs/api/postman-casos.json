@@ -1,0 +1,647 @@
+[
+  {
+    "operation": "administrators.create",
+    "method": "POST",
+    "path": "/administrators",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"fullName\":\"María José O'Neil-Pérez\",\"documentType\":\"CC\",\"documentNumber\":\"1020304050\",\"email\":\"Maria.Oneil@Fundacion.test\",\"phone\":\"+573001234567\",\"position\":\"Coordinadora\"}",
+    "errorPaths": []
+  },
+  {
+    "operation": "administrators.create",
+    "method": "POST",
+    "path": "/administrators",
+    "case": "Falta el email",
+    "expect": "invalid",
+    "body": "{\"fullName\":\"Ana Gil\",\"documentType\":\"CC\",\"documentNumber\":\"123\",\"position\":\"Aux\"}",
+    "errorPaths": [
+      "email"
+    ]
+  },
+  {
+    "operation": "administrators.create",
+    "method": "POST",
+    "path": "/administrators",
+    "case": "Nombre con dígitos y documento con espacios",
+    "expect": "invalid",
+    "body": "{\"fullName\":\"Ana 2\",\"documentType\":\"CC\",\"documentNumber\":\"12 34\",\"email\":\"a@b.co\",\"position\":\"Aux\"}",
+    "errorPaths": [
+      "fullName",
+      "documentNumber"
+    ]
+  },
+  {
+    "operation": "administrators.create",
+    "method": "POST",
+    "path": "/administrators",
+    "case": "Tipo de documento fuera del catálogo",
+    "expect": "invalid",
+    "body": "{\"fullName\":\"Ana Gil\",\"documentType\":\"DNI\",\"documentNumber\":\"123\",\"email\":\"a@b.co\",\"position\":\"Aux\"}",
+    "errorPaths": [
+      "documentType"
+    ]
+  },
+  {
+    "operation": "administrators.create",
+    "method": "POST",
+    "path": "/administrators",
+    "case": "Teléfono inválido",
+    "expect": "invalid",
+    "body": "{\"fullName\":\"Ana Gil\",\"documentType\":\"CC\",\"documentNumber\":\"123\",\"email\":\"a@b.co\",\"position\":\"Aux\",\"phone\":\"12-34\"}",
+    "errorPaths": [
+      "phone"
+    ]
+  },
+  {
+    "operation": "administrators.create",
+    "method": "POST",
+    "path": "/administrators",
+    "case": "Campo no permitido",
+    "expect": "invalid",
+    "body": "{\"fullName\":\"Ana Gil\",\"documentType\":\"CC\",\"documentNumber\":\"123\",\"email\":\"a@b.co\",\"position\":\"Aux\",\"role\":\"admin\"}",
+    "errorPaths": [
+      "role"
+    ]
+  },
+  {
+    "operation": "administrators.update",
+    "method": "PATCH",
+    "path": "/administrators/{{administratorId}}",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"position\":\"Directora\",\"status\":\"inactive\"}",
+    "errorPaths": []
+  },
+  {
+    "operation": "administrators.update",
+    "method": "PATCH",
+    "path": "/administrators/{{administratorId}}",
+    "case": "Email inválido",
+    "expect": "invalid",
+    "body": "{\"email\":\"no-es-email\"}",
+    "errorPaths": [
+      "email"
+    ]
+  },
+  {
+    "operation": "administrators.update",
+    "method": "PATCH",
+    "path": "/administrators/{{administratorId}}",
+    "case": "Estado fuera del catálogo",
+    "expect": "invalid",
+    "body": "{\"status\":\"deleted\"}",
+    "errorPaths": [
+      "status"
+    ]
+  },
+  {
+    "operation": "skills.createCategory",
+    "method": "POST",
+    "path": "/skill-categories",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"name\":\"  Habilidades   blandas \",\"description\":\"Relación con los demás\"}",
+    "errorPaths": []
+  },
+  {
+    "operation": "skills.createCategory",
+    "method": "POST",
+    "path": "/skill-categories",
+    "case": "Nombre de 1 carácter",
+    "expect": "invalid",
+    "body": "{\"name\":\"A\"}",
+    "errorPaths": [
+      "name"
+    ]
+  },
+  {
+    "operation": "skills.createCategory",
+    "method": "POST",
+    "path": "/skill-categories",
+    "case": "Descripción de más de 500",
+    "expect": "invalid",
+    "body": "{\"name\":\"Arte\",\"description\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"}",
+    "errorPaths": [
+      "description"
+    ]
+  },
+  {
+    "operation": "skills.createCategory",
+    "method": "POST",
+    "path": "/skill-categories",
+    "case": "Sin nombre",
+    "expect": "invalid",
+    "body": "{\"description\":\"algo\"}",
+    "errorPaths": [
+      "name"
+    ]
+  },
+  {
+    "operation": "skills.updateCategory",
+    "method": "PATCH",
+    "path": "/skill-categories/{{skillCategoryId}}",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"name\":\"Blandas\"}",
+    "errorPaths": []
+  },
+  {
+    "operation": "skills.updateCategory",
+    "method": "PATCH",
+    "path": "/skill-categories/{{skillCategoryId}}",
+    "case": "Campo no permitido",
+    "expect": "invalid",
+    "body": "{\"status\":\"active\"}",
+    "errorPaths": [
+      "status"
+    ]
+  },
+  {
+    "operation": "skills.createSkill",
+    "method": "POST",
+    "path": "/skills",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"name\":\"Resolución de conflictos\",\"skillCategoryId\":1}",
+    "errorPaths": []
+  },
+  {
+    "operation": "skills.createSkill",
+    "method": "POST",
+    "path": "/skills",
+    "case": "Categoría no numérica",
+    "expect": "invalid",
+    "body": "{\"name\":\"Arte\",\"skillCategoryId\":\"abc\"}",
+    "errorPaths": [
+      "skillCategoryId"
+    ]
+  },
+  {
+    "operation": "skills.createSkill",
+    "method": "POST",
+    "path": "/skills",
+    "case": "Categoría negativa",
+    "expect": "invalid",
+    "body": "{\"name\":\"Arte\",\"skillCategoryId\":-1}",
+    "errorPaths": [
+      "skillCategoryId"
+    ]
+  },
+  {
+    "operation": "skills.createSkill",
+    "method": "POST",
+    "path": "/skills",
+    "case": "Estado inválido",
+    "expect": "invalid",
+    "body": "{\"name\":\"Arte\",\"skillCategoryId\":1,\"status\":\"archived\"}",
+    "errorPaths": [
+      "status"
+    ]
+  },
+  {
+    "operation": "skills.updateSkill",
+    "method": "PATCH",
+    "path": "/skills/{{skillId}}",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"status\":\"inactive\"}",
+    "errorPaths": []
+  },
+  {
+    "operation": "skills.updateSkill",
+    "method": "PATCH",
+    "path": "/skills/{{skillId}}",
+    "case": "Nombre vacío",
+    "expect": "invalid",
+    "body": "{\"name\":\"   \"}",
+    "errorPaths": [
+      "name"
+    ]
+  },
+  {
+    "operation": "evaluations.createScale",
+    "method": "POST",
+    "path": "/evaluation-scales",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"code\":\"EN_PROCESO\",\"name\":\"En proceso\",\"numValue\":3,\"minValue\":2,\"maxValue\":3.49}",
+    "errorPaths": []
+  },
+  {
+    "operation": "evaluations.createScale",
+    "method": "POST",
+    "path": "/evaluation-scales",
+    "case": "Código en minúsculas",
+    "expect": "invalid",
+    "body": "{\"code\":\"en_proceso\",\"name\":\"En proceso\",\"numValue\":3,\"minValue\":2,\"maxValue\":3.49}",
+    "errorPaths": [
+      "code"
+    ]
+  },
+  {
+    "operation": "evaluations.createScale",
+    "method": "POST",
+    "path": "/evaluation-scales",
+    "case": "Valor mayor a 5",
+    "expect": "invalid",
+    "body": "{\"code\":\"X\",\"name\":\"Equis\",\"numValue\":6,\"minValue\":2,\"maxValue\":3}",
+    "errorPaths": [
+      "numValue"
+    ]
+  },
+  {
+    "operation": "evaluations.createScale",
+    "method": "POST",
+    "path": "/evaluation-scales",
+    "case": "Más de 2 decimales",
+    "expect": "invalid",
+    "body": "{\"code\":\"X\",\"name\":\"Equis\",\"numValue\":2.555,\"minValue\":2,\"maxValue\":3}",
+    "errorPaths": [
+      "numValue"
+    ]
+  },
+  {
+    "operation": "evaluations.createScale",
+    "method": "POST",
+    "path": "/evaluation-scales",
+    "case": "Valor como texto",
+    "expect": "invalid",
+    "body": "{\"code\":\"X\",\"name\":\"Equis\",\"numValue\":\"3\",\"minValue\":2,\"maxValue\":3}",
+    "errorPaths": [
+      "numValue"
+    ]
+  },
+  {
+    "operation": "evaluations.updateScale",
+    "method": "PATCH",
+    "path": "/evaluation-scales/{{evaluationScaleId}}",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"name\":\"En proceso de logro\",\"isActive\":false}",
+    "errorPaths": []
+  },
+  {
+    "operation": "evaluations.updateScale",
+    "method": "PATCH",
+    "path": "/evaluation-scales/{{evaluationScaleId}}",
+    "case": "Activo como texto",
+    "expect": "invalid",
+    "body": "{\"isActive\":\"si\"}",
+    "errorPaths": [
+      "isActive"
+    ]
+  },
+  {
+    "operation": "evaluations.evaluate",
+    "method": "POST",
+    "path": "/evaluations",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"workshopAttendanceId\":10,\"workshopSkillId\":3,\"evaluationScaleId\":2}",
+    "errorPaths": []
+  },
+  {
+    "operation": "evaluations.evaluate",
+    "method": "POST",
+    "path": "/evaluations",
+    "case": "Falta la escala",
+    "expect": "invalid",
+    "body": "{\"workshopAttendanceId\":10,\"workshopSkillId\":3}",
+    "errorPaths": [
+      "evaluationScaleId"
+    ]
+  },
+  {
+    "operation": "evaluations.evaluate",
+    "method": "POST",
+    "path": "/evaluations",
+    "case": "Id inválido",
+    "expect": "invalid",
+    "body": "{\"workshopAttendanceId\":\"diez\",\"workshopSkillId\":3,\"evaluationScaleId\":2}",
+    "errorPaths": [
+      "workshopAttendanceId"
+    ]
+  },
+  {
+    "operation": "workshops.create",
+    "method": "POST",
+    "path": "/workshops",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"evaluatorId\":500,\"name\":\"Música y ritmo\",\"startsAt\":\"2026-11-03T15:00:00Z\"}",
+    "errorPaths": []
+  },
+  {
+    "operation": "workshops.create",
+    "method": "POST",
+    "path": "/workshops",
+    "case": "Nombre de 2 caracteres",
+    "expect": "invalid",
+    "body": "{\"evaluatorId\":500,\"name\":\"AB\"}",
+    "errorPaths": [
+      "name"
+    ]
+  },
+  {
+    "operation": "workshops.create",
+    "method": "POST",
+    "path": "/workshops",
+    "case": "Crear con estado active",
+    "expect": "invalid",
+    "body": "{\"evaluatorId\":500,\"name\":\"Música\",\"status\":\"active\"}",
+    "errorPaths": [
+      "status"
+    ]
+  },
+  {
+    "operation": "workshops.create",
+    "method": "POST",
+    "path": "/workshops",
+    "case": "Fecha inválida",
+    "expect": "invalid",
+    "body": "{\"evaluatorId\":500,\"name\":\"Música\",\"startsAt\":\"mañana\"}",
+    "errorPaths": [
+      "startsAt"
+    ]
+  },
+  {
+    "operation": "workshops.create",
+    "method": "POST",
+    "path": "/workshops",
+    "case": "Varios errores",
+    "expect": "invalid",
+    "body": "{\"evaluatorId\":\"x\",\"name\":\"A\"}",
+    "errorPaths": [
+      "evaluatorId",
+      "name"
+    ]
+  },
+  {
+    "operation": "workshops.update",
+    "method": "PATCH",
+    "path": "/workshops/{{workshopId}}",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"status\":\"finished\",\"endsAt\":\"2026-12-15T15:00:00Z\"}",
+    "errorPaths": []
+  },
+  {
+    "operation": "workshops.update",
+    "method": "PATCH",
+    "path": "/workshops/{{workshopId}}",
+    "case": "Estado fuera del catálogo",
+    "expect": "invalid",
+    "body": "{\"status\":\"archived\"}",
+    "errorPaths": [
+      "status"
+    ]
+  },
+  {
+    "operation": "attendance.register",
+    "method": "POST",
+    "path": "/attendances",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"studentId\":1,\"workshopId\":2,\"attendedAt\":\"2026-10-20T15:00:00Z\",\"observation\":\"Participó activamente\"}",
+    "errorPaths": []
+  },
+  {
+    "operation": "attendance.register",
+    "method": "POST",
+    "path": "/attendances",
+    "case": "Falta el estudiante",
+    "expect": "invalid",
+    "body": "{\"workshopId\":2}",
+    "errorPaths": [
+      "studentId"
+    ]
+  },
+  {
+    "operation": "attendance.register",
+    "method": "POST",
+    "path": "/attendances",
+    "case": "Observación de más de 1000",
+    "expect": "invalid",
+    "body": "{\"studentId\":1,\"workshopId\":2,\"observation\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}",
+    "errorPaths": [
+      "observation"
+    ]
+  },
+  {
+    "operation": "attendance.register",
+    "method": "POST",
+    "path": "/attendances",
+    "case": "Campo no permitido",
+    "expect": "invalid",
+    "body": "{\"studentId\":1,\"workshopId\":2,\"grade\":5}",
+    "errorPaths": [
+      "grade"
+    ]
+  },
+  {
+    "operation": "attendance.update",
+    "method": "PATCH",
+    "path": "/attendances/{{attendanceId}}",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"observation\":\"Llegó tarde\"}",
+    "errorPaths": []
+  },
+  {
+    "operation": "attendance.update",
+    "method": "PATCH",
+    "path": "/attendances/{{attendanceId}}",
+    "case": "Fecha inválida",
+    "expect": "invalid",
+    "body": "{\"attendedAt\":\"ayer\"}",
+    "errorPaths": [
+      "attendedAt"
+    ]
+  },
+  {
+    "operation": "evidences.upload",
+    "method": "POST",
+    "path": "/evidences",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"url\":\"https://storage.fundacion.test/evidencias/mural.jpg\",\"title\":\"Mural colectivo\",\"studentIds\":[1,\"2\"]}",
+    "errorPaths": []
+  },
+  {
+    "operation": "evidences.upload",
+    "method": "POST",
+    "path": "/evidences",
+    "case": "URL http",
+    "expect": "invalid",
+    "body": "{\"url\":\"http://x.test/a.jpg\",\"title\":\"Foto\",\"studentIds\":[1]}",
+    "errorPaths": [
+      "url"
+    ]
+  },
+  {
+    "operation": "evidences.upload",
+    "method": "POST",
+    "path": "/evidences",
+    "case": "URL con espacios",
+    "expect": "invalid",
+    "body": "{\"url\":\"https://x.test/mi foto.jpg\",\"title\":\"Foto\",\"studentIds\":[1]}",
+    "errorPaths": [
+      "url"
+    ]
+  },
+  {
+    "operation": "evidences.upload",
+    "method": "POST",
+    "path": "/evidences",
+    "case": "Sin estudiantes",
+    "expect": "invalid",
+    "body": "{\"url\":\"https://x.test/a.jpg\",\"title\":\"Foto\",\"studentIds\":[]}",
+    "errorPaths": [
+      "studentIds"
+    ]
+  },
+  {
+    "operation": "evidences.upload",
+    "method": "POST",
+    "path": "/evidences",
+    "case": "Id de estudiante inválido",
+    "expect": "invalid",
+    "body": "{\"url\":\"https://x.test/a.jpg\",\"title\":\"Foto\",\"studentIds\":[1,\"x\"]}",
+    "errorPaths": [
+      "studentIds.1"
+    ]
+  },
+  {
+    "operation": "evidences.update",
+    "method": "PATCH",
+    "path": "/evidences/{{evidenceId}}",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"title\":\"Mural colectivo (versión final)\"}",
+    "errorPaths": []
+  },
+  {
+    "operation": "evidences.update",
+    "method": "PATCH",
+    "path": "/evidences/{{evidenceId}}",
+    "case": "Cambiar estudiantes aquí",
+    "expect": "invalid",
+    "body": "{\"studentIds\":[1]}",
+    "errorPaths": [
+      "studentIds"
+    ]
+  },
+  {
+    "operation": "credentials.register",
+    "method": "POST",
+    "path": "/credentials",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"studentId\":1,\"organizationName\":\"Fundación Asisco\",\"url\":\"https://storage.fundacion.test/certificados/c-1.pdf\",\"workshopId\":1}",
+    "errorPaths": []
+  },
+  {
+    "operation": "credentials.register",
+    "method": "POST",
+    "path": "/credentials",
+    "case": "Sin URL",
+    "expect": "invalid",
+    "body": "{\"studentId\":1,\"organizationName\":\"SENA\"}",
+    "errorPaths": [
+      "url"
+    ]
+  },
+  {
+    "operation": "credentials.register",
+    "method": "POST",
+    "path": "/credentials",
+    "case": "Registrar como valid",
+    "expect": "invalid",
+    "body": "{\"studentId\":1,\"organizationName\":\"SENA\",\"url\":\"https://x.test/c.pdf\",\"status\":\"valid\"}",
+    "errorPaths": [
+      "status"
+    ]
+  },
+  {
+    "operation": "credentials.update",
+    "method": "PATCH",
+    "path": "/credentials/{{credentialId}}",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"status\":\"valid\"}",
+    "errorPaths": []
+  },
+  {
+    "operation": "credentials.update",
+    "method": "PATCH",
+    "path": "/credentials/{{credentialId}}",
+    "case": "Estado fuera del catálogo",
+    "expect": "invalid",
+    "body": "{\"status\":\"approved\"}",
+    "errorPaths": [
+      "status"
+    ]
+  },
+  {
+    "operation": "profiles.update",
+    "method": "PATCH",
+    "path": "/profiles/{{actorId}}",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"firstNames\":\"Ana María\",\"phone\":\"+573001112233\",\"dataProcessingAcceptedAt\":\"2026-10-27T15:00:00Z\"}",
+    "errorPaths": []
+  },
+  {
+    "operation": "profiles.update",
+    "method": "PATCH",
+    "path": "/profiles/{{actorId}}",
+    "case": "Teléfono y documento inválidos",
+    "expect": "invalid",
+    "body": "{\"phone\":\"abc\",\"documentType\":\"XX\"}",
+    "errorPaths": [
+      "phone",
+      "documentType"
+    ]
+  },
+  {
+    "operation": "access.createCatalog",
+    "method": "POST",
+    "path": "/roles",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"code\":\"coordinador\",\"name\":\"Coordinación\"}",
+    "errorPaths": []
+  },
+  {
+    "operation": "access.createCatalog",
+    "method": "POST",
+    "path": "/roles",
+    "case": "Código con espacios",
+    "expect": "invalid",
+    "body": "{\"code\":\"mal código\",\"name\":\"Malo\"}",
+    "errorPaths": [
+      "code"
+    ]
+  },
+  {
+    "operation": "access.assignRole",
+    "method": "POST",
+    "path": "/user-roles",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"userId\":\"a1b2c3d4-0000-4000-8000-000000000001\",\"role\":\"tallerista\",\"app\":\"aula_up\"}",
+    "errorPaths": []
+  },
+  {
+    "operation": "access.assignRole",
+    "method": "POST",
+    "path": "/user-roles",
+    "case": "userId no UUID",
+    "expect": "invalid",
+    "body": "{\"userId\":\"123\",\"role\":\"tallerista\"}",
+    "errorPaths": [
+      "userId"
+    ]
+  }
+]

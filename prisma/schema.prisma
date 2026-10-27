@@ -1,0 +1,432 @@
+// Esquema del módulo de seguimiento y desarrollo de estudiantes.
+// La base de datos (Supabase / Postgres) es compartida: cada módulo maneja su
+// propio esquema de Postgres. Este archivo describe solo lo que este módulo usa.
+//
+// Fuente de verdad de nuestras tablas: database/asisco_login_supabase.sql
+// (checks, triggers de auditoría y borrado lógico, RLS y la FK
+// perfiles → auth.users solo existen allí).
+//
+// Convenciones:
+// - Modelos y campos en inglés; tablas y columnas mapeadas con @@map / @map.
+// - Nuestras tablas: esquema `public`, 6 columnas de auditoría y onDelete: Restrict.
+// - Columnas que apuntan a tablas del módulo administrativo (studentId,
+//   evaluatorId) son BigInt sin relación Prisma: no hay FK física entre módulos.
+// - NUNCA `migrate dev` / `db push`: la BD es compartida.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  // TODO: confirmar el nombre real del esquema del módulo administrativo.
+  schemas  = ["public", "administrativo"]
+}
+
+// ═════════════════════ Acceso (login, roles y permisos) ═════════════════════
+
+/// Aplicación del ecosistema (SAGA-UP, Aula UP, ...).
+model App {
+  code      String    @id @map("codigo")
+  name      String    @map("nombre")
+  createdAt DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  createdBy String?   @map("creado_por") @db.Uuid
+  updatedAt DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+  updatedBy String?   @map("actualizado_por") @db.Uuid
+  deletedAt DateTime? @map("eliminado_en") @db.Timestamptz(6)
+  deletedBy String?   @map("eliminado_por") @db.Uuid
+
+  userRoles UserRole[]
+
+  @@map("aplicaciones")
+  @@schema("public")
+}
+
+model Role {
+  code      String    @id @map("codigo")
+  name      String    @map("nombre")
+  createdAt DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  createdBy String?   @map("creado_por") @db.Uuid
+  updatedAt DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+  updatedBy String?   @map("actualizado_por") @db.Uuid
+  deletedAt DateTime? @map("eliminado_en") @db.Timestamptz(6)
+  deletedBy String?   @map("eliminado_por") @db.Uuid
+
+  userRoles UserRole[]
+
+  @@map("roles")
+  @@schema("public")
+}
+
+/// Perfil de una cuenta (id = auth.users.id). Lo crea el trigger `crear_perfil`.
+model Profile {
+  id                       String    @id @db.Uuid
+  firstNames               String    @default("") @map("nombres")
+  lastNames                String?   @map("apellidos")
+  phone                    String?   @map("celular")
+  documentType             String?   @map("tipo_documento")
+  documentNumber           String?   @unique @map("numero_documento")
+  status                   String    @default("activo") @map("estado") // check: activo | inactivo | bloqueado
+  dataProcessingAcceptedAt DateTime? @map("acepto_tratamiento_datos_en") @db.Timestamptz(6)
+  createdAt                DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  createdBy                String?   @map("creado_por") @db.Uuid
+  updatedAt                DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+  updatedBy                String?   @map("actualizado_por") @db.Uuid
+  deletedAt                DateTime? @map("eliminado_en") @db.Timestamptz(6)
+  deletedBy                String?   @map("eliminado_por") @db.Uuid
+
+  roles         UserRole[] @relation("UserRoles")
+  assignedRoles UserRole[] @relation("AssignedRoles")
+
+  @@map("perfiles")
+  @@schema("public")
+}
+
+model UserRole {
+  id         BigInt    @id @default(autoincrement()) // generated always as identity
+  userId     String    @map("usuario_id") @db.Uuid
+  role       String    @map("rol")
+  app        String?   @map("aplicacion") // null = rol global
+  assignedBy String?   @map("asignado_por") @db.Uuid
+  createdAt  DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  createdBy  String?   @map("creado_por") @db.Uuid
+  updatedAt  DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+  updatedBy  String?   @map("actualizado_por") @db.Uuid
+  deletedAt  DateTime? @map("eliminado_en") @db.Timestamptz(6)
+  deletedBy  String?   @map("eliminado_por") @db.Uuid
+
+  user              Profile  @relation("UserRoles", fields: [userId], references: [id], onDelete: Restrict)
+  roleRef           Role     @relation(fields: [role], references: [code], onDelete: Restrict)
+  appRef            App?     @relation(fields: [app], references: [code], onDelete: Restrict)
+  assignedByProfile Profile? @relation("AssignedRoles", fields: [assignedBy], references: [id], onDelete: Restrict)
+
+  // En la BD es `unique nulls not distinct`.
+  @@unique([userId, role, app])
+  @@map("usuario_roles")
+  @@schema("public")
+}
+
+// ═════════════════════ Administrativos (provisional) ═════════════════════
+
+model Administrator {
+  id             BigInt    @id @default(autoincrement())
+  fullName       String    @map("full_name") // check: 3–150
+  documentType   String    @map("document_type") // check: CC | TI | CE | PA | RC | PPT | NIT
+  documentNumber String    @unique @map("document_number") // check: ^[A-Za-z0-9-]{3,20}$
+  email          String    @unique // en minúsculas (check)
+  phone          String?
+  position       String // check: 2–100
+  status         String    @default("active") // check: active | inactive
+  createdAt      DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  createdBy      String?   @map("creado_por") @db.Uuid
+  updatedAt      DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+  updatedBy      String?   @map("actualizado_por") @db.Uuid
+  deletedAt      DateTime? @map("eliminado_en") @db.Timestamptz(6)
+  deletedBy      String?   @map("eliminado_por") @db.Uuid
+
+  @@map("administrators")
+  @@schema("public")
+}
+
+// ═════════════════════ Habilidades ═════════════════════
+
+model SkillCategory {
+  id          BigInt    @id @default(autoincrement())
+  name        String // único sin distinguir mayúsculas: índice sobre lower(name), solo en SQL
+  description String? // check: 1–500
+  createdAt   DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  createdBy   String?   @map("creado_por") @db.Uuid
+  updatedAt   DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+  updatedBy   String?   @map("actualizado_por") @db.Uuid
+  deletedAt   DateTime? @map("eliminado_en") @db.Timestamptz(6)
+  deletedBy   String?   @map("eliminado_por") @db.Uuid
+
+  skills Skill[]
+
+  @@map("skill_categories")
+  @@schema("public")
+}
+
+model Skill {
+  id              BigInt    @id @default(autoincrement())
+  name            String // único por categoría sin distinguir mayúsculas: índice (skill_category_id, lower(name)), solo en SQL
+  skillCategoryId BigInt    @map("skill_category_id")
+  status          String    @default("active") // check: active | inactive
+  createdAt       DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  createdBy       String?   @map("creado_por") @db.Uuid
+  updatedAt       DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+  updatedBy       String?   @map("actualizado_por") @db.Uuid
+  deletedAt       DateTime? @map("eliminado_en") @db.Timestamptz(6)
+  deletedBy       String?   @map("eliminado_por") @db.Uuid
+
+  category       SkillCategory   @relation(fields: [skillCategoryId], references: [id], onDelete: Restrict)
+  studentSkills  StudentSkill[]
+  workshopSkills WorkshopSkill[]
+
+  @@map("skills")
+  @@schema("public")
+}
+
+model EvaluationScale {
+  id          BigInt    @id @default(autoincrement())
+  code        String    @unique
+  name        String
+  description String?
+  numValue    Decimal   @map("num_value") @db.Decimal(5, 2) // valor de la calificación (orden y promedios)
+  minValue    Decimal   @map("min_value") @db.Decimal(5, 2) // intervalo de promedios de la escala
+  maxValue    Decimal   @map("max_value") @db.Decimal(5, 2)
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  createdBy   String?   @map("creado_por") @db.Uuid
+  updatedAt   DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+  updatedBy   String?   @map("actualizado_por") @db.Uuid
+  deletedAt   DateTime? @map("eliminado_en") @db.Timestamptz(6)
+  deletedBy   String?   @map("eliminado_por") @db.Uuid
+
+  evaluations   EvaluationSkill[]
+  studentSkills StudentSkill[]
+
+  @@map("evaluation_scales")
+  @@schema("public")
+}
+
+/// Nivel de una habilidad en un estudiante, como escala de calificación (diagrama: UserSkills).
+model StudentSkill {
+  id                BigInt    @id @default(autoincrement())
+  studentId         BigInt    @map("student_id") // administrativo.children
+  skillId           BigInt    @map("skill_id")
+  evaluationScaleId BigInt    @map("evaluation_scale_id")
+  createdAt         DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  createdBy         String?   @map("creado_por") @db.Uuid
+  updatedAt         DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+  updatedBy         String?   @map("actualizado_por") @db.Uuid
+  deletedAt         DateTime? @map("eliminado_en") @db.Timestamptz(6)
+  deletedBy         String?   @map("eliminado_por") @db.Uuid
+
+  skill Skill           @relation(fields: [skillId], references: [id], onDelete: Restrict)
+  scale EvaluationScale @relation(fields: [evaluationScaleId], references: [id], onDelete: Restrict)
+
+  @@unique([studentId, skillId])
+  @@map("student_skills")
+  @@schema("public")
+}
+
+// ═════════════════════ Talleres ═════════════════════
+
+model Workshop {
+  id          BigInt    @id @default(autoincrement())
+  evaluatorId BigInt    @map("evaluator_id") // administrativo.professionals
+  name        String
+  startsAt    DateTime? @map("starts_at") @db.Timestamptz(6)
+  endsAt      DateTime? @map("ends_at") @db.Timestamptz(6)
+  status      String    @default("planned") // check: planned | active | finished | cancelled
+  createdAt   DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  createdBy   String?   @map("creado_por") @db.Uuid
+  updatedAt   DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+  updatedBy   String?   @map("actualizado_por") @db.Uuid
+  deletedAt   DateTime? @map("eliminado_en") @db.Timestamptz(6)
+  deletedBy   String?   @map("eliminado_por") @db.Uuid
+
+  skills      WorkshopSkill[]
+  attendances WorkshopAttendance[]
+  credentials Credential[]
+
+  @@map("workshops")
+  @@schema("public")
+}
+
+model WorkshopSkill {
+  id         BigInt    @id @default(autoincrement())
+  workshopId BigInt    @map("workshop_id")
+  skillId    BigInt    @map("skill_id")
+  createdAt  DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  createdBy  String?   @map("creado_por") @db.Uuid
+  updatedAt  DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+  updatedBy  String?   @map("actualizado_por") @db.Uuid
+  deletedAt  DateTime? @map("eliminado_en") @db.Timestamptz(6)
+  deletedBy  String?   @map("eliminado_por") @db.Uuid
+
+  workshop    Workshop          @relation(fields: [workshopId], references: [id], onDelete: Restrict)
+  skill       Skill             @relation(fields: [skillId], references: [id], onDelete: Restrict)
+  evaluations EvaluationSkill[]
+
+  @@unique([workshopId, skillId])
+  @@map("workshop_skills")
+  @@schema("public")
+}
+
+model WorkshopAttendance {
+  id          BigInt    @id @default(autoincrement())
+  studentId   BigInt    @map("student_id") // administrativo.children
+  workshopId  BigInt    @map("workshop_id")
+  attendedAt  DateTime  @default(now()) @map("attended_at") @db.Timestamptz(6)
+  observation String?
+  createdAt   DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  createdBy   String?   @map("creado_por") @db.Uuid
+  updatedAt   DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+  updatedBy   String?   @map("actualizado_por") @db.Uuid
+  deletedAt   DateTime? @map("eliminado_en") @db.Timestamptz(6)
+  deletedBy   String?   @map("eliminado_por") @db.Uuid
+
+  workshop    Workshop          @relation(fields: [workshopId], references: [id], onDelete: Restrict)
+  evaluations EvaluationSkill[]
+
+  @@index([studentId])
+  @@index([workshopId])
+  @@map("workshop_attendances")
+  @@schema("public")
+}
+
+model EvaluationSkill {
+  id                   BigInt    @id @default(autoincrement())
+  workshopAttendanceId BigInt    @map("workshop_attendance_id")
+  workshopSkillId      BigInt    @map("workshop_skill_id")
+  evaluationScaleId    BigInt    @map("evaluation_scale_id")
+  createdAt            DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  createdBy            String?   @map("creado_por") @db.Uuid
+  updatedAt            DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+  updatedBy            String?   @map("actualizado_por") @db.Uuid
+  deletedAt            DateTime? @map("eliminado_en") @db.Timestamptz(6)
+  deletedBy            String?   @map("eliminado_por") @db.Uuid
+
+  attendance    WorkshopAttendance @relation(fields: [workshopAttendanceId], references: [id], onDelete: Restrict)
+  workshopSkill WorkshopSkill      @relation(fields: [workshopSkillId], references: [id], onDelete: Restrict)
+  scale         EvaluationScale    @relation(fields: [evaluationScaleId], references: [id], onDelete: Restrict)
+
+  @@unique([workshopAttendanceId, workshopSkillId])
+  @@map("evaluation_skills")
+  @@schema("public")
+}
+
+// ═════════════════════ Evidencias ═════════════════════
+
+/// Archivo subido. Quién y cuándo: createdBy / createdAt (diagrama: upload_by / upload_at).
+model Evidence {
+  id        BigInt    @id @default(autoincrement())
+  url       String // check: https, máx. 2048
+  title     String // check: 2–150
+  createdAt DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  createdBy String?   @map("creado_por") @db.Uuid
+  updatedAt DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+  updatedBy String?   @map("actualizado_por") @db.Uuid
+  deletedAt DateTime? @map("eliminado_en") @db.Timestamptz(6)
+  deletedBy String?   @map("eliminado_por") @db.Uuid
+
+  students StudentEvidence[]
+
+  @@map("evidences")
+  @@schema("public")
+}
+
+model StudentEvidence {
+  id         BigInt    @id @default(autoincrement())
+  studentId  BigInt    @map("student_id") // administrativo.children
+  evidenceId BigInt    @map("evidence_id")
+  createdAt  DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  createdBy  String?   @map("creado_por") @db.Uuid
+  updatedAt  DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+  updatedBy  String?   @map("actualizado_por") @db.Uuid
+  deletedAt  DateTime? @map("eliminado_en") @db.Timestamptz(6)
+  deletedBy  String?   @map("eliminado_por") @db.Uuid
+
+  evidence Evidence @relation(fields: [evidenceId], references: [id], onDelete: Restrict)
+
+  @@unique([studentId, evidenceId])
+  @@index([evidenceId])
+  @@map("student_evidences")
+  @@schema("public")
+}
+
+model Credential {
+  id               BigInt    @id @default(autoincrement())
+  studentId        BigInt    @map("student_id") // administrativo.children
+  organizationName String    @map("organization_name") // check: 2–150
+  workshopId       BigInt?   @map("workshop_id")
+  url              String // check: https, máx. 2048
+  status           String    @default("pending") // check: pending | valid | revoked
+  createdAt        DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  createdBy        String?   @map("creado_por") @db.Uuid
+  updatedAt        DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+  updatedBy        String?   @map("actualizado_por") @db.Uuid
+  deletedAt        DateTime? @map("eliminado_en") @db.Timestamptz(6)
+  deletedBy        String?   @map("eliminado_por") @db.Uuid
+
+  workshop Workshop? @relation(fields: [workshopId], references: [id], onDelete: Restrict)
+
+  @@index([studentId])
+  @@map("credentials")
+  @@schema("public")
+}
+
+// ═════════════════════ Módulo administrativo (solo lectura) ═════════════════════
+// Estas tablas las crea y administra el módulo administrativo. Este módulo
+// solo las consume: no las escribe, no les agrega auditoría y no forman parte
+// de nuestro SQL. Se mapean tal como están en su modelo (bigint, text, smallint).
+// La nulabilidad no aparece en su diagrama: salvo llaves, se asume opcional.
+
+/// Joven registrado por el módulo administrativo (tabla `children`).
+model Child {
+  id             BigInt    @id @map("child_id")
+  firstName      String?   @map("first_name")
+  lastName       String?   @map("last_name")
+  birthDate      DateTime? @map("birth_date") @db.Date
+  sex            Int?      @db.SmallInt
+  documentType   Int?      @map("document_type") @db.SmallInt
+  documentNumber String?   @map("document_number")
+  admissionDate  DateTime? @map("admission_date") @db.Date
+  exitDate       DateTime? @map("exit_date") @db.Date
+  statusId       Int?      @map("status_id") @db.SmallInt
+  notes          String?
+
+  guardians ChildGuardian[]
+
+  @@map("children")
+  @@schema("administrativo")
+}
+
+/// Acudiente registrado por el módulo administrativo (tabla `guardians`).
+model Guardian {
+  id             BigInt  @id @map("guardian_id")
+  fullName       String? @map("full_name")
+  documentType   String? @map("document_type")
+  documentNumber String? @map("document_number")
+  phone          String?
+  address        String?
+  legalStatusId  String? @map("legal_status_id")
+
+  children ChildGuardian[]
+
+  @@map("guardians")
+  @@schema("administrativo")
+}
+
+/// Vínculo joven–acudiente del módulo administrativo (tabla `children_guardians`).
+model ChildGuardian {
+  id               BigInt    @id @map("child_guardian_id")
+  childId          BigInt    @map("child_id")
+  guardianId       BigInt    @map("guardian_id")
+  guardianshipType String?   @map("guardianship_type")
+  startDate        DateTime? @map("start_date") @db.Date
+  endDate          DateTime? @map("end_date") @db.Date
+
+  child    Child    @relation(fields: [childId], references: [id])
+  guardian Guardian @relation(fields: [guardianId], references: [id])
+
+  @@map("children_guardians")
+  @@schema("administrativo")
+}
+
+/// Tallerista (tabla `professionals`). Sus datos personales viven en `staff`,
+/// que no se integra: aquí solo queda `staffId` como referencia.
+model Professional {
+  id           BigInt   @id @map("professional_id")
+  staffId      BigInt   @map("staff_id")
+  titles       String?
+  institutions String?
+  observations String?
+  timeDonor    Boolean? @map("time_donor")
+
+  @@map("professionals")
+  @@schema("administrativo")
+}
