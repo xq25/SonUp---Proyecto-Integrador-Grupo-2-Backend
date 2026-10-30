@@ -2,22 +2,23 @@ import type { ActorId } from "../../shared/domain/auditable.js";
 import { dayInAppTimeZone } from "../../shared/domain/dates.js";
 import { ConflictError, NotFoundError, ValidationError } from "../../shared/domain/errors.js";
 import { parseInput } from "../../shared/application/validation.js";
-import { hasLeftFoundation } from "../../administrative/domain/administrative.entity.js";
-import type { ChildReader } from "../../administrative/domain/administrative.readers.js";
+import { hasLeftFoundation } from "../../administrative/domain/child.entity.js";
+import type { ChildReader } from "../../administrative/domain/child.reader.js";
 import type { SkillGradeRecalculator } from "../../evaluations/domain/skill-grade-recalculator.js";
 import type {
   RegisterAttendanceInput,
   UpdateAttendanceInput,
   WorkshopAttendance,
-} from "../domain/workshop.entity.js";
+} from "../domain/workshop-attendance.entity.js";
 import {
   ensureAttendanceDeletable,
   ensureAttendanceEditable,
   ensureCanRegisterAttendance,
   ensureValidAttendanceDate,
 } from "../domain/attendance.rules.js";
-import type { WorkshopAttendanceRepository, WorkshopRepository } from "../domain/workshop.repository.js";
-import { registerAttendanceSchema, updateAttendanceSchema } from "./workshop.schemas.js";
+import type { WorkshopRepository } from "../domain/workshop.repository.js";
+import type { WorkshopAttendanceRepository } from "../domain/workshop-attendance.repository.js";
+import { registerAttendanceSchema, updateAttendanceSchema } from "./attendance.schemas.js";
 
 /** Asistencia de estudiantes a talleres. */
 export class AttendanceService {

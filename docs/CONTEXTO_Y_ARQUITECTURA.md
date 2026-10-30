@@ -229,7 +229,7 @@ Los valores de `status` de todas las tablas del módulo están aprobados (ver [V
 \* Nombre de esquema provisional.
 
 - **Solo lectura:** se mapean con `@@schema("administrativo")` y sus nombres tal cual, sin auditoría, sin escritura y fuera de nuestro SQL.
-- **Puertos `*Reader`:** `ChildReader`, `GuardianReader` y `ProfessionalReader`, solo con métodos `find*`. Los usan `AdministrativeService` y los servicios que validan estudiantes o talleristas.
+- **Puertos `*Reader`:** `ChildReader`, `GuardianReader`, `ChildGuardianReader` y `ProfessionalReader`, solo con métodos `find*`. Los usan `ChildrenService`, `GuardiansService`, `ProfessionalsService` y los servicios que validan estudiantes o talleristas.
 - **Nulabilidad asumida:** su diagrama no la indica, así que, salvo las llaves, todo se asume opcional.
 
 ### 3.4 Calificaciones
@@ -302,22 +302,25 @@ src/
 └── evidences/        # evidences, student_evidences, credentials
 ```
 
-Cada feature tiene la misma forma:
+Cada feature tiene la misma forma y **un archivo por entidad en cada capa** ([ADR-004](decisiones/ADR-004-un-archivo-por-entidad.md)). Por ejemplo, `evidences/` tiene `evidence.*`, `student-evidence.*` y `credential.*` por separado:
 
 ```
 <feature>/
 ├── domain/
-│   ├── <entity>.entity.ts         # Tipos de dominio y DTOs de entrada
-│   └── <entity>.repository.ts     # Interfaces de repositorio (puertos); *.readers.ts si es solo lectura
+│   ├── <entity>.entity.ts         # La entidad con sus DTOs, filtros y enums de estado
+│   ├── <entity>.repository.ts     # Su puerto (*.reader.ts si es solo lectura)
+│   └── <entity>.rules.ts          # Reglas puras de la entidad, si las tiene
 ├── application/
-│   ├── <feature>.service.ts       # Casos de uso y reglas de negocio
+│   ├── <entities>.service.ts      # Casos de uso y reglas de negocio de la entidad
 │   └── <entity>.schemas.ts        # Esquemas Zod de entrada (nivel 1, ADR-001)
 ├── infrastructure/
-│   └── prisma-<entity>.repository.ts   # Adaptadores Prisma
+│   └── prisma-<entity>.repository.ts   # Adaptador Prisma
 ├── http/
-│   └── <feature>.routes.ts        # Router Express: solo servicios, sin reglas de negocio (ADR-002)
+│   └── <entities>.routes.ts       # Router Express: solo servicios, sin reglas de negocio (ADR-002)
 └── index.ts                       # API pública: dominio + aplicación (sin infraestructura)
 ```
+
+Van en el mismo archivo solo los tipos que pertenecen a la entidad (DTOs de entrada, filtros, enums de estado, vistas como `StudentSkillGrade`). Las piezas compartidas por varias entidades de la feature van en su propio archivo (p. ej. `access/application/catalog-code.schema.ts`).
 
 ### Reglas de dependencia
 
@@ -343,15 +346,24 @@ Todos los métodos que escriben reciben `actor`. Eliminar es siempre borrado ló
 
 | Clave | Servicio | Casos de uso principales |
 |---|---|---|
-| `administrative` | `AdministrativeService` | Lectura de estudiantes, acudientes (con vínculos vigentes) y talleristas |
+| `auth` | `AuthService` | `register`, `login`, `getProfile(token)`: remiten al módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)) |
+| `children` | `ChildrenService` | `get`, `findByDocument`, `list`, `getGuardians` (vínculos vigentes por defecto) |
+| `guardians` | `GuardiansService` | `get`, `list`, `getChildren` |
+| `professionals` | `ProfessionalsService` | `get`, `findByStaffId`, `list` |
 | `administrators` | `AdministratorsService` | `get`, `list`, `create` y `update` (documento y email únicos; email normalizado), `delete`, `restore` |
 | `profiles` | `ProfilesService` | `get`, `list`, `update`, `delete`, `restore` |
-| `access` | `AccessService` | Catálogos de aplicaciones y roles; `assignRole`, `revokeRole`, `getUserRoles`, `hasRole` |
-| `skills` | `SkillsService` | Categorías y habilidades (CRUD; nombres únicos sin distinguir mayúsculas, el de la habilidad por categoría; no se elimina una categoría con habilidades ni una habilidad con historial); `listStudentSkills` (calificaciones calculadas), `getCategoryAverages` (promedio por categoría) |
-| `evaluations` | `EvaluationsService` | Escalas: CRUD con las reglas de §3.4 (rango 0–5, sin solapamiento, valores fijos si está en uso), ordenadas por `num_value`. `classify(valor)` (redondea a 2 decimales), `getCoverageGaps()`. `evaluate` y `removeEvaluation` (validan taller `active`/no cerrado, escala y que el estudiante siga activo, y **recalculan la calificación** de la habilidad del estudiante), `recalculateStudentSkill`, `listByAttendance` |
-| `workshops` | `WorkshopsService` | CRUD de talleres con ciclo de vida (§3.6: transiciones, fechas por estado, solo `planned` editable, con asistencias no se elimina); `addSkill` y `removeSkill` (solo en `planned`; no se quita con evaluaciones; recalculan calificaciones), `listSkills` |
+| `apps` / `roles` | `AppsService` / `RolesService` | Catálogos: `list`, `create` (código único) |
+| `userRoles` | `UserRolesService` | `assign`, `revoke`, `getUserRoles`, `hasRole` |
+| `skillCategories` | `SkillCategoriesService` | CRUD (nombre único sin distinguir mayúsculas; no se elimina con habilidades vigentes) |
+| `skills` | `SkillsService` | CRUD (nombre único por categoría sin distinguir mayúsculas; con historial no se elimina, se inactiva) |
+| `studentSkills` | `StudentSkillsService` | `listByStudent` (calificaciones calculadas), `getCategoryAverages` (promedio por categoría) |
+| `evaluationScales` | `EvaluationScalesService` | CRUD con las reglas de §3.4 (rango 0–5, sin solapamiento, valores fijos si está en uso), ordenadas por `num_value`. `classify(valor)` (redondea a 2 decimales), `getCoverageGaps()` |
+| `evaluations` | `EvaluationsService` | `evaluate` y `remove` (validan taller `active`/no cerrado, escala y que el estudiante siga activo, y **recalculan la calificación** de la habilidad del estudiante), `recalculateStudentSkill`, `listByAttendance` |
+| `workshops` | `WorkshopsService` | CRUD de talleres con ciclo de vida (§3.6: transiciones, fechas por estado, solo `planned` editable, con asistencias no se elimina) |
+| `workshopSkills` | `WorkshopSkillsService` | `add` y `remove` (solo en `planned`; no se quita con evaluaciones; recalculan calificaciones), `listByWorkshop` |
 | `attendance` | `AttendanceService` | `register` (§3.8: taller `active`, estudiante activo, fecha válida, una por día), `listByWorkshop`, `listByStudent`, `update` (con el taller cerrado solo la observación; si cambia la fecha, recalcula calificaciones), `delete` (no con el taller cerrado; recalcula calificaciones) |
-| `evidences` | `EvidencesService` | `upload` (1 a 50 estudiantes activos, de forma atómica), `update`, `delete` (oculta también sus relaciones), `linkStudent` (estudiante activo, máx. 50), `unlinkStudent` (no el último), `listByStudent`, `listStudents` |
+| `evidences` | `EvidencesService` | `upload` (1 a 50 estudiantes activos, de forma atómica), `update`, `delete` (oculta también sus relaciones) |
+| `studentEvidences` | `StudentEvidencesService` | `link` (estudiante activo, máx. 50), `unlink` (no el último), `listByStudent`, `listByEvidence` |
 | `credentials` | `CredentialsService` | `register` (nace `pending`; taller opcional `finished` y con asistencia), `update` (transiciones; datos solo en `pending`), `listByStudent`, `delete` (solo `pending`) |
 
 Ejemplo de uso:
@@ -371,11 +383,11 @@ await app.evaluations.evaluate(
 
 1. Crear la tabla en `database/asisco_login_supabase.sql` y llamar a `select public.habilitar_auditoria('<tabla>', '<pk>', ...)`.
 2. Reflejarla en `prisma/schema.prisma` con `@@schema("public")`, las 6 columnas de auditoría y `onDelete: Restrict`. Luego ejecutar `npm run prisma:generate`.
-3. Crear `src/<feature>/domain/`: la entidad, que extiende `AuditableEntity`, y la interfaz del repositorio, con `actor` en los métodos que escriben.
-4. Crear `src/<feature>/application/<feature>.service.ts`, que reciba las interfaces por constructor.
+3. Crear `src/<feature>/domain/<entity>.entity.ts` (la entidad, que extiende `AuditableEntity`, con sus DTOs) y `<entity>.repository.ts` (el puerto, con `actor` en los métodos que escriben). Un archivo por entidad ([ADR-004](decisiones/ADR-004-un-archivo-por-entidad.md)).
+4. Crear `src/<feature>/application/<entities>.service.ts` y `<entity>.schemas.ts`; el servicio recibe las interfaces por constructor.
 5. Crear `src/<feature>/infrastructure/prisma-<entity>.repository.ts`. Debe usar `auditSelect`, `notDeleted` y `audit.*(actor)`, y su `delete` debe hacer un `update` con `audit.delete`.
 6. Exportar dominio y aplicación en `src/<feature>/index.ts` y registrar la feature en `src/container.ts`.
-7. Crear `src/<feature>/http/<feature>.routes.ts`, montarlo en `src/shared/http/app.ts` y documentar sus rutas (y cuerpos) en `scripts/request-catalog.ts`. Ejecutar `npm run docs:requests`.
+7. Crear `src/<feature>/http/<entities>.routes.ts`, montarlo en `src/shared/http/app.ts` y documentar sus rutas (y cuerpos) en `scripts/request-catalog.ts`. Ejecutar `npm run docs:requests`.
 8. Ejecutar `npm run typecheck`.
 
 ---
@@ -405,7 +417,7 @@ await app.evaluations.evaluate(
 - [ ] Ligar el `actor` (cuenta) con su tallerista para que solo el tallerista del taller pueda evaluar (§3.9 de VALIDACIONES.md).
 - [x] Capa de entrada HTTP: Express 5 bajo `/api/v1`, actor del JWT de Supabase ([ADR-002](decisiones/ADR-002-capa-http-express.md)).
 - [x] Autenticación del front a través de nuestra API: `/auth/register`, `/auth/login`, `/auth/profile` remiten al módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)).
-- [ ] Validar en `authenticate` el token del login administrativo (con `AuthGateway.getProfile`) y definir cómo su id de usuario llega al `actor` de la auditoría.
+- [ ] **En pausa** hasta que el módulo administrativo defina la tecnología del token. Luego: validar en `authenticate` el token del login administrativo (con `AuthGateway.getProfile`) y definir cómo su id de usuario llega al `actor` de la auditoría.
 - [ ] Pedir al módulo administrativo ejemplos de respuesta exitosa (registro, login, perfil) y una excepción del límite de intentos para nuestra IP.
 - [ ] Configurar `SUPABASE_URL` y probar la API con un `access_token` real de Supabase.
 - [ ] Autorización por rol: la gestiona el **equipo de seguridad e información personal** (login, cuentas y permisos de todos los actores). Nosotros les entregaremos la matriz ruta → roles permitidos (base: `routes` en `scripts/request-catalog.ts`). Hoy cualquier perfil activo puede llamar a todas las rutas. Falta definir con ellos el mecanismo (gateway, roles en el token o consulta a sus tablas).

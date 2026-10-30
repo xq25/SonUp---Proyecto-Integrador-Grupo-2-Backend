@@ -142,6 +142,8 @@ Se adopta **Zod** como la herramienta del **nivel 1**: un esquema por cada entra
 | `profiles` | `profile.schemas.ts` | actualizar |
 | `access` | `access.schemas.ts` | crear rol y aplicación; asignar rol |
 
+> Desde el 2026-10-30 los esquemas están separados por entidad (p. ej. `skill-category.schemas.ts` y `skill.schemas.ts`; `evidence.schemas.ts` y `credential.schemas.ts`): ver [ADR-004](ADR-004-un-archivo-por-entidad.md). La tabla conserva la organización de la migración.
+
 `administrative` no tiene esquemas: solo lee. Los parámetros sueltos (ids en `get`, `addSkill`, `linkStudent`…) y los filtros de `list` siguen tipados por TypeScript, sin esquema.
 
 **Esquemas compartidos agregados:** `personNameSchema` (solo letras, tildes, espacios, `'` y `-`), `phoneSchema` (E.164), `documentNumberSchema` y `uuidSchema`.

@@ -39,9 +39,9 @@ await check("BD responde", async () => {
 });
 
 console.log("\nNuestro esquema (database/asisco_login_supabase.sql)");
-await check("Aplicaciones", async () => `${(await app.access.listApps()).length} (semilla: 8)`);
-await check("Roles", async () => `${(await app.access.listRoles()).length} (semilla: 8)`);
-await check("Escalas de evaluación", async () => `${(await app.evaluations.listScales(false)).length}`);
+await check("Aplicaciones", async () => `${(await app.apps.list()).length} (semilla: 8)`);
+await check("Roles", async () => `${(await app.roles.list()).length} (semilla: 8)`);
+await check("Escalas de evaluación", async () => `${(await app.evaluationScales.list(false)).length}`);
 await check("Talleres", async () => `${(await app.workshops.list()).length}`);
 await check("Triggers de auditoría y borrado lógico", async () => {
   const [row] = await app.prisma.$queryRaw<{ n: number }[]>`
@@ -53,9 +53,9 @@ await check("Triggers de auditoría y borrado lógico", async () => {
 });
 
 console.log("\nMódulo administrativo (solo lectura)");
-await check("Jóvenes (children)", async () => `${(await app.administrative.listChildren()).length}`);
-await check("Acudientes (guardians)", async () => `${(await app.administrative.listGuardians()).length}`);
-await check("Talleristas (professionals)", async () => `${(await app.administrative.listProfessionals()).length}`);
+await check("Jóvenes (children)", async () => `${(await app.children.list()).length}`);
+await check("Acudientes (guardians)", async () => `${(await app.guardians.list()).length}`);
+await check("Talleristas (professionals)", async () => `${(await app.professionals.list()).length}`);
 
 const actor = process.env["DB_CHECK_ACTOR"];
 if (actor) {

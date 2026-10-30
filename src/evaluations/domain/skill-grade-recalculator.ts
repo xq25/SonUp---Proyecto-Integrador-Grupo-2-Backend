@@ -1,5 +1,5 @@
 import type { ActorId } from "../../shared/domain/auditable.js";
-import type { StudentSkill } from "../../skills/domain/skill.entity.js";
+import type { StudentSkill } from "../../skills/domain/student-skill.entity.js";
 
 /**
  * Puerto para recalcular las calificaciones (`student_skills`) cuando cambian

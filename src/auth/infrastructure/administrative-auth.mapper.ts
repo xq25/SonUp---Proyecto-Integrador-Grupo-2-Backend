@@ -1,11 +1,7 @@
 import type { FieldIssue } from "../../shared/domain/errors.js";
-import type {
-  AuthSession,
-  AuthUser,
-  LoginInput,
-  RegisterUserInput,
-  RegistrationResult,
-} from "../domain/auth.entity.js";
+import type { AuthSession, LoginInput } from "../domain/auth-session.entity.js";
+import type { AuthUser } from "../domain/auth-user.entity.js";
+import type { RegisterUserInput, RegistrationResult } from "../domain/registration.entity.js";
 
 // Traducción entre el formato del servicio de autenticación del módulo
 // administrativo y los DTOs de este módulo (ADR-003).

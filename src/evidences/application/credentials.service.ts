@@ -1,17 +1,18 @@
 import type { ActorId } from "../../shared/domain/auditable.js";
 import { NotFoundError, ValidationError } from "../../shared/domain/errors.js";
 import { parseInput } from "../../shared/application/validation.js";
-import type { ChildReader } from "../../administrative/domain/administrative.readers.js";
-import type { WorkshopAttendanceRepository, WorkshopRepository } from "../../workshops/domain/workshop.repository.js";
+import type { ChildReader } from "../../administrative/domain/child.reader.js";
+import type { WorkshopRepository } from "../../workshops/domain/workshop.repository.js";
+import type { WorkshopAttendanceRepository } from "../../workshops/domain/workshop-attendance.repository.js";
 import {
   INITIAL_CREDENTIAL_STATUS,
   ensureCanTransitionCredential,
   ensureCredentialDeletable,
   ensureCredentialEditable,
 } from "../domain/credential.rules.js";
-import type { Credential, RegisterCredentialInput, UpdateCredentialInput } from "../domain/evidence.entity.js";
-import type { CredentialRepository } from "../domain/evidence.repository.js";
-import { registerCredentialSchema, updateCredentialSchema } from "./evidence.schemas.js";
+import type { Credential, RegisterCredentialInput, UpdateCredentialInput } from "../domain/credential.entity.js";
+import type { CredentialRepository } from "../domain/credential.repository.js";
+import { registerCredentialSchema, updateCredentialSchema } from "./credential.schemas.js";
 
 /**
  * Credenciales o certificados que obtienen los estudiantes (§3.12).

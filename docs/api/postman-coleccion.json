@@ -1609,7 +1609,7 @@
       "name": "Acceso (roles y aplicaciones)",
       "item": [
         {
-          "name": "Crear rol o aplicación · válido",
+          "name": "Crear aplicación · válido",
           "event": [
             {
               "listen": "prerequest",
@@ -1665,7 +1665,7 @@
           }
         },
         {
-          "name": "Crear rol o aplicación · Código con espacios",
+          "name": "Crear aplicación · Código con espacios",
           "event": [
             {
               "listen": "test",
@@ -1712,7 +1712,7 @@
           }
         },
         {
-          "name": "Crear rol o aplicación · válido",
+          "name": "Crear rol · válido",
           "event": [
             {
               "listen": "prerequest",
@@ -1768,7 +1768,7 @@
           }
         },
         {
-          "name": "Crear rol o aplicación · Código con espacios",
+          "name": "Crear rol · Código con espacios",
           "event": [
             {
               "listen": "test",

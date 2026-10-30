@@ -37,32 +37,3 @@ export interface WorkshopFilter extends QueryOptions {
   /** Busca en el nombre. */
   search?: string;
 }
-
-/** Habilidad que se trabaja en un taller. */
-export interface WorkshopSkill extends AuditableEntity {
-  id: bigint;
-  workshopId: bigint;
-  skillId: bigint;
-}
-
-/** Asistencia de un estudiante (`child_id` del módulo administrativo) a un taller. */
-export interface WorkshopAttendance extends AuditableEntity {
-  id: bigint;
-  studentId: bigint;
-  workshopId: bigint;
-  attendedAt: Date;
-  observation: string | null;
-}
-
-export interface RegisterAttendanceInput {
-  studentId: bigint;
-  workshopId: bigint;
-  /** Por defecto, ahora (now() en la BD). */
-  attendedAt?: Date;
-  observation?: string | null;
-}
-
-export interface UpdateAttendanceInput {
-  attendedAt?: Date;
-  observation?: string | null;
-}

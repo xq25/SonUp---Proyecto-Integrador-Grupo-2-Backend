@@ -195,7 +195,7 @@
     ]
   },
   {
-    "operation": "skills.createCategory",
+    "operation": "skillCategories.create",
     "method": "POST",
     "path": "/skill-categories",
     "case": "Cuerpo válido",
@@ -204,7 +204,7 @@
     "errorPaths": []
   },
   {
-    "operation": "skills.createCategory",
+    "operation": "skillCategories.create",
     "method": "POST",
     "path": "/skill-categories",
     "case": "Nombre de 1 carácter",
@@ -215,7 +215,7 @@
     ]
   },
   {
-    "operation": "skills.createCategory",
+    "operation": "skillCategories.create",
     "method": "POST",
     "path": "/skill-categories",
     "case": "Descripción de más de 500",
@@ -226,7 +226,7 @@
     ]
   },
   {
-    "operation": "skills.createCategory",
+    "operation": "skillCategories.create",
     "method": "POST",
     "path": "/skill-categories",
     "case": "Sin nombre",
@@ -237,7 +237,7 @@
     ]
   },
   {
-    "operation": "skills.updateCategory",
+    "operation": "skillCategories.update",
     "method": "PATCH",
     "path": "/skill-categories/{{skillCategoryId}}",
     "case": "Cuerpo válido",
@@ -246,7 +246,7 @@
     "errorPaths": []
   },
   {
-    "operation": "skills.updateCategory",
+    "operation": "skillCategories.update",
     "method": "PATCH",
     "path": "/skill-categories/{{skillCategoryId}}",
     "case": "Campo no permitido",
@@ -257,7 +257,7 @@
     ]
   },
   {
-    "operation": "skills.createSkill",
+    "operation": "skills.create",
     "method": "POST",
     "path": "/skills",
     "case": "Cuerpo válido",
@@ -266,7 +266,7 @@
     "errorPaths": []
   },
   {
-    "operation": "skills.createSkill",
+    "operation": "skills.create",
     "method": "POST",
     "path": "/skills",
     "case": "Categoría no numérica",
@@ -277,7 +277,7 @@
     ]
   },
   {
-    "operation": "skills.createSkill",
+    "operation": "skills.create",
     "method": "POST",
     "path": "/skills",
     "case": "Categoría negativa",
@@ -288,7 +288,7 @@
     ]
   },
   {
-    "operation": "skills.createSkill",
+    "operation": "skills.create",
     "method": "POST",
     "path": "/skills",
     "case": "Estado inválido",
@@ -299,7 +299,7 @@
     ]
   },
   {
-    "operation": "skills.updateSkill",
+    "operation": "skills.update",
     "method": "PATCH",
     "path": "/skills/{{skillId}}",
     "case": "Cuerpo válido",
@@ -308,7 +308,7 @@
     "errorPaths": []
   },
   {
-    "operation": "skills.updateSkill",
+    "operation": "skills.update",
     "method": "PATCH",
     "path": "/skills/{{skillId}}",
     "case": "Nombre vacío",
@@ -319,7 +319,7 @@
     ]
   },
   {
-    "operation": "evaluations.createScale",
+    "operation": "evaluationScales.create",
     "method": "POST",
     "path": "/evaluation-scales",
     "case": "Cuerpo válido",
@@ -328,7 +328,7 @@
     "errorPaths": []
   },
   {
-    "operation": "evaluations.createScale",
+    "operation": "evaluationScales.create",
     "method": "POST",
     "path": "/evaluation-scales",
     "case": "Código en minúsculas",
@@ -339,7 +339,7 @@
     ]
   },
   {
-    "operation": "evaluations.createScale",
+    "operation": "evaluationScales.create",
     "method": "POST",
     "path": "/evaluation-scales",
     "case": "Valor mayor a 5",
@@ -350,7 +350,7 @@
     ]
   },
   {
-    "operation": "evaluations.createScale",
+    "operation": "evaluationScales.create",
     "method": "POST",
     "path": "/evaluation-scales",
     "case": "Más de 2 decimales",
@@ -361,7 +361,7 @@
     ]
   },
   {
-    "operation": "evaluations.createScale",
+    "operation": "evaluationScales.create",
     "method": "POST",
     "path": "/evaluation-scales",
     "case": "Valor como texto",
@@ -372,7 +372,7 @@
     ]
   },
   {
-    "operation": "evaluations.updateScale",
+    "operation": "evaluationScales.update",
     "method": "PATCH",
     "path": "/evaluation-scales/{{evaluationScaleId}}",
     "case": "Cuerpo válido",
@@ -381,7 +381,7 @@
     "errorPaths": []
   },
   {
-    "operation": "evaluations.updateScale",
+    "operation": "evaluationScales.update",
     "method": "PATCH",
     "path": "/evaluation-scales/{{evaluationScaleId}}",
     "case": "Activo como texto",
@@ -704,7 +704,27 @@
     ]
   },
   {
-    "operation": "access.createCatalog",
+    "operation": "apps.create",
+    "method": "POST",
+    "path": "/apps",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"code\":\"coordinador\",\"name\":\"Coordinación\"}",
+    "errorPaths": []
+  },
+  {
+    "operation": "apps.create",
+    "method": "POST",
+    "path": "/apps",
+    "case": "Código con espacios",
+    "expect": "invalid",
+    "body": "{\"code\":\"mal código\",\"name\":\"Malo\"}",
+    "errorPaths": [
+      "code"
+    ]
+  },
+  {
+    "operation": "roles.create",
     "method": "POST",
     "path": "/roles",
     "case": "Cuerpo válido",
@@ -713,7 +733,7 @@
     "errorPaths": []
   },
   {
-    "operation": "access.createCatalog",
+    "operation": "roles.create",
     "method": "POST",
     "path": "/roles",
     "case": "Código con espacios",
@@ -724,7 +744,7 @@
     ]
   },
   {
-    "operation": "access.assignRole",
+    "operation": "userRoles.assign",
     "method": "POST",
     "path": "/user-roles",
     "case": "Cuerpo válido",
@@ -733,7 +753,7 @@
     "errorPaths": []
   },
   {
-    "operation": "access.assignRole",
+    "operation": "userRoles.assign",
     "method": "POST",
     "path": "/user-roles",
     "case": "userId no UUID",

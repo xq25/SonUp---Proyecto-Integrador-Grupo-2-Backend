@@ -1,7 +1,9 @@
 import type { ActorId } from "../../shared/domain/auditable.js";
-import type { StudentSkill } from "../../skills/domain/skill.entity.js";
-import type { StudentSkillRepository } from "../../skills/domain/skill.repository.js";
-import type { EvaluationScaleRepository, EvaluationSkillRepository, StudentSkillPair } from "../domain/evaluation.repository.js";
+import type { StudentSkill } from "../../skills/domain/student-skill.entity.js";
+import type { StudentSkillRepository } from "../../skills/domain/student-skill.repository.js";
+import type { EvaluationScaleRepository } from "../domain/evaluation-scale.repository.js";
+import type { StudentSkillPair } from "../domain/evaluation-skill.entity.js";
+import type { EvaluationSkillRepository } from "../domain/evaluation-skill.repository.js";
 import { accumulateSkillGrade } from "../domain/grading.js";
 import type { SkillGradeRecalculator } from "../domain/skill-grade-recalculator.js";
 

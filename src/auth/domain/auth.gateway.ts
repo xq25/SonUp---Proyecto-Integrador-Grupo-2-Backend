@@ -1,4 +1,6 @@
-import type { AuthSession, AuthUser, LoginInput, RegisterUserInput, RegistrationResult } from "./auth.entity.js";
+import type { AuthSession, LoginInput } from "./auth-session.entity.js";
+import type { AuthUser } from "./auth-user.entity.js";
+import type { RegisterUserInput, RegistrationResult } from "./registration.entity.js";
 
 /**
  * Puerto hacia el servicio de autenticación del módulo administrativo.

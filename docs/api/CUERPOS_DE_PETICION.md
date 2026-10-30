@@ -105,10 +105,10 @@
 | `GET` | `/profiles/:userId/roles` | Roles del usuario | `app` |  |
 | `GET` | `/profiles/:userId/roles/:role` | ¿Tiene el rol? → `{ hasRole }` | `app` |  |
 | `GET` | `/apps` | Aplicaciones |  |  |
-| `POST` | `/apps` | Crear aplicación |  | [`access.createCatalog`](#accesscreatecatalog) |
+| `POST` | `/apps` | Crear aplicación |  | [`apps.create`](#appscreate) |
 | `GET` | `/roles` | Roles |  |  |
-| `POST` | `/roles` | Crear rol |  | [`access.createCatalog`](#accesscreatecatalog) |
-| `POST` | `/user-roles` | Asignar rol |  | [`access.assignRole`](#accessassignrole) |
+| `POST` | `/roles` | Crear rol |  | [`roles.create`](#rolescreate) |
+| `POST` | `/user-roles` | Asignar rol |  | [`userRoles.assign`](#userrolesassign) |
 | `DELETE` | `/user-roles/:id` | Revocar rol |  |  |
 
 ### Perfiles
@@ -128,8 +128,8 @@
 |---|---|---|---|---|
 | `GET` | `/skill-categories` | Categorías |  |  |
 | `GET` | `/skill-categories/:id` | Categoría |  |  |
-| `POST` | `/skill-categories` | Crear categoría |  | [`skills.createCategory`](#skillscreatecategory) |
-| `PATCH` | `/skill-categories/:id` | Actualizar categoría |  | [`skills.updateCategory`](#skillsupdatecategory) |
+| `POST` | `/skill-categories` | Crear categoría |  | [`skillCategories.create`](#skillcategoriescreate) |
+| `PATCH` | `/skill-categories/:id` | Actualizar categoría |  | [`skillCategories.update`](#skillcategoriesupdate) |
 | `DELETE` | `/skill-categories/:id` | Eliminar categoría (sin habilidades) |  |  |
 
 ### Habilidades
@@ -138,8 +138,8 @@
 |---|---|---|---|---|
 | `GET` | `/skills` | Habilidades | `skillCategoryId`, `status`, `search`, `includeDeleted` |  |
 | `GET` | `/skills/:id` | Habilidad |  |  |
-| `POST` | `/skills` | Crear habilidad |  | [`skills.createSkill`](#skillscreateskill) |
-| `PATCH` | `/skills/:id` | Actualizar habilidad |  | [`skills.updateSkill`](#skillsupdateskill) |
+| `POST` | `/skills` | Crear habilidad |  | [`skills.create`](#skillscreate) |
+| `PATCH` | `/skills/:id` | Actualizar habilidad |  | [`skills.update`](#skillsupdate) |
 | `DELETE` | `/skills/:id` | Eliminar habilidad (sin historial) |  |  |
 
 ### Escalas de evaluación
@@ -150,8 +150,8 @@
 | `GET` | `/evaluation-scales/coverage-gaps` | Tramos de 0–5 sin escala activa |  |  |
 | `GET` | `/evaluation-scales/classify` | Escala en la que cae un valor | `value` (obligatorio) |  |
 | `GET` | `/evaluation-scales/:id` | Escala |  |  |
-| `POST` | `/evaluation-scales` | Crear escala |  | [`evaluations.createScale`](#evaluationscreatescale) |
-| `PATCH` | `/evaluation-scales/:id` | Actualizar escala |  | [`evaluations.updateScale`](#evaluationsupdatescale) |
+| `POST` | `/evaluation-scales` | Crear escala |  | [`evaluationScales.create`](#evaluationscalescreate) |
+| `PATCH` | `/evaluation-scales/:id` | Actualizar escala |  | [`evaluationScales.update`](#evaluationscalesupdate) |
 | `DELETE` | `/evaluation-scales/:id` | Eliminar escala (si nunca se usó) |  |  |
 
 ### Talleres
@@ -366,9 +366,9 @@
 
 ## Cuerpos · feature `skills`
 
-### skills.createCategory
+### skillCategories.create
 
-**Crear categoría de habilidades** · `POST /api/v1/skill-categories` · `app.skills.createCategory(body, actor)`
+**Crear categoría de habilidades** · `POST /api/v1/skill-categories` · `app.skillCategories.create(body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -396,9 +396,9 @@
 
 - Nombre único sin distinguir mayúsculas → 409
 
-### skills.updateCategory
+### skillCategories.update
 
-**Actualizar categoría** · `PATCH /api/v1/skill-categories/:id` · `app.skills.updateCategory(id, body, actor)`
+**Actualizar categoría** · `PATCH /api/v1/skill-categories/:id` · `app.skillCategories.update(id, body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -424,9 +424,9 @@
 - Nombre único → 409
 - Se puede renombrar aunque tenga habilidades
 
-### skills.createSkill
+### skills.create
 
-**Crear habilidad** · `POST /api/v1/skills` · `app.skills.createSkill(body, actor)`
+**Crear habilidad** · `POST /api/v1/skills` · `app.skills.create(body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -456,9 +456,9 @@
 - La categoría debe existir → 404
 - Nombre único por categoría, sin distinguir mayúsculas → 409
 
-### skills.updateSkill
+### skills.update
 
-**Actualizar habilidad** · `PATCH /api/v1/skills/:id` · `app.skills.updateSkill(id, body, actor)`
+**Actualizar habilidad** · `PATCH /api/v1/skills/:id` · `app.skills.update(id, body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -488,9 +488,9 @@
 
 ## Cuerpos · feature `evaluations`
 
-### evaluations.createScale
+### evaluationScales.create
 
-**Crear escala de evaluación** · `POST /api/v1/evaluation-scales` · `app.evaluations.createScale(body, actor)`
+**Crear escala de evaluación** · `POST /api/v1/evaluation-scales` · `app.evaluationScales.create(body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -529,9 +529,9 @@
 - `code` único y `name` único → 409
 - Si está activa, su intervalo no puede solaparse con otra escala activa → 409
 
-### evaluations.updateScale
+### evaluationScales.update
 
-**Actualizar escala** · `PATCH /api/v1/evaluation-scales/:id` · `app.evaluations.updateScale(id, body, actor)`
+**Actualizar escala** · `PATCH /api/v1/evaluation-scales/:id` · `app.evaluationScales.update(id, body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -907,9 +907,9 @@
 
 ## Cuerpos · feature `access`
 
-### access.createCatalog
+### apps.create
 
-**Crear rol o aplicación** · `POST /api/v1/roles` · `POST /api/v1/apps` · `app.access.createRole(body, actor) · app.access.createApp(body, actor)`
+**Crear aplicación** · `POST /api/v1/apps` · `app.apps.create(body, actor)`
 
 > ⚠️ Reglas según la PROPUESTA de VALIDACIONES.md §4, aún sin revisar.
 
@@ -937,9 +937,39 @@
 
 - Código único → 409
 
-### access.assignRole
+### roles.create
 
-**Asignar rol a un usuario** · `POST /api/v1/user-roles` · `app.access.assignRole(body, actor)`
+**Crear rol** · `POST /api/v1/roles` · `app.roles.create(body, actor)`
+
+> ⚠️ Reglas según la PROPUESTA de VALIDACIONES.md §4, aún sin revisar.
+
+| Campo | Tipo JSON | Requerido | Reglas |
+|---|---|---|---|
+| `code` | string | **Sí** | 2–30 letras, números o `_` |
+| `name` | string | **Sí** | 2–100 |
+
+**Cuerpo válido:**
+
+```json
+{
+  "code": "coordinador",
+  "name": "Coordinación"
+}
+```
+
+**Casos inválidos (400, `VALIDATION`):**
+
+| Caso | Cuerpo | Campos con error (`details[].path`) |
+|---|---|---|
+| Código con espacios | `{ "code": "mal código", "name": "Malo" }` | `code` |
+
+**Reglas de negocio** (las valida el servicio, no el esquema):
+
+- Código único → 409
+
+### userRoles.assign
+
+**Asignar rol a un usuario** · `POST /api/v1/user-roles` · `app.userRoles.assign(body, actor)`
 
 > ⚠️ Reglas según la PROPUESTA de VALIDACIONES.md §4, aún sin revisar.
 
