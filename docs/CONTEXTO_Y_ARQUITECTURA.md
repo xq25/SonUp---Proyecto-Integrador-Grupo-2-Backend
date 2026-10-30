@@ -405,7 +405,7 @@ await app.evaluations.evaluate(
 - [ ] Ligar el `actor` (cuenta) con su tallerista para que solo el tallerista del taller pueda evaluar (§3.9 de VALIDACIONES.md).
 - [x] Capa de entrada HTTP: Express 5 bajo `/api/v1`, actor del JWT de Supabase ([ADR-002](decisiones/ADR-002-capa-http-express.md)).
 - [x] Autenticación del front a través de nuestra API: `/auth/register`, `/auth/login`, `/auth/profile` remiten al módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)).
-- [ ] Validar en `authenticate` el token del login administrativo (con `AuthGateway.getProfile`) y definir cómo su id de usuario llega al `actor` de la auditoría.
+- [ ] **En pausa** hasta que el módulo administrativo defina la tecnología del token. Luego: validar en `authenticate` el token del login administrativo (con `AuthGateway.getProfile`) y definir cómo su id de usuario llega al `actor` de la auditoría.
 - [ ] Pedir al módulo administrativo ejemplos de respuesta exitosa (registro, login, perfil) y una excepción del límite de intentos para nuestra IP.
 - [ ] Configurar `SUPABASE_URL` y probar la API con un `access_token` real de Supabase.
 - [ ] Autorización por rol: la gestiona el **equipo de seguridad e información personal** (login, cuentas y permisos de todos los actores). Nosotros les entregaremos la matriz ruta → roles permitidos (base: `routes` en `scripts/request-catalog.ts`). Hoy cualquier perfil activo puede llamar a todas las rutas. Falta definir con ellos el mecanismo (gateway, roles en el token o consulta a sus tablas).

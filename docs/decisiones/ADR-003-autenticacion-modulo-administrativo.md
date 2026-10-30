@@ -95,5 +95,5 @@ Para que el adaptador (infraestructura) pudiera lanzarlos, `UnauthorizedError` y
 
 ## 5. Pendiente
 
-- **Las demás rutas siguen autenticando con el JWT de Supabase o `X-Actor-Id`** ([ADR-002](ADR-002-capa-http-express.md)). Para usar el token del login, `authenticate` tiene que validarlo con `AuthGateway.getProfile` (con caché). Además hay que decidir cómo pasar su id de usuario al `actor` de la auditoría: hoy es un `uuid` de `perfiles`.
+- **Las demás rutas siguen autenticando con el JWT de Supabase o `X-Actor-Id`** ([ADR-002](ADR-002-capa-http-express.md)). **En pausa (2026-10-30):** no se validan ni protegen con el token administrativo hasta que el módulo administrativo decida la tecnología del token (opaco o JWT, claves, claims, roles). Cuando se retome: para usar el token del login, `authenticate` tiene que validarlo con `AuthGateway.getProfile` (con caché). Además hay que decidir cómo pasar su id de usuario al `actor` de la auditoría: hoy es un `uuid` de `perfiles`.
 - **Autorización por rol:** la decide el módulo administrativo con sus códigos de rol (`ACUDIENTE`, `DONANTE`, `ESTUDIANTE`, …).
