@@ -42,3 +42,30 @@ export class ValidationError extends DomainError {
     this.details = details;
   }
 }
+
+/** Falta autenticación o no es válida (sesión inválida o vencida, credenciales incorrectas). */
+export class UnauthorizedError extends DomainError {
+  constructor(message: string) {
+    super(message, "UNAUTHORIZED");
+  }
+}
+
+/** Autenticado, pero sin permiso para la operación. */
+export class ForbiddenError extends DomainError {
+  constructor(message: string) {
+    super(message, "FORBIDDEN");
+  }
+}
+
+/** Por qué falló un servicio externo (p. ej. el de autenticación del módulo administrativo). */
+export type ExternalServiceFailure = "not_configured" | "unavailable" | "timeout" | "rate_limited" | "bad_response";
+
+/** Un servicio externo no respondió o respondió algo que no se puede usar. */
+export class ExternalServiceError extends DomainError {
+  readonly failure: ExternalServiceFailure;
+
+  constructor(message: string, failure: ExternalServiceFailure) {
+    super(message, "EXTERNAL_SERVICE");
+    this.failure = failure;
+  }
+}

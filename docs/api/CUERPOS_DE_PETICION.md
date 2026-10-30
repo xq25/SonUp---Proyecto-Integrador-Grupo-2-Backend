@@ -9,7 +9,7 @@
 | Tema | Regla |
 |---|---|
 | Base | `http://localhost:3000/api/v1` (`npm run dev`; puerto con `PORT`) |
-| Autenticación | `Authorization: Bearer <access_token de Supabase>`. Solo fuera de producción: `X-Actor-Id: <uuid de un perfil>`. El perfil debe existir y estar `activo` |
+| Autenticación | `Authorization: Bearer <access_token de Supabase>`. Solo fuera de producción: `X-Actor-Id: <uuid de un perfil>`. El perfil debe existir y estar `activo`. Públicas: `/health` y `/auth/register`, `/auth/login`, `/auth/profile` (remiten al módulo administrativo, [ADR-003](../decisiones/ADR-003-autenticacion-modulo-administrativo.md)) |
 | Formato | Cuerpo JSON (`Content-Type: application/json`) |
 | Ids | En la entrada, número o texto con un entero positivo (`12` o `"12"`). En las respuestas, **texto** (`"12"`) |
 | Fechas | Texto ISO 8601 con zona: `"2026-10-20T15:00:00Z"`. Las fechas de negocio se interpretan en hora de Bogotá |
@@ -40,7 +40,11 @@
 | Perfil `inactivo` o `bloqueado` | 403 | `FORBIDDEN` |
 | No existe (registro o ruta) | 404 | `NOT_FOUND` |
 | Conflicto (duplicado, estado que no lo permite) | 409 | `CONFLICT` |
+| Demasiados intentos (lo informa el módulo administrativo) | 429 | `EXTERNAL_SERVICE` |
 | Error inesperado | 500 | `INTERNAL` |
+| Servicio externo caído o con respuesta inesperada | 502 | `EXTERNAL_SERVICE` |
+| Servicio externo sin configurar (`RENDER_API_URL`) | 503 | `EXTERNAL_SERVICE` |
+| Servicio externo sin respuesta a tiempo | 504 | `EXTERNAL_SERVICE` |
 
 ## Rutas por entidad
 
@@ -48,7 +52,15 @@
 
 | Método | Ruta | Descripción | Consulta | Cuerpo |
 |---|---|---|---|---|
-| `GET` | `/health` | Estado del servicio (única ruta sin autenticación) |  |  |
+| `GET` | `/health` | Estado del servicio (pública) |  |  |
+
+### Autenticación
+
+| Método | Ruta | Descripción | Consulta | Cuerpo |
+|---|---|---|---|---|
+| `POST` | `/auth/register` | Registrar usuario (pública) |  | [`auth.register`](#authregister) |
+| `POST` | `/auth/login` | Iniciar sesión (pública): devuelve el token |  | [`auth.login`](#authlogin) |
+| `GET` | `/auth/profile` | Usuario dueño del token (`Authorization: Bearer <token del login>`) |  |  |
 
 ### Estudiantes
 
@@ -199,6 +211,79 @@
 | `PATCH` | `/credentials/:id` | Editar (solo `pending`) o cambiar estado |  | [`credentials.update`](#credentialsupdate) |
 | `DELETE` | `/credentials/:id` | Eliminar credencial (solo `pending`) |  |  |
 | `GET` | `/students/:studentId/credentials` | Credenciales del estudiante |  |  |
+
+
+---
+
+## Cuerpos · feature `auth`
+
+### auth.register
+
+**Registrar usuario** · `POST /api/v1/auth/register` · `app.auth.register(body)`
+
+| Campo | Tipo JSON | Requerido | Reglas |
+|---|---|---|---|
+| `username` | string | **Sí** | 1–100, sin espacios |
+| `email` | string | **Sí** | email válido, máx. 254 (se envía tal cual) |
+| `password` | string | **Sí** | 1–128; no se transforma |
+| `role` | string | **Sí** | código de rol (letras y `_`), se pasa a mayúsculas. El registro público admite `ACUDIENTE` \| `DONANTE` |
+
+**Cuerpo válido:**
+
+```json
+{
+  "username": "carlos.donante",
+  "email": "carlos@prueba.com",
+  "password": "ClaveDonante2026",
+  "role": "DONANTE"
+}
+```
+
+**Casos inválidos (400, `VALIDATION`):**
+
+| Caso | Cuerpo | Campos con error (`details[].path`) |
+|---|---|---|
+| Falta la clave | `{ "username": "carlos.donante", "email": "carlos@prueba.com", "role": "DONANTE" }` | `password` |
+| Email inválido y usuario con espacios | `{ "username": "carlos donante", "email": "carlos", "password": "x", "role": "DONANTE" }` | `email`, `username` |
+| Rol con formato inválido | `{ "username": "carlos.donante", "email": "carlos@prueba.com", "password": "x", "role": "donante-1" }` | `role` |
+| Campo del formato administrativo (clave) | `{ "username": "carlos.donante", "email": "carlos@prueba.com", "clave": "x", "role": "DONANTE" }` | `clave`, `password` |
+
+**Reglas de negocio** (las valida el servicio, no el esquema):
+
+- Las valida el **módulo administrativo** y su error se remite: datos rechazados (p. ej. rol fuera del catálogo) → 400 con `details` en nuestros nombres de campo; usuario o email ya registrado → 409
+- Servicio caído o con respuesta inesperada → 502; sin respuesta a tiempo → 504; demasiados intentos → 429; sin `RENDER_API_URL` → 503
+
+### auth.login
+
+**Iniciar sesión** · `POST /api/v1/auth/login` · `app.auth.login(body)`
+
+| Campo | Tipo JSON | Requerido | Reglas |
+|---|---|---|---|
+| `email` | string | **Sí** | email válido, máx. 254 |
+| `password` | string | **Sí** | 1–128 |
+
+**Cuerpo válido:**
+
+```json
+{
+  "email": "juan@prueba.com",
+  "password": "ClaveDePrueba2026"
+}
+```
+
+**Casos inválidos (400, `VALIDATION`):**
+
+| Caso | Cuerpo | Campos con error (`details[].path`) |
+|---|---|---|
+| Faltan los dos campos | `{}` | `email`, `password` |
+| Campo del formato administrativo (correo) | `{ "correo": "ana@prueba.com", "password": "x" }` | `correo`, `email` |
+| Clave vacía | `{ "email": "ana@prueba.com", "password": "" }` | `password` |
+
+**Reglas de negocio** (las valida el servicio, no el esquema):
+
+- Credenciales incorrectas → 401 (mensaje del módulo administrativo)
+- El módulo administrativo limita los intentos (hoy 20 cada 15 min por IP) → 429
+- Servicio caído o sin token en la respuesta → 502; sin respuesta a tiempo → 504
 
 
 ---
@@ -890,7 +975,7 @@
 
 ## Uso en Postman
 
-**Archivo:** `docs/api/postman-coleccion.json` (Postman v2.1). Trae las 81 rutas en 124 peticiones, **una carpeta por entidad**: Estado, Estudiantes, Acudientes, Talleristas, Administrativos, Acceso (roles y aplicaciones), Perfiles, Categorías de habilidades, Habilidades, Escalas de evaluación, Talleres, Asistencias, Evaluaciones y calificaciones, Evidencias, Credenciales.
+**Archivo:** `docs/api/postman-coleccion.json` (Postman v2.1). Trae las 84 rutas en 134 peticiones, **una carpeta por entidad**: Estado, Autenticación, Estudiantes, Acudientes, Talleristas, Administrativos, Acceso (roles y aplicaciones), Perfiles, Categorías de habilidades, Habilidades, Escalas de evaluación, Talleres, Asistencias, Evaluaciones y calificaciones, Evidencias, Credenciales.
 
 1. En Postman: *Import → File* y elige `docs/api/postman-coleccion.json`.
 2. En la pestaña *Variables* de la colección llena:
@@ -913,6 +998,7 @@
 
 - Las escrituras sobre registros existentes (actualizar con cuerpo válido, asociar, eliminar, restaurar) **solo corren sobre lo que la colección creó** en esa sesión de Postman; si no, se omiten (`pm.execution.skipRequest`). El seed no se modifica.
 - Los perfiles solo se modifican o eliminan si llenas `profileId` (nunca uses el propio: perderías el acceso).
+- **Autenticación:** los casos inválidos se rechazan aquí (no llegan al módulo administrativo). `Iniciar sesión · válido` sí lo llama (cambia el cuerpo por credenciales reales); si responde 200, guarda el token en `authToken`, que usa `GET /auth/profile`. `Registrar usuario · válido` **crea un usuario real allá**: solo corre con `runExternalWrites = true`.
 - Los casos válidos de **crear sí escriben** en la BD de `baseUrl`: úsala solo con la BD de pruebas. Al repetir la colección, varios responden 409 (ya existen): es esperado.
 
 Las variables de ids traen valores de la BD de pruebas (`npm run db:seed:dev` y el simulado del módulo administrativo: estudiante `1`, acudiente `10`, tallerista `500`).

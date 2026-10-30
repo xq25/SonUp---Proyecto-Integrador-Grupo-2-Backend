@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 // Raíz de composición: único lugar donde las implementaciones concretas
-// (Prisma) se conectan con los servicios, que solo conocen interfaces.
+// (Prisma, cliente HTTP del módulo administrativo) se conectan con los servicios, que solo conocen interfaces.
 // Para cambiar de ORM o usar dobles de prueba basta con cambiar este archivo.
 import { createPrismaClient, type PrismaClient } from "./shared/infrastructure/prisma/prisma.client.js";
 
@@ -11,6 +11,11 @@ import {
   PrismaRoleRepository,
   PrismaUserRoleRepository,
 } from "./access/infrastructure/prisma-access.repository.js";
+import { AuthService } from "./auth/application/auth.service.js";
+import {
+  administrativeAuthConfigFromEnv,
+  HttpAdministrativeAuthGateway,
+} from "./auth/infrastructure/http-administrative-auth.gateway.js";
 import { AdministrativeService } from "./administrative/application/administrative.service.js";
 import {
   PrismaChildReader,
@@ -69,6 +74,8 @@ export function createContainer(prisma: PrismaClient = createPrismaClient()) {
 
   return {
     prisma,
+    // Autenticación delegada al módulo administrativo (ADR-003)
+    auth: new AuthService(new HttpAdministrativeAuthGateway(administrativeAuthConfigFromEnv())),
     // Acceso
     profiles: new ProfilesService(profileRepository),
     access: new AccessService(

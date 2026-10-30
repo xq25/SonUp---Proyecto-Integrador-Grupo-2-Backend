@@ -2,8 +2,7 @@ import type { RequestHandler } from "express";
 import { createRemoteJWKSet, type JWTVerifyGetKey, jwtVerify } from "jose";
 import type { ProfilesService } from "../../profiles/application/profiles.service.js";
 import { uuidSchema } from "../application/schemas.js";
-import { NotFoundError } from "../domain/errors.js";
-import { ForbiddenError, UnauthorizedError } from "./http-errors.js";
+import { ForbiddenError, NotFoundError, UnauthorizedError } from "../domain/errors.js";
 
 // Obtiene el `actor` de cada petición (ADR-002 §2.2):
 // - `Authorization: Bearer <JWT de Supabase>`: siempre; el actor es el claim `sub`.
