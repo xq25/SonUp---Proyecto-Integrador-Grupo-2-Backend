@@ -1,4 +1,4 @@
-# API v1: rutas y cuerpos de petición
+# API: rutas y cuerpos de petición
 
 > **Generado** con `npm run docs:requests` desde `scripts/request-catalog.ts`. No editar a mano: cambia el catálogo y regenera.
 > Cada ejemplo se validó contra los esquemas Zod reales (nivel 1, [ADR-001](../decisiones/ADR-001-zod-esquemas-de-entrada.md)) y cada ruta contra las registradas en Express ([ADR-002](../decisiones/ADR-002-capa-http-express.md)).
@@ -8,7 +8,7 @@
 
 | Tema | Regla |
 |---|---|
-| Base | `http://localhost:3000/api/v1` (`npm run dev`; puerto con `PORT`) |
+| Base | `http://localhost:3000/api` (`npm run dev`; puerto con `PORT`) |
 | Autenticación | `Authorization: Bearer <access_token de Supabase>`. Solo fuera de producción: `X-Actor-Id: <uuid de un perfil>`. El perfil debe existir y estar `activo`. Públicas: `/health` y `/auth/register`, `/auth/login`, `/auth/profile` (remiten al módulo administrativo, [ADR-003](../decisiones/ADR-003-autenticacion-modulo-administrativo.md)) |
 | Formato | Cuerpo JSON (`Content-Type: application/json`) |
 | Ids | En la entrada, número o texto con un entero positivo (`12` o `"12"`). En las respuestas, **texto** (`"12"`) |
@@ -219,7 +219,7 @@
 
 ### auth.register
 
-**Registrar usuario** · `POST /api/v1/auth/register` · `app.auth.register(body)`
+**Registrar usuario** · `POST /api/auth/register` · `app.auth.register(body)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -255,7 +255,7 @@
 
 ### auth.login
 
-**Iniciar sesión** · `POST /api/v1/auth/login` · `app.auth.login(body)`
+**Iniciar sesión** · `POST /api/auth/login` · `app.auth.login(body)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -292,7 +292,7 @@
 
 ### administrators.create
 
-**Crear administrativo** · `POST /api/v1/administrators` · `app.administrators.create(body, actor)`
+**Crear administrativo** · `POST /api/administrators` · `app.administrators.create(body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -334,7 +334,7 @@
 
 ### administrators.update
 
-**Actualizar administrativo** · `PATCH /api/v1/administrators/:id` · `app.administrators.update(id, body, actor)`
+**Actualizar administrativo** · `PATCH /api/administrators/:id` · `app.administrators.update(id, body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -368,7 +368,7 @@
 
 ### skillCategories.create
 
-**Crear categoría de habilidades** · `POST /api/v1/skill-categories` · `app.skillCategories.create(body, actor)`
+**Crear categoría de habilidades** · `POST /api/skill-categories` · `app.skillCategories.create(body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -398,7 +398,7 @@
 
 ### skillCategories.update
 
-**Actualizar categoría** · `PATCH /api/v1/skill-categories/:id` · `app.skillCategories.update(id, body, actor)`
+**Actualizar categoría** · `PATCH /api/skill-categories/:id` · `app.skillCategories.update(id, body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -426,7 +426,7 @@
 
 ### skills.create
 
-**Crear habilidad** · `POST /api/v1/skills` · `app.skills.create(body, actor)`
+**Crear habilidad** · `POST /api/skills` · `app.skills.create(body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -458,7 +458,7 @@
 
 ### skills.update
 
-**Actualizar habilidad** · `PATCH /api/v1/skills/:id` · `app.skills.update(id, body, actor)`
+**Actualizar habilidad** · `PATCH /api/skills/:id` · `app.skills.update(id, body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -490,7 +490,7 @@
 
 ### evaluationScales.create
 
-**Crear escala de evaluación** · `POST /api/v1/evaluation-scales` · `app.evaluationScales.create(body, actor)`
+**Crear escala de evaluación** · `POST /api/evaluation-scales` · `app.evaluationScales.create(body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -531,7 +531,7 @@
 
 ### evaluationScales.update
 
-**Actualizar escala** · `PATCH /api/v1/evaluation-scales/:id` · `app.evaluationScales.update(id, body, actor)`
+**Actualizar escala** · `PATCH /api/evaluation-scales/:id` · `app.evaluationScales.update(id, body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -559,7 +559,7 @@
 
 ### evaluations.evaluate
 
-**Evaluar una habilidad en una asistencia** · `POST /api/v1/evaluations` · `app.evaluations.evaluate(body, actor)`
+**Evaluar una habilidad en una asistencia** · `POST /api/evaluations` · `app.evaluations.evaluate(body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -599,7 +599,7 @@
 
 ### workshops.create
 
-**Crear taller** · `POST /api/v1/workshops` · `app.workshops.create(body, actor)`
+**Crear taller** · `POST /api/workshops` · `app.workshops.create(body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -635,7 +635,7 @@
 
 ### workshops.update
 
-**Actualizar taller / cambiar estado** · `PATCH /api/v1/workshops/:id` · `app.workshops.update(id, body, actor)`
+**Actualizar taller / cambiar estado** · `PATCH /api/workshops/:id` · `app.workshops.update(id, body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -666,7 +666,7 @@
 
 ### attendance.register
 
-**Registrar asistencia** · `POST /api/v1/attendances` · `app.attendance.register(body, actor)`
+**Registrar asistencia** · `POST /api/attendances` · `app.attendance.register(body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -703,7 +703,7 @@
 
 ### attendance.update
 
-**Actualizar asistencia** · `PATCH /api/v1/attendances/:id` · `app.attendance.update(id, body, actor)`
+**Actualizar asistencia** · `PATCH /api/attendances/:id` · `app.attendance.update(id, body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -736,7 +736,7 @@
 
 ### evidences.upload
 
-**Subir evidencia** · `POST /api/v1/evidences` · `app.evidences.upload(body, actor)`
+**Subir evidencia** · `POST /api/evidences` · `app.evidences.upload(body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -772,7 +772,7 @@
 
 ### evidences.update
 
-**Actualizar evidencia** · `PATCH /api/v1/evidences/:id` · `app.evidences.update(id, body, actor)`
+**Actualizar evidencia** · `PATCH /api/evidences/:id` · `app.evidences.update(id, body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -798,7 +798,7 @@
 
 ### credentials.register
 
-**Registrar credencial** · `POST /api/v1/credentials` · `app.credentials.register(body, actor)`
+**Registrar credencial** · `POST /api/credentials` · `app.credentials.register(body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -833,7 +833,7 @@
 
 ### credentials.update
 
-**Actualizar credencial / cambiar estado** · `PATCH /api/v1/credentials/:id` · `app.credentials.update(id, body, actor)`
+**Actualizar credencial / cambiar estado** · `PATCH /api/credentials/:id` · `app.credentials.update(id, body, actor)`
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
@@ -866,7 +866,7 @@
 
 ### profiles.update
 
-**Actualizar perfil** · `PATCH /api/v1/profiles/:id` · `app.profiles.update(id, body, actor)`
+**Actualizar perfil** · `PATCH /api/profiles/:id` · `app.profiles.update(id, body, actor)`
 
 > ⚠️ Reglas según la PROPUESTA de VALIDACIONES.md §4, aún sin revisar.
 
@@ -909,7 +909,7 @@
 
 ### apps.create
 
-**Crear aplicación** · `POST /api/v1/apps` · `app.apps.create(body, actor)`
+**Crear aplicación** · `POST /api/apps` · `app.apps.create(body, actor)`
 
 > ⚠️ Reglas según la PROPUESTA de VALIDACIONES.md §4, aún sin revisar.
 
@@ -939,7 +939,7 @@
 
 ### roles.create
 
-**Crear rol** · `POST /api/v1/roles` · `app.roles.create(body, actor)`
+**Crear rol** · `POST /api/roles` · `app.roles.create(body, actor)`
 
 > ⚠️ Reglas según la PROPUESTA de VALIDACIONES.md §4, aún sin revisar.
 
@@ -969,7 +969,7 @@
 
 ### userRoles.assign
 
-**Asignar rol a un usuario** · `POST /api/v1/user-roles` · `app.userRoles.assign(body, actor)`
+**Asignar rol a un usuario** · `POST /api/user-roles` · `app.userRoles.assign(body, actor)`
 
 > ⚠️ Reglas según la PROPUESTA de VALIDACIONES.md §4, aún sin revisar.
 

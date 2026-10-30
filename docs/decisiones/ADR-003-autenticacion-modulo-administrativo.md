@@ -40,7 +40,7 @@
 | HTTP | `http/auth.routes.ts` | Rutas públicas, montadas antes de `authenticate` |
 | Composición | `src/container.ts` | Único lugar que crea el adaptador con su configuración (`.env`) |
 
-### 2.2 Rutas (públicas, bajo `/api/v1`)
+### 2.2 Rutas (públicas, bajo `/api`)
 
 | Nuestra ruta | Remite a | Respuesta |
 |---|---|---|

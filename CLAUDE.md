@@ -62,7 +62,7 @@ Controller (entrada) → Service (application) → Repository (interfaz, domain)
 | **Domain** (`<feature>/domain/`) | Entidades, tipos e interfaces de repositorio (puertos) | Importar nada externo |
 | **Infrastructure** (`<feature>/infrastructure/`) | Implementa los repositorios con Prisma, mapea filas a entidades y traduce errores | Reglas de negocio |
 
-`application` **no es el controller**. Los servicios deben poder usarse igual desde HTTP, un job, un script o un test. La capa HTTP vive en `src/shared/http/` (app, autenticación, errores, lectura de parámetros) y en un router por feature; `src/server.ts` solo arranca. Toda ruta nueva se agrega también a `routes` en `scripts/request-catalog.ts` (el generador falla si no coinciden).
+`application` **no es el controller**. Los servicios deben poder usarse igual desde HTTP, un job, un script o un test. La capa HTTP vive en `src/shared/http/` (app, autenticación, errores, lectura de parámetros) y en un router por entidad, reunidos en el catálogo de cada módulo (`<feature>/http/<feature>.catalog.ts`) y en el directorio general `src/shared/http/api.routes.ts`; `src/server.ts` solo arranca. Toda ruta nueva se agrega también a `routes` en `scripts/request-catalog.ts` (el generador falla si no coinciden).
 
 ## Fuentes de verdad (en este orden)
 
@@ -75,10 +75,10 @@ Todo cambio de datos propios empieza en el SQL y baja en ese orden. Las tablas d
 ## Comandos
 
 - `npm run typecheck`: correr después de cada cambio de código.
-- `npm run dev`: arranca la API en `http://localhost:3000/api/v1` (recarga al guardar). Autenticación: JWT de Supabase o, solo fuera de producción, `X-Actor-Id`. **En producción `NODE_ENV=production` es obligatorio.**
+- `npm run dev`: arranca la API en `http://localhost:3000/api` (recarga al guardar). Autenticación: JWT de Supabase o, solo fuera de producción, `X-Actor-Id`. **En producción `NODE_ENV=production` es obligatorio.**
 - `npm run db:check`: verifica la conexión y el estado de la BD de `.env` (solo lectura).
 - `npm run db:seed:dev`: datos de prueba en la BD de pruebas, vía servicios. Es idempotente y se niega a correr sin el simulado del administrativo.
-- `npm run docs:requests`: regenera `docs/api/CUERPOS_DE_PETICION.md`, la colección `docs/api/postman-coleccion.json` y `docs/api/postman-casos.json`. **Al cambiar un esquema Zod o una ruta, actualiza `scripts/request-catalog.ts` y regenera**; el script falla si los ejemplos no coinciden con los esquemas o las rutas con Express.
+- `npm run docs:requests`: regenera `docs/api/CUERPOS_DE_PETICION.md`, la colección `docs/api/postman-coleccion.json`, `docs/api/postman-casos.json` y `src/docs/api-routes.yaml` (Swagger UI en `/api-docs`, [ADR-005](docs/decisiones/ADR-005-swagger-desde-el-catalogo.md)). **Al cambiar un esquema Zod o una ruta, actualiza `scripts/request-catalog.ts` y regenera**; el script falla si los ejemplos no coinciden con los esquemas o las rutas con Express.
 - `npm run prisma:validate` / `npm run prisma:generate`: después de tocar el schema.
 - Los comandos de la CLI de Prisma llevan `--config prisma7.config.ts`.
 
@@ -91,7 +91,7 @@ Todo cambio de datos propios empieza en el SQL y baja en ese orden. Las tablas d
   - Pasar a la BD general = cambiar `DATABASE_URL` y `DIRECT_URL` (ver CONTEXTO §2.1).
 - El modelo se rehízo según el diagrama del módulo (Talleres, Habilidades, Evidencias). Compila y está probado en PGlite.
 - **Validaciones:** las 12 tablas del módulo están aprobadas e implementadas en `docs/VALIDACIONES.md` (✅). Respetarlas; cualquier cambio de regla se acuerda primero ahí.
-- **Capa HTTP: Express 5** bajo `/api/v1` ([ADR-002](docs/decisiones/ADR-002-capa-http-express.md)). 81 rutas, probadas en PGlite y en la BD de pruebas de Supabase (HTTP de punta a punta y la colección de Postman).
+- **Capa HTTP: Express 5** bajo `/api` ([ADR-002](docs/decisiones/ADR-002-capa-http-express.md)). 81 rutas, probadas en PGlite y en la BD de pruebas de Supabase (HTTP de punta a punta y la colección de Postman).
 - **Autenticación (feature `src/auth/`, [ADR-003](docs/decisiones/ADR-003-autenticacion-modulo-administrativo.md)):** el login, los usuarios y los roles son del módulo administrativo (servicio en Render, URLs `RENDER_*` en `.env`). Nuestras rutas públicas `/auth/register`, `/auth/login` y `/auth/profile` los remiten por el puerto `AuthGateway` y devuelven nuestros DTOs; el formato de ellos solo lo conoce `administrative-auth.mapper.ts`. Las demás rutas aún autentican con JWT de Supabase o `X-Actor-Id`. Toda ruta nueva sigue yendo a `scripts/request-catalog.ts`.
 - **Esquemas de entrada (nivel 1): Zod** en todas las features ([ADR-001](docs/decisiones/ADR-001-zod-esquemas-de-entrada.md)). No escribir validaciones de forma a mano en los servicios: van en los esquemas.
 - **`profiles` y `access`** usan la propuesta de VALIDACIONES.md §4 (tablas del script de login). Está pendiente revisarla con el usuario.

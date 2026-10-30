@@ -1,6 +1,6 @@
 {
   "info": {
-    "name": "Seguimiento de estudiantes · API v1",
+    "name": "Seguimiento de estudiantes · API",
     "description": "Generada con `npm run docs:requests` desde scripts/request-catalog.ts. No editar a mano.\n\nUna carpeta por entidad, con todas sus rutas: crear (válido e inválidos) → consultar → actualizar → acciones → eliminar → restaurar.\n\nAntes de ejecutar: llena `actorId` (UUID de un perfil activo) o `token` (access_token de Supabase).\nCon `token` se envía `Authorization: Bearer`; sin él, `X-Actor-Id` (solo funciona fuera de producción).\n\nLas escrituras sobre registros existentes solo corren sobre lo que la colección creó en esta sesión (si no, se omiten),\nasí que el seed no se modifica. Los perfiles solo se modifican si llenas `profileId`.\nAun así, los casos válidos de crear escriben en la BD de `baseUrl`: úsala solo con la BD de pruebas.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
@@ -23,7 +23,7 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:3000/api/v1"
+      "value": "http://localhost:3000/api"
     },
     {
       "key": "actorId",
