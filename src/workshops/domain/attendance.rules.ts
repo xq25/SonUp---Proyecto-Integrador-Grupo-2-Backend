@@ -1,5 +1,6 @@
 import { ConflictError, ValidationError } from "../../shared/domain/errors.js";
-import type { UpdateAttendanceInput, Workshop, WorkshopAttendance } from "./workshop.entity.js";
+import type { Workshop } from "./workshop.entity.js";
+import type { UpdateAttendanceInput, WorkshopAttendance } from "./workshop-attendance.entity.js";
 
 // Reglas de asistencia a talleres (docs/VALIDACIONES.md §3.8). Funciones puras.
 

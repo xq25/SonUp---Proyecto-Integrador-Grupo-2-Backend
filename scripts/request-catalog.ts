@@ -3,36 +3,27 @@
 // `npm run docs:requests` valida CADA ejemplo contra el esquema Zod real y
 // falla si algún ejemplo no se comporta como dice este catálogo.
 import type { z } from "zod";
-import { assignRoleSchema, createCatalogSchema } from "../src/access/application/access.schemas.js";
-import { loginSchema, registerUserSchema } from "../src/auth/application/auth.schemas.js";
+import { createAppSchema } from "../src/access/application/app.schemas.js";
+import { createRoleSchema } from "../src/access/application/role.schemas.js";
+import { assignRoleSchema } from "../src/access/application/user-role.schemas.js";
+import { loginSchema } from "../src/auth/application/auth-session.schemas.js";
+import { registerUserSchema } from "../src/auth/application/registration.schemas.js";
 import {
   createAdministratorSchema,
   updateAdministratorSchema,
 } from "../src/administrators/application/administrator.schemas.js";
 import {
   createEvaluationScaleSchema,
-  evaluateSkillSchema,
   updateEvaluationScaleSchema,
-} from "../src/evaluations/application/evaluation.schemas.js";
-import {
-  registerCredentialSchema,
-  updateCredentialSchema,
-  updateEvidenceSchema,
-  uploadEvidenceSchema,
-} from "../src/evidences/application/evidence.schemas.js";
+} from "../src/evaluations/application/evaluation-scale.schemas.js";
+import { evaluateSkillSchema } from "../src/evaluations/application/evaluation-skill.schemas.js";
+import { registerCredentialSchema, updateCredentialSchema } from "../src/evidences/application/credential.schemas.js";
+import { updateEvidenceSchema, uploadEvidenceSchema } from "../src/evidences/application/evidence.schemas.js";
 import { updateProfileSchema } from "../src/profiles/application/profile.schemas.js";
-import {
-  createSkillCategorySchema,
-  createSkillSchema,
-  updateSkillCategorySchema,
-  updateSkillSchema,
-} from "../src/skills/application/skill.schemas.js";
-import {
-  createWorkshopSchema,
-  registerAttendanceSchema,
-  updateAttendanceSchema,
-  updateWorkshopSchema,
-} from "../src/workshops/application/workshop.schemas.js";
+import { createSkillCategorySchema, updateSkillCategorySchema } from "../src/skills/application/skill-category.schemas.js";
+import { createSkillSchema, updateSkillSchema } from "../src/skills/application/skill.schemas.js";
+import { registerAttendanceSchema, updateAttendanceSchema } from "../src/workshops/application/attendance.schemas.js";
+import { createWorkshopSchema, updateWorkshopSchema } from "../src/workshops/application/workshop.schemas.js";
 
 export interface FieldDoc {
   name: string;
@@ -59,9 +50,8 @@ export interface Operation {
    * Ruta HTTP (relativa a `/api/v1`, con `:param` como en Express).
    * `saveIdAs`: en Postman, el `id` de la respuesta se guarda en esa variable
    * para que las peticiones siguientes (p. ej. actualizar) usen lo recién creado.
-   * `alsoAt`: otras rutas que reciben el mismo cuerpo (p. ej. `/roles` y `/apps`).
    */
-  http: { method: "POST" | "PATCH"; path: string; saveIdAs?: string; alsoAt?: string[] };
+  http: { method: "POST" | "PATCH"; path: string; saveIdAs?: string };
   schema: z.ZodType;
   fields: FieldDoc[];
   valid: unknown;
@@ -186,10 +176,10 @@ export const operations: Operation[] = [
 
   // ───────────── Habilidades ─────────────
   {
-    id: "skills.createCategory",
+    id: "skillCategories.create",
     title: "Crear categoría de habilidades",
     feature: "skills",
-    service: "app.skills.createCategory(body, actor)",
+    service: "app.skillCategories.create(body, actor)",
     http: { method: "POST", path: "/skill-categories", saveIdAs: "skillCategoryId" },
     schema: createSkillCategorySchema,
     fields: [
@@ -205,10 +195,10 @@ export const operations: Operation[] = [
     businessRules: ["Nombre único sin distinguir mayúsculas → 409"],
   },
   {
-    id: "skills.updateCategory",
+    id: "skillCategories.update",
     title: "Actualizar categoría",
     feature: "skills",
-    service: "app.skills.updateCategory(id, body, actor)",
+    service: "app.skillCategories.update(id, body, actor)",
     http: { method: "PATCH", path: "/skill-categories/:id" },
     schema: updateSkillCategorySchema,
     fields: [{ name: "(todos)", type: "—", required: false, rules: "`name` y `description` con las reglas de crear; opcionales" }],
@@ -217,10 +207,10 @@ export const operations: Operation[] = [
     businessRules: ["La categoría debe existir → 404", "Nombre único → 409", "Se puede renombrar aunque tenga habilidades"],
   },
   {
-    id: "skills.createSkill",
+    id: "skills.create",
     title: "Crear habilidad",
     feature: "skills",
-    service: "app.skills.createSkill(body, actor)",
+    service: "app.skills.create(body, actor)",
     http: { method: "POST", path: "/skills", saveIdAs: "skillId" },
     schema: createSkillSchema,
     fields: [
@@ -237,10 +227,10 @@ export const operations: Operation[] = [
     businessRules: ["La categoría debe existir → 404", "Nombre único por categoría, sin distinguir mayúsculas → 409"],
   },
   {
-    id: "skills.updateSkill",
+    id: "skills.update",
     title: "Actualizar habilidad",
     feature: "skills",
-    service: "app.skills.updateSkill(id, body, actor)",
+    service: "app.skills.update(id, body, actor)",
     http: { method: "PATCH", path: "/skills/:id" },
     schema: updateSkillSchema,
     fields: [{ name: "(todos)", type: "—", required: false, rules: "Los mismos de crear; opcionales" }],
@@ -251,10 +241,10 @@ export const operations: Operation[] = [
 
   // ───────────── Escalas y evaluación ─────────────
   {
-    id: "evaluations.createScale",
+    id: "evaluationScales.create",
     title: "Crear escala de evaluación",
     feature: "evaluations",
-    service: "app.evaluations.createScale(body, actor)",
+    service: "app.evaluationScales.create(body, actor)",
     http: { method: "POST", path: "/evaluation-scales", saveIdAs: "evaluationScaleId" },
     schema: createEvaluationScaleSchema,
     fields: [
@@ -280,10 +270,10 @@ export const operations: Operation[] = [
     ],
   },
   {
-    id: "evaluations.updateScale",
+    id: "evaluationScales.update",
     title: "Actualizar escala",
     feature: "evaluations",
-    service: "app.evaluations.updateScale(id, body, actor)",
+    service: "app.evaluationScales.update(id, body, actor)",
     http: { method: "PATCH", path: "/evaluation-scales/:id" },
     schema: updateEvaluationScaleSchema,
     fields: [{ name: "(todos)", type: "—", required: false, rules: "Los mismos de crear; opcionales" }],
@@ -497,12 +487,12 @@ export const operations: Operation[] = [
     warning: "Reglas según la PROPUESTA de VALIDACIONES.md §4, aún sin revisar.",
   },
   {
-    id: "access.createCatalog",
-    title: "Crear rol o aplicación",
+    id: "apps.create",
+    title: "Crear aplicación",
     feature: "access",
-    service: "app.access.createRole(body, actor) · app.access.createApp(body, actor)",
-    http: { method: "POST", path: "/roles", alsoAt: ["/apps"] },
-    schema: createCatalogSchema,
+    service: "app.apps.create(body, actor)",
+    http: { method: "POST", path: "/apps" },
+    schema: createAppSchema,
     fields: [
       { name: "code", type: "string", required: true, rules: "2–30 letras, números o `_`" },
       { name: "name", type: "string", required: true, rules: "2–100" },
@@ -513,10 +503,26 @@ export const operations: Operation[] = [
     warning: "Reglas según la PROPUESTA de VALIDACIONES.md §4, aún sin revisar.",
   },
   {
-    id: "access.assignRole",
+    id: "roles.create",
+    title: "Crear rol",
+    feature: "access",
+    service: "app.roles.create(body, actor)",
+    http: { method: "POST", path: "/roles" },
+    schema: createRoleSchema,
+    fields: [
+      { name: "code", type: "string", required: true, rules: "2–30 letras, números o `_`" },
+      { name: "name", type: "string", required: true, rules: "2–100" },
+    ],
+    valid: { code: "coordinador", name: "Coordinación" },
+    invalid: [{ name: "Código con espacios", body: { code: "mal código", name: "Malo" }, errorPaths: ["code"] }],
+    businessRules: ["Código único → 409"],
+    warning: "Reglas según la PROPUESTA de VALIDACIONES.md §4, aún sin revisar.",
+  },
+  {
+    id: "userRoles.assign",
     title: "Asignar rol a un usuario",
     feature: "access",
-    service: "app.access.assignRole(body, actor)",
+    service: "app.userRoles.assign(body, actor)",
     http: { method: "POST", path: "/user-roles", saveIdAs: "userRoleId" },
     schema: assignRoleSchema,
     fields: [

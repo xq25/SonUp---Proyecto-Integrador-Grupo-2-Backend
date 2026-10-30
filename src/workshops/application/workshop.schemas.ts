@@ -1,17 +1,10 @@
 import { z } from "zod";
-import { dateTimeSchema, idSchema, nameSchema, optionalTextSchema } from "../../shared/application/schemas.js";
-import {
-  type CreateWorkshopInput,
-  type RegisterAttendanceInput,
-  type UpdateAttendanceInput,
-  type UpdateWorkshopInput,
-  WORKSHOP_STATUSES,
-} from "../domain/workshop.entity.js";
+import { dateTimeSchema, idSchema, nameSchema } from "../../shared/application/schemas.js";
+import { type CreateWorkshopInput, type UpdateWorkshopInput, WORKSHOP_STATUSES } from "../domain/workshop.entity.js";
 
-// Esquemas de entrada de talleres y asistencias (nivel 1, ADR-001).
-// Solo validan la FORMA (docs/VALIDACIONES.md §3.6 y §3.8); las reglas de
-// negocio (transiciones, fechas por estado, una asistencia por día…) siguen
-// en los servicios y en `*.rules.ts`.
+// Esquemas de entrada de talleres (nivel 1, ADR-001).
+// Solo validan la FORMA (docs/VALIDACIONES.md §3.6); las reglas de negocio
+// (transiciones, fechas por estado…) siguen en el servicio y en `workshop.rules.ts`.
 // `satisfies z.ZodType<DTO>` obliga a que el esquema produzca exactamente el
 // DTO del dominio, sin que el dominio dependa de Zod.
 
@@ -34,18 +27,3 @@ export const updateWorkshopSchema = z.strictObject({
   endsAt: dateTimeSchema.nullable().exactOptional(),
   status: workshopStatus.exactOptional(),
 }) satisfies z.ZodType<UpdateWorkshopInput>;
-
-const observation = optionalTextSchema(1000);
-
-/** §3.8: `attendedAt` por defecto es ahora (lo asigna el servicio). */
-export const registerAttendanceSchema = z.strictObject({
-  studentId: idSchema,
-  workshopId: idSchema,
-  attendedAt: dateTimeSchema.exactOptional(),
-  observation: observation.exactOptional(),
-}) satisfies z.ZodType<RegisterAttendanceInput>;
-
-export const updateAttendanceSchema = z.strictObject({
-  attendedAt: dateTimeSchema.exactOptional(),
-  observation: observation.exactOptional(),
-}) satisfies z.ZodType<UpdateAttendanceInput>;

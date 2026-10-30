@@ -72,10 +72,9 @@ for (const r of documented) if (!registered.has(r)) problems.push(`Ruta document
 /** Rutas con cuerpo → su operación del catálogo. */
 const opByRoute = new Map<string, Operation>();
 for (const op of operations) {
-  for (const path of [op.http.path, ...(op.http.alsoAt ?? [])]) {
-    if (!registered.has(key(op.http.method, path))) problems.push(`${op.id} · su ruta ${op.http.method} ${path} no existe`);
-    opByRoute.set(key(op.http.method, path), op);
-  }
+  const { method, path } = op.http;
+  if (!registered.has(key(method, path))) problems.push(`${op.id} · su ruta ${method} ${path} no existe`);
+  opByRoute.set(key(method, path), op);
 }
 // Un PATCH siempre lleva cuerpo: debe estar en el catálogo.
 for (const r of routes) {
@@ -520,7 +519,7 @@ for (const op of operations) {
     currentFeature = op.feature;
     md.push(`\n---\n\n## Cuerpos · feature \`${op.feature}\`\n`);
   }
-  const paths = [op.http.path, ...(op.http.alsoAt ?? [])].map((p) => `\`${op.http.method} ${API_PREFIX}${p}\``).join(" · ");
+  const paths = `\`${op.http.method} ${API_PREFIX}${op.http.path}\``;
   md.push(`### ${op.id}
 
 **${op.title}** · ${paths} · \`${op.service}\`

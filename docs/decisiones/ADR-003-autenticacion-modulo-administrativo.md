@@ -32,11 +32,11 @@
 
 | Pieza | Archivo | Responsabilidad |
 |---|---|---|
-| DTOs | `domain/auth.entity.ts` | Forma propia: `RegisterUserInput`, `LoginInput`, `AuthUser`, `AuthSession`, `RegistrationResult`. Solo los datos que usamos |
+| DTOs | `domain/auth-user.entity.ts`, `auth-session.entity.ts`, `registration.entity.ts` | Forma propia: `RegisterUserInput`, `LoginInput`, `AuthUser`, `AuthSession`, `RegistrationResult`. Solo los datos que usamos |
 | Puerto | `domain/auth.gateway.ts` | `AuthGateway`: `register`, `login`, `getProfile(token)` |
 | Adaptador | `infrastructure/http-administrative-auth.gateway.ts` | `HttpAdministrativeAuthGateway`. Arma la petición, la envía con tiempo límite y traduce el resultado a DTOs o a errores de dominio |
 | Transformación | `infrastructure/administrative-auth.mapper.ts` | Su formato ↔ nuestros DTOs. Lee la respuesta de forma tolerante (varios nombres posibles por dato, respuesta envuelta en `data`, roles como texto u objeto) y descarta lo que no usamos. Si cambia su contrato, solo se toca este archivo |
-| Servicio | `application/auth.service.ts` + `auth.schemas.ts` | Valida la forma (Zod, nivel 1) y llama al puerto |
+| Servicio | `application/auth.service.ts` + `auth-session.schemas.ts` y `registration.schemas.ts` | Valida la forma (Zod, nivel 1) y llama al puerto |
 | HTTP | `http/auth.routes.ts` | Rutas públicas, montadas antes de `authenticate` |
 | Composición | `src/container.ts` | Único lugar que crea el adaptador con su configuración (`.env`) |
 

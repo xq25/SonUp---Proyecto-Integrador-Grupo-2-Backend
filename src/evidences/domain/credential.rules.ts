@@ -1,5 +1,5 @@
 import { ConflictError } from "../../shared/domain/errors.js";
-import type { Credential, CredentialStatus, UpdateCredentialInput } from "./evidence.entity.js";
+import type { Credential, CredentialStatus, UpdateCredentialInput } from "./credential.entity.js";
 
 // Ciclo de vida de una credencial (docs/VALIDACIONES.md §3.12). Funciones puras.
 

@@ -141,7 +141,7 @@ Si una regla de la BD se viola desde el backend, `withPrismaErrors` la traduce a
   - El día de salida todavía cuenta como activo.
   - No se usa `status_id` porque su catálogo aún no lo comparte el módulo administrativo.
   - Las calificaciones de quien ya salió se conservan y se pueden consultar.
-- **Habilidades inactivas:** siguen contando en `listStudentSkills` y en los promedios por categoría ✔. Inactivar solo impide usarlas en talleres nuevos.
+- **Habilidades inactivas:** siguen contando en `StudentSkillsService.listByStudent` y en los promedios por categoría ✔. Inactivar solo impide usarlas en talleres nuevos.
 
 ### 3.6 `workshops` — ✅ Aprobada
 

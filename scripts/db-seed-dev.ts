@@ -48,12 +48,12 @@ try {
   const skills = new Map<string, Skill>();
   for (const [categoryName, def] of Object.entries(categoryDefs)) {
     const category =
-      (await app.skills.listCategories()).find((c) => c.name === categoryName) ??
-      (count("categorías"), await app.skills.createCategory({ name: categoryName, description: def.description }, actor));
+      (await app.skillCategories.list()).find((c) => c.name === categoryName) ??
+      (count("categorías"), await app.skillCategories.create({ name: categoryName, description: def.description }, actor));
     for (const skillName of def.skills) {
       const skill =
-        (await app.skills.listSkills({ skillCategoryId: category.id })).find((s) => s.name === skillName) ??
-        (count("habilidades"), await app.skills.createSkill({ name: skillName, skillCategoryId: category.id }, actor));
+        (await app.skills.list({ skillCategoryId: category.id })).find((s) => s.name === skillName) ??
+        (count("habilidades"), await app.skills.create({ name: skillName, skillCategoryId: category.id }, actor));
       skills.set(skillName, skill);
     }
   }
@@ -67,8 +67,8 @@ try {
   ];
   const scales: EvaluationScale[] = [];
   for (const def of scaleDefs) {
-    const existing = (await app.evaluations.listScales(false)).find((s) => s.code === def.code);
-    scales.push(existing ?? (count("escalas"), await app.evaluations.createScale(def, actor)));
+    const existing = (await app.evaluationScales.list(false)).find((s) => s.code === def.code);
+    scales.push(existing ?? (count("escalas"), await app.evaluationScales.create(def, actor)));
   }
 
   // ── Administrativos (provisional) ──
@@ -122,7 +122,7 @@ try {
       actor,
     );
     const workshopSkills: WorkshopSkill[] = [];
-    for (const skillName of def.skills) workshopSkills.push(await app.workshops.addSkill(workshop.id, skills.get(skillName)!.id, actor));
+    for (const skillName of def.skills) workshopSkills.push(await app.workshopSkills.add(workshop.id, skills.get(skillName)!.id, actor));
     await app.workshops.update(workshop.id, { status: "active" }, actor);
 
     for (const [sessionIndex, day] of def.sessions.entries()) {
@@ -157,7 +157,7 @@ try {
     { title: "Mural colectivo", url: "https://storage.fundacion.test/evidencias/mural.jpg", studentIds: [2n, 4n] },
   ];
   for (const def of evidenceDefs) {
-    const already = (await app.evidences.listByStudent(def.studentIds[0]!)).some((e) => e.evidence.title === def.title);
+    const already = (await app.studentEvidences.listByStudent(def.studentIds[0]!)).some((e) => e.evidence.title === def.title);
     if (!already) {
       count("evidencias");
       await app.evidences.upload(def, actor);
@@ -190,10 +190,10 @@ try {
   const names = new Map(scales.map((s) => [s.id, s.name]));
   const skillNames = new Map([...skills.values()].map((s) => [s.id, s.name]));
   console.log("\nEjemplo de consumo — calificaciones del estudiante 1 (Leo Paz):");
-  for (const grade of await app.skills.listStudentSkills(1n)) {
+  for (const grade of await app.studentSkills.listByStudent(1n)) {
     console.log(`  · ${skillNames.get(grade.skillId) ?? grade.skillId}: ${names.get(grade.evaluationScaleId) ?? grade.evaluationScaleId}`);
   }
-  for (const avg of await app.skills.getCategoryAverages(1n)) {
+  for (const avg of await app.studentSkills.getCategoryAverages(1n)) {
     console.log(`  · Promedio ${avg.categoryName}: ${avg.average} (${avg.skillCount} habilidades) → ${avg.evaluationScaleId ? names.get(avg.evaluationScaleId) : "sin escala"}`);
   }
 } catch (error) {
@@ -205,8 +205,8 @@ try {
 
 /** Protección: solo se siembra la BD de pruebas (la que tiene el simulado del módulo administrativo). */
 async function ensureTestDatabase() {
-  const leo = await app.administrative.getChild(1n).catch(() => null);
-  const musicTeacher = await app.administrative.findProfessionalByStaffId(77n);
+  const leo = await app.children.get(1n).catch(() => null);
+  const musicTeacher = await app.professionals.findByStaffId(77n);
   if (leo?.documentNumber !== "TI-1001" || leo.firstName !== "Leo" || musicTeacher?.id !== 500n) {
     fail(
       "Esta BD no tiene los datos simulados del módulo administrativo: " +

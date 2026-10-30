@@ -33,6 +33,7 @@ Módulo de servicio de un proyecto general. Consume una **base de datos general 
   - `application` depende solo de interfaces de repositorio.
   - `infrastructure` las implementa y es la única capa que conoce Prisma.
   - `src/container.ts` es el único sitio que conecta las implementaciones con los servicios.
+  - **Un archivo por entidad en cada capa** ([ADR-004](docs/decisiones/ADR-004-un-archivo-por-entidad.md)): `<entity>.entity.ts`, `<entity>.repository.ts`, `<entities>.service.ts`, `<entity>.schemas.ts`, `prisma-<entity>.repository.ts` y `<entities>.routes.ts`. En un archivo solo van la entidad y lo suyo (DTOs, filtros, enums de estado); lo compartido por varias entidades va en un archivo aparte.
 - **Prisma solo se importa desde `src/shared/infrastructure/prisma/prisma.client.ts`**, nunca desde `generated/`.
 - **Zod solo en `application` y en la capa HTTP (`<feature>/http/`, para parámetros de ruta y de consulta):**
   - Nunca en `domain` ni en `infrastructure`.
