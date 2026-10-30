@@ -34,6 +34,14 @@
       "value": ""
     },
     {
+      "key": "authToken",
+      "value": ""
+    },
+    {
+      "key": "runExternalWrites",
+      "value": "false"
+    },
+    {
       "key": "profileId",
       "value": ""
     },
@@ -111,7 +119,7 @@
       "name": "Estado",
       "item": [
         {
-          "name": "Estado del servicio (única ruta sin autenticación) · GET /health",
+          "name": "Estado del servicio (pública) · GET /health",
           "event": [
             {
               "listen": "test",
@@ -137,6 +145,503 @@
               ],
               "path": [
                 "health"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Autenticación",
+      "item": [
+        {
+          "name": "Registrar usuario · válido",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.variables.get('runExternalWrites') !== 'true') {",
+                  "  console.log('Omitida: crea datos en el módulo administrativo; pon runExternalWrites = true para ejecutarla');",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const code = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "pm.test('Respuesta remitida del módulo administrativo', () => pm.expect(code).to.be.oneOf([200, 201, 400, 401, 403, 409, 429, 502, 503, 504]));",
+                  "if (code >= 400) console.log(code, body.error && body.error.code, body.error && body.error.message);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"carlos.donante\",\n  \"email\": \"carlos@prueba.com\",\n  \"password\": \"ClaveDonante2026\",\n  \"role\": \"DONANTE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Registrar usuario · Falta la clave",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 · error de validación', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('code = VALIDATION', () => pm.expect(body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('Campos con error: password', () => {",
+                  "  const paths = (body.error.details || []).map((d) => d.path).sort();",
+                  "  pm.expect(paths).to.eql([\"password\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"carlos.donante\",\n  \"email\": \"carlos@prueba.com\",\n  \"role\": \"DONANTE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Registrar usuario · Email inválido y usuario con espacios",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 · error de validación', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('code = VALIDATION', () => pm.expect(body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('Campos con error: email, username', () => {",
+                  "  const paths = (body.error.details || []).map((d) => d.path).sort();",
+                  "  pm.expect(paths).to.eql([\"email\",\"username\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"carlos donante\",\n  \"email\": \"carlos\",\n  \"password\": \"x\",\n  \"role\": \"DONANTE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Registrar usuario · Rol con formato inválido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 · error de validación', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('code = VALIDATION', () => pm.expect(body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('Campos con error: role', () => {",
+                  "  const paths = (body.error.details || []).map((d) => d.path).sort();",
+                  "  pm.expect(paths).to.eql([\"role\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"carlos.donante\",\n  \"email\": \"carlos@prueba.com\",\n  \"password\": \"x\",\n  \"role\": \"donante-1\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Registrar usuario · Campo del formato administrativo (clave)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 · error de validación', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('code = VALIDATION', () => pm.expect(body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('Campos con error: clave, password', () => {",
+                  "  const paths = (body.error.details || []).map((d) => d.path).sort();",
+                  "  pm.expect(paths).to.eql([\"clave\",\"password\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"carlos.donante\",\n  \"email\": \"carlos@prueba.com\",\n  \"clave\": \"x\",\n  \"role\": \"DONANTE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Iniciar sesión · válido",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": []
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const code = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "pm.test('Respuesta remitida del módulo administrativo', () => pm.expect(code).to.be.oneOf([200, 201, 400, 401, 403, 409, 429, 502, 503, 504]));",
+                  "if (code >= 400) console.log(code, body.error && body.error.code, body.error && body.error.message);",
+                  "if (code === 200 && body.token) pm.collectionVariables.set('authToken', body.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"juan@prueba.com\",\n  \"password\": \"ClaveDePrueba2026\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Iniciar sesión · Faltan los dos campos",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 · error de validación', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('code = VALIDATION', () => pm.expect(body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('Campos con error: email, password', () => {",
+                  "  const paths = (body.error.details || []).map((d) => d.path).sort();",
+                  "  pm.expect(paths).to.eql([\"email\",\"password\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Iniciar sesión · Campo del formato administrativo (correo)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 · error de validación', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('code = VALIDATION', () => pm.expect(body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('Campos con error: correo, email', () => {",
+                  "  const paths = (body.error.details || []).map((d) => d.path).sort();",
+                  "  pm.expect(paths).to.eql([\"correo\",\"email\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"correo\": \"ana@prueba.com\",\n  \"password\": \"x\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Iniciar sesión · Clave vacía",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 · error de validación', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('code = VALIDATION', () => pm.expect(body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('Campos con error: password', () => {",
+                  "  const paths = (body.error.details || []).map((d) => d.path).sort();",
+                  "  pm.expect(paths).to.eql([\"password\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"ana@prueba.com\",\n  \"password\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Usuario dueño del token (`Authorization: Bearer <token del login>`) · GET /auth/profile",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const authToken = pm.variables.get('authToken');",
+                  "if (!authToken) {",
+                  "  console.log('Omitida: ejecuta antes Iniciar sesión con credenciales reales (llena authToken)');",
+                  "  pm.execution.skipRequest();",
+                  "} else {",
+                  "  pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + authToken });",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const code = pm.response.code;",
+                  "const body = pm.response.json();",
+                  "pm.test('Respuesta remitida del módulo administrativo', () => pm.expect(code).to.be.oneOf([200, 201, 400, 401, 403, 409, 429, 502, 503, 504]));",
+                  "if (code >= 400) console.log(code, body.error && body.error.code, body.error && body.error.message);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "profile"
               ]
             }
           }

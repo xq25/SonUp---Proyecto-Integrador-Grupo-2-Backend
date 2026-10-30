@@ -87,6 +87,7 @@ for (const r of routes) {
 /** Carpetas en orden de ejecución: primero lo que otras entidades usan. La primera regla que coincide gana. */
 const entities: { name: string; match: RegExp }[] = [
   { name: "Estado", match: /^\/health$/ },
+  { name: "Autenticación", match: /^\/auth\// },
   { name: "Estudiantes", match: /^\/children/ },
   { name: "Acudientes", match: /^\/guardians/ },
   { name: "Talleristas", match: /^\/professionals/ },
@@ -117,6 +118,10 @@ const variables: Record<string, string> = {
   baseUrl: `http://localhost:3000${API_PREFIX}`,
   actorId: "",
   token: "",
+  /** Token del login del módulo administrativo (lo llena "Iniciar sesión"); lo usa GET /auth/profile. */
+  authToken: "",
+  /** `true` para que el registro válido cree de verdad el usuario en el módulo administrativo. */
+  runExternalWrites: "false",
   /** Perfil que se modifica o elimina. Vacío = esas peticiones se omiten (para no tocar el propio perfil). */
   profileId: "",
   studentId: "1",
@@ -278,6 +283,36 @@ const writeTests = (saveIdAs: string | undefined, saveStatus: number) => [
   ...saveIdLines(saveIdAs, saveStatus),
 ];
 
+/** Rutas que remiten al módulo administrativo: además de la forma, aceptan sus respuestas (401, 429, 5xx…). */
+const externalGuard = (writes: boolean) =>
+  writes
+    ? [
+        "if (pm.variables.get('runExternalWrites') !== 'true') {",
+        "  console.log('Omitida: crea datos en el módulo administrativo; pon runExternalWrites = true para ejecutarla');",
+        "  pm.execution.skipRequest();",
+        "}",
+      ]
+    : [];
+
+const externalTests = (saveTokenAs?: string) => [
+  "const code = pm.response.code;",
+  "const body = pm.response.json();",
+  "pm.test('Respuesta remitida del módulo administrativo', () => pm.expect(code).to.be.oneOf([200, 201, 400, 401, 403, 409, 429, 502, 503, 504]));",
+  "if (code >= 400) console.log(code, body.error && body.error.code, body.error && body.error.message);",
+  ...(saveTokenAs ? [`if (code === 200 && body.token) pm.collectionVariables.set('${saveTokenAs}', body.token);`] : []),
+];
+
+/** GET /auth/profile: usa el token del login; sin él se omite. */
+const profileAuthScript = [
+  "const authToken = pm.variables.get('authToken');",
+  "if (!authToken) {",
+  "  console.log('Omitida: ejecuta antes Iniciar sesión con credenciales reales (llena authToken)');",
+  "  pm.execution.skipRequest();",
+  "} else {",
+  "  pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + authToken });",
+  "}",
+];
+
 const queryTests = [
   "const code = pm.response.code;",
   "pm.test('Responde 200 (o 404 si el id no existe en esta BD)', () => pm.expect(code).to.be.oneOf([200, 404]));",
@@ -321,10 +356,13 @@ function itemsFor(route: RouteDoc): Item[] {
     const writesExisting = route.method === "PATCH";
     const validUrl = postmanPath(route.path, writesExisting);
     const invalidUrl = postmanPath(route.path);
+    const validEvents = op.external
+      ? [script("prerequest", externalGuard(op.external.writes)), script("test", externalTests(op.external.saveTokenAs))]
+      : [script("prerequest", guardScript(validUrl)), script("test", writeTests(op.http.saveIdAs, 201))];
     return [
       {
         name: `${op.title} · válido`,
-        event: [script("prerequest", guardScript(validUrl)), script("test", writeTests(op.http.saveIdAs, 201))],
+        event: validEvents,
         request: request(route.method, validUrl, op.valid),
       },
       ...op.invalid.map((c) => ({
@@ -332,6 +370,15 @@ function itemsFor(route: RouteDoc): Item[] {
         event: [script("test", invalidTests(c.errorPaths))],
         request: request(route.method, invalidUrl, c.body),
       })),
+    ];
+  }
+  if (route.path === "/auth/profile") {
+    return [
+      {
+        name: `${route.description} · ${title}`,
+        event: [script("prerequest", profileAuthScript), script("test", externalTests())],
+        request: request("GET", route.path),
+      },
     ];
   }
   if (route.method === "GET") {
@@ -411,7 +458,7 @@ md.push(`# API v1: rutas y cuerpos de petición
 | Tema | Regla |
 |---|---|
 | Base | \`http://localhost:3000${API_PREFIX}\` (\`npm run dev\`; puerto con \`PORT\`) |
-| Autenticación | \`Authorization: Bearer <access_token de Supabase>\`. Solo fuera de producción: \`X-Actor-Id: <uuid de un perfil>\`. El perfil debe existir y estar \`activo\` |
+| Autenticación | \`Authorization: Bearer <access_token de Supabase>\`. Solo fuera de producción: \`X-Actor-Id: <uuid de un perfil>\`. El perfil debe existir y estar \`activo\`. Públicas: \`/health\` y \`/auth/register\`, \`/auth/login\`, \`/auth/profile\` (remiten al módulo administrativo, [ADR-003](../decisiones/ADR-003-autenticacion-modulo-administrativo.md)) |
 | Formato | Cuerpo JSON (\`Content-Type: application/json\`) |
 | Ids | En la entrada, número o texto con un entero positivo (\`12\` o \`"12"\`). En las respuestas, **texto** (\`"12"\`) |
 | Fechas | Texto ISO 8601 con zona: \`"2026-10-20T15:00:00Z"\`. Las fechas de negocio se interpretan en hora de Bogotá |
@@ -442,7 +489,11 @@ md.push(`# API v1: rutas y cuerpos de petición
 | Perfil \`inactivo\` o \`bloqueado\` | 403 | \`FORBIDDEN\` |
 | No existe (registro o ruta) | 404 | \`NOT_FOUND\` |
 | Conflicto (duplicado, estado que no lo permite) | 409 | \`CONFLICT\` |
+| Demasiados intentos (lo informa el módulo administrativo) | 429 | \`EXTERNAL_SERVICE\` |
 | Error inesperado | 500 | \`INTERNAL\` |
+| Servicio externo caído o con respuesta inesperada | 502 | \`EXTERNAL_SERVICE\` |
+| Servicio externo sin configurar (\`RENDER_API_URL\`) | 503 | \`EXTERNAL_SERVICE\` |
+| Servicio externo sin respuesta a tiempo | 504 | \`EXTERNAL_SERVICE\` |
 
 ## Rutas por entidad
 `);
@@ -524,6 +575,7 @@ md.push(`
 
 - Las escrituras sobre registros existentes (actualizar con cuerpo válido, asociar, eliminar, restaurar) **solo corren sobre lo que la colección creó** en esa sesión de Postman; si no, se omiten (\`pm.execution.skipRequest\`). El seed no se modifica.
 - Los perfiles solo se modifican o eliminan si llenas \`profileId\` (nunca uses el propio: perderías el acceso).
+- **Autenticación:** los casos inválidos se rechazan aquí (no llegan al módulo administrativo). \`Iniciar sesión · válido\` sí lo llama (cambia el cuerpo por credenciales reales); si responde 200, guarda el token en \`authToken\`, que usa \`GET /auth/profile\`. \`Registrar usuario · válido\` **crea un usuario real allá**: solo corre con \`runExternalWrites = true\`.
 - Los casos válidos de **crear sí escriben** en la BD de \`baseUrl\`: úsala solo con la BD de pruebas. Al repetir la colección, varios responden 409 (ya existen): es esperado.
 
 Las variables de ids traen valores de la BD de pruebas (\`npm run db:seed:dev\` y el simulado del módulo administrativo: estudiante \`1\`, acudiente \`10\`, tallerista \`500\`).

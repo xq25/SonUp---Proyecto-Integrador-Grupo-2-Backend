@@ -1,5 +1,104 @@
 [
   {
+    "operation": "auth.register",
+    "method": "POST",
+    "path": "/auth/register",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"username\":\"carlos.donante\",\"email\":\"carlos@prueba.com\",\"password\":\"ClaveDonante2026\",\"role\":\"DONANTE\"}",
+    "errorPaths": []
+  },
+  {
+    "operation": "auth.register",
+    "method": "POST",
+    "path": "/auth/register",
+    "case": "Falta la clave",
+    "expect": "invalid",
+    "body": "{\"username\":\"carlos.donante\",\"email\":\"carlos@prueba.com\",\"role\":\"DONANTE\"}",
+    "errorPaths": [
+      "password"
+    ]
+  },
+  {
+    "operation": "auth.register",
+    "method": "POST",
+    "path": "/auth/register",
+    "case": "Email inválido y usuario con espacios",
+    "expect": "invalid",
+    "body": "{\"username\":\"carlos donante\",\"email\":\"carlos\",\"password\":\"x\",\"role\":\"DONANTE\"}",
+    "errorPaths": [
+      "email",
+      "username"
+    ]
+  },
+  {
+    "operation": "auth.register",
+    "method": "POST",
+    "path": "/auth/register",
+    "case": "Rol con formato inválido",
+    "expect": "invalid",
+    "body": "{\"username\":\"carlos.donante\",\"email\":\"carlos@prueba.com\",\"password\":\"x\",\"role\":\"donante-1\"}",
+    "errorPaths": [
+      "role"
+    ]
+  },
+  {
+    "operation": "auth.register",
+    "method": "POST",
+    "path": "/auth/register",
+    "case": "Campo del formato administrativo (clave)",
+    "expect": "invalid",
+    "body": "{\"username\":\"carlos.donante\",\"email\":\"carlos@prueba.com\",\"clave\":\"x\",\"role\":\"DONANTE\"}",
+    "errorPaths": [
+      "clave",
+      "password"
+    ]
+  },
+  {
+    "operation": "auth.login",
+    "method": "POST",
+    "path": "/auth/login",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"email\":\"juan@prueba.com\",\"password\":\"ClaveDePrueba2026\"}",
+    "errorPaths": []
+  },
+  {
+    "operation": "auth.login",
+    "method": "POST",
+    "path": "/auth/login",
+    "case": "Faltan los dos campos",
+    "expect": "invalid",
+    "body": "{}",
+    "errorPaths": [
+      "email",
+      "password"
+    ]
+  },
+  {
+    "operation": "auth.login",
+    "method": "POST",
+    "path": "/auth/login",
+    "case": "Campo del formato administrativo (correo)",
+    "expect": "invalid",
+    "body": "{\"correo\":\"ana@prueba.com\",\"password\":\"x\"}",
+    "errorPaths": [
+      "correo",
+      "email"
+    ]
+  },
+  {
+    "operation": "auth.login",
+    "method": "POST",
+    "path": "/auth/login",
+    "case": "Clave vacía",
+    "expect": "invalid",
+    "body": "{\"email\":\"ana@prueba.com\",\"password\":\"\"}",
+    "errorPaths": [
+      "password"
+    ]
+  },
+  {
     "operation": "administrators.create",
     "method": "POST",
     "path": "/administrators",

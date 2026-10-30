@@ -75,6 +75,9 @@
 | `SUPABASE_URL` | `https://<ref>.supabase.co`: emisor del JWT y su JWKS. Sin ella solo funciona `X-Actor-Id` |
 | `SUPABASE_JWT_SECRET` | Opcional: secreto HS256 si el proyecto usa las claves JWT antiguas |
 | `CORS_ORIGIN` | Opcional: orígenes permitidos separados por comas (sin ella, cualquiera) |
+| `RENDER_API_URL` | URL base del servicio de autenticación del módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)). Sin ella, `/auth/*` responde 503 |
+| `RENDER_REGISTER_PATH` / `RENDER_LOGIN_PATH` / `RENDER_PROFILE_PATH` | Rutas de registro, login y perfil allá (por defecto `/auth/registro`, `/auth/login`, `/auth/perfil`) |
+| `RENDER_HTTP_TIMEOUT_MS` | Tiempo límite de cada llamada (por defecto 10000). Render gratuito tarda ~30 s en despertar |
 
 ### 2.1 BD de pruebas del módulo
 
@@ -277,18 +280,18 @@ src/
 │   │   ├── auditable.ts         # AuditableEntity (base), ActorId, QueryOptions
 │   │   ├── document-types.ts    # Catálogo de tipos de documento
 │   │   ├── dates.ts             # "Hoy" en America/Bogota y fechas de columnas date
-│   │   └── errors.ts            # DomainError, NotFoundError, ConflictError, ValidationError
+│   │   └── errors.ts            # DomainError, NotFoundError, ConflictError, ValidationError, Unauthorized/Forbidden, ExternalServiceError
 │   ├── http/
 │   │   ├── app.ts               # createApp(container): middlewares, routers bajo /api/v1, errores
 │   │   ├── authenticate.ts      # actor: JWT de Supabase (jose) o X-Actor-Id solo en desarrollo
 │   │   ├── error-handler.ts     # Errores de dominio → HTTP; formato { error: { code, message, details? } }
-│   │   ├── http-errors.ts       # UnauthorizedError (401), ForbiddenError (403)
 │   │   └── request.ts           # readParams/readQuery (Zod), actorOf(res), esquemas de parámetros
 │   └── infrastructure/prisma/
 │       ├── prisma.client.ts     # createPrismaClient() + re-export de Prisma/PrismaClient
 │       ├── audit.ts             # audit.*(actor), auditSelect, notDeleted
 │       ├── mappers.ts           # decimalToNumber()
 │       └── prisma-errors.ts     # withPrismaErrors(): errores de Prisma → errores de dominio
+├── auth/             # Registro, login y perfil remitidos al módulo administrativo (ADR-003)
 ├── administrative/   # Lectura: children, guardians, children_guardians, professionals
 ├── profiles/         # perfiles (cuentas)
 ├── access/           # aplicaciones, roles, usuario_roles
@@ -401,5 +404,9 @@ await app.evaluations.evaluate(
 - [ ] Decidir qué pasa con las calificaciones ya calculadas si cambia el `num_value` o el intervalo de una escala.
 - [ ] Ligar el `actor` (cuenta) con su tallerista para que solo el tallerista del taller pueda evaluar (§3.9 de VALIDACIONES.md).
 - [x] Capa de entrada HTTP: Express 5 bajo `/api/v1`, actor del JWT de Supabase ([ADR-002](decisiones/ADR-002-capa-http-express.md)).
+- [x] Autenticación del front a través de nuestra API: `/auth/register`, `/auth/login`, `/auth/profile` remiten al módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)).
+- [ ] Validar en `authenticate` el token del login administrativo (con `AuthGateway.getProfile`) y definir cómo su id de usuario llega al `actor` de la auditoría.
+- [ ] Pedir al módulo administrativo ejemplos de respuesta exitosa (registro, login, perfil) y una excepción del límite de intentos para nuestra IP.
 - [ ] Configurar `SUPABASE_URL` y probar la API con un `access_token` real de Supabase.
-- [ ] Autorización por rol en las rutas (hoy cualquier perfil activo puede llamar a todas).
+- [ ] Autorización por rol: la gestiona el **equipo de seguridad e información personal** (login, cuentas y permisos de todos los actores). Nosotros les entregaremos la matriz ruta → roles permitidos (base: `routes` en `scripts/request-catalog.ts`). Hoy cualquier perfil activo puede llamar a todas las rutas. Falta definir con ellos el mecanismo (gateway, roles en el token o consulta a sus tablas).
+- [ ] Acordar con el equipo de seguridad la propiedad de `perfiles`, `roles`, `usuario_roles`, `aplicaciones`, `crear_perfil` y `tiene_rol()`: si son suyas, salen de nuestro SQL y las features `profiles`/`access` pasan a solo lectura (o se retiran).

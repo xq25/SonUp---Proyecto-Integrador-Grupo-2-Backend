@@ -4,6 +4,7 @@
 // falla si algún ejemplo no se comporta como dice este catálogo.
 import type { z } from "zod";
 import { assignRoleSchema, createCatalogSchema } from "../src/access/application/access.schemas.js";
+import { loginSchema, registerUserSchema } from "../src/auth/application/auth.schemas.js";
 import {
   createAdministratorSchema,
   updateAdministratorSchema,
@@ -69,6 +70,12 @@ export interface Operation {
   businessRules: string[];
   /** Advertencia (p. ej. reglas aún sin revisar). */
   warning?: string;
+  /**
+   * La ruta remite a un servicio externo (autenticación del módulo administrativo, ADR-003).
+   * `writes`: el caso válido crea datos allá; en Postman solo corre si `runExternalWrites` = `true`.
+   * `saveTokenAs`: en Postman, el `token` de la respuesta 200 se guarda en esa variable.
+   */
+  external?: { writes: boolean; saveTokenAs?: string };
 }
 
 const id = "número o texto con un entero > 0 (ej. 12 o \"12\")";
@@ -76,6 +83,57 @@ const iso = "texto ISO 8601 con zona (ej. \"2026-10-20T15:00:00Z\")";
 const https = "URL `https://…`, sin espacios, máx. 2048";
 
 export const operations: Operation[] = [
+  // ───────────── Autenticación (módulo administrativo) ─────────────
+  {
+    id: "auth.register",
+    title: "Registrar usuario",
+    feature: "auth",
+    service: "app.auth.register(body)",
+    http: { method: "POST", path: "/auth/register" },
+    schema: registerUserSchema,
+    fields: [
+      { name: "username", type: "string", required: true, rules: "1–100, sin espacios" },
+      { name: "email", type: "string", required: true, rules: "email válido, máx. 254 (se envía tal cual)" },
+      { name: "password", type: "string", required: true, rules: "1–128; no se transforma" },
+      { name: "role", type: "string", required: true, rules: "código de rol (letras y `_`), se pasa a mayúsculas. El registro público admite `ACUDIENTE` | `DONANTE`" },
+    ],
+    valid: { username: "carlos.donante", email: "carlos@prueba.com", password: "ClaveDonante2026", role: "DONANTE" },
+    invalid: [
+      { name: "Falta la clave", body: { username: "carlos.donante", email: "carlos@prueba.com", role: "DONANTE" }, errorPaths: ["password"] },
+      { name: "Email inválido y usuario con espacios", body: { username: "carlos donante", email: "carlos", password: "x", role: "DONANTE" }, errorPaths: ["email", "username"] },
+      { name: "Rol con formato inválido", body: { username: "carlos.donante", email: "carlos@prueba.com", password: "x", role: "donante-1" }, errorPaths: ["role"] },
+      { name: "Campo del formato administrativo (clave)", body: { username: "carlos.donante", email: "carlos@prueba.com", clave: "x", role: "DONANTE" }, errorPaths: ["clave", "password"] },
+    ],
+    businessRules: [
+      "Las valida el **módulo administrativo** y su error se remite: datos rechazados (p. ej. rol fuera del catálogo) → 400 con `details` en nuestros nombres de campo; usuario o email ya registrado → 409",
+      "Servicio caído o con respuesta inesperada → 502; sin respuesta a tiempo → 504; demasiados intentos → 429; sin `RENDER_API_URL` → 503",
+    ],
+    external: { writes: true },
+  },
+  {
+    id: "auth.login",
+    title: "Iniciar sesión",
+    feature: "auth",
+    service: "app.auth.login(body)",
+    http: { method: "POST", path: "/auth/login" },
+    schema: loginSchema,
+    fields: [
+      { name: "email", type: "string", required: true, rules: "email válido, máx. 254" },
+      { name: "password", type: "string", required: true, rules: "1–128" },
+    ],
+    valid: { email: "juan@prueba.com", password: "ClaveDePrueba2026" },
+    invalid: [
+      { name: "Faltan los dos campos", body: {}, errorPaths: ["email", "password"] },
+      { name: "Campo del formato administrativo (correo)", body: { correo: "ana@prueba.com", password: "x" }, errorPaths: ["correo", "email"] },
+      { name: "Clave vacía", body: { email: "ana@prueba.com", password: "" }, errorPaths: ["password"] },
+    ],
+    businessRules: [
+      "Credenciales incorrectas → 401 (mensaje del módulo administrativo)",
+      "El módulo administrativo limita los intentos (hoy 20 cada 15 min por IP) → 429",
+      "Servicio caído o sin token en la respuesta → 502; sin respuesta a tiempo → 504",
+    ],
+    external: { writes: false, saveTokenAs: "authToken" },
+  },
   // ───────────── Administrativos ─────────────
   {
     id: "administrators.create",
@@ -491,7 +549,11 @@ export interface RouteDoc {
  * coincide EXACTAMENTE con las rutas registradas en Express (ni más ni menos).
  */
 export const routes: RouteDoc[] = [
-  { method: "GET", path: "/health", description: "Estado del servicio (única ruta sin autenticación)" },
+  { method: "GET", path: "/health", description: "Estado del servicio (pública)" },
+  // Autenticación: públicas, remiten al módulo administrativo (ADR-003)
+  { method: "POST", path: "/auth/register", description: "Registrar usuario (pública)" },
+  { method: "POST", path: "/auth/login", description: "Iniciar sesión (pública): devuelve el token" },
+  { method: "GET", path: "/auth/profile", description: "Usuario dueño del token (`Authorization: Bearer <token del login>`)" },
   // Módulo administrativo (solo lectura)
   { method: "GET", path: "/children", description: "Estudiantes", query: "`statusId`, `search`" },
   { method: "GET", path: "/children/by-document/:documentNumber", description: "Estudiante por número de documento" },

@@ -3,6 +3,7 @@ import express, { type Express, Router } from "express";
 import type { Container } from "../../container.js";
 import { createAccessRouter } from "../../access/http/access.routes.js";
 import { createAdministrativeRouter } from "../../administrative/http/administrative.routes.js";
+import { createAuthRouter } from "../../auth/http/auth.routes.js";
 import { createAdministratorsRouter } from "../../administrators/http/administrators.routes.js";
 import { createEvaluationsRouter } from "../../evaluations/http/evaluations.routes.js";
 import { createEvidencesRouter } from "../../evidences/http/evidences.routes.js";
@@ -28,10 +29,11 @@ export function createApp(container: Container, auth: AuthOptions = authOptionsF
   app.use(express.json({ limit: "1mb" }));
 
   const api = Router();
-  // Única ruta pública.
+  // Rutas públicas: estado y autenticación (ADR-003).
   api.get("/health", (_req, res) => {
     res.json({ status: "ok" });
   });
+  api.use(createAuthRouter(container));
   api.use(authenticate(container.profiles, auth));
   api.use(createAdministrativeRouter(container));
   api.use(createAdministratorsRouter(container));

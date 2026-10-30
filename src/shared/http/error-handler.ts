@@ -1,9 +1,25 @@
 import type { ErrorRequestHandler, RequestHandler } from "express";
-import { ConflictError, DomainError, NotFoundError, ValidationError } from "../domain/errors.js";
-import { ForbiddenError, UnauthorizedError } from "./http-errors.js";
+import {
+  ConflictError,
+  DomainError,
+  ExternalServiceError,
+  ForbiddenError,
+  NotFoundError,
+  UnauthorizedError,
+  ValidationError,
+} from "../domain/errors.js";
 
 // Traducción de errores a HTTP (ADR-002 §2.4). Formato único:
 // { "error": { "code", "message", "details"? } }
+
+/** Fallas de un servicio externo: 429 si limita peticiones, 504 si no respondió a tiempo, 502/503 en otro caso. */
+const externalStatus: Record<ExternalServiceError["failure"], number> = {
+  not_configured: 503,
+  unavailable: 502,
+  timeout: 504,
+  rate_limited: 429,
+  bad_response: 502,
+};
 
 function statusOf(error: DomainError): number {
   if (error instanceof ValidationError) return 400;
@@ -11,6 +27,7 @@ function statusOf(error: DomainError): number {
   if (error instanceof ForbiddenError) return 403;
   if (error instanceof NotFoundError) return 404;
   if (error instanceof ConflictError) return 409;
+  if (error instanceof ExternalServiceError) return externalStatus[error.failure];
   return 400;
 }
 

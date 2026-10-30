@@ -91,8 +91,10 @@ Todo cambio de datos propios empieza en el SQL y baja en ese orden. Las tablas d
 - El modelo se rehízo según el diagrama del módulo (Talleres, Habilidades, Evidencias). Compila y está probado en PGlite.
 - **Validaciones:** las 12 tablas del módulo están aprobadas e implementadas en `docs/VALIDACIONES.md` (✅). Respetarlas; cualquier cambio de regla se acuerda primero ahí.
 - **Capa HTTP: Express 5** bajo `/api/v1` ([ADR-002](docs/decisiones/ADR-002-capa-http-express.md)). 81 rutas, probadas en PGlite y en la BD de pruebas de Supabase (HTTP de punta a punta y la colección de Postman).
+- **Autenticación (feature `src/auth/`, [ADR-003](docs/decisiones/ADR-003-autenticacion-modulo-administrativo.md)):** el login, los usuarios y los roles son del módulo administrativo (servicio en Render, URLs `RENDER_*` en `.env`). Nuestras rutas públicas `/auth/register`, `/auth/login` y `/auth/profile` los remiten por el puerto `AuthGateway` y devuelven nuestros DTOs; el formato de ellos solo lo conoce `administrative-auth.mapper.ts`. Las demás rutas aún autentican con JWT de Supabase o `X-Actor-Id`. Toda ruta nueva sigue yendo a `scripts/request-catalog.ts`.
 - **Esquemas de entrada (nivel 1): Zod** en todas las features ([ADR-001](docs/decisiones/ADR-001-zod-esquemas-de-entrada.md)). No escribir validaciones de forma a mano en los servicios: van en los esquemas.
 - **`profiles` y `access`** usan la propuesta de VALIDACIONES.md §4 (tablas del script de login). Está pendiente revisarla con el usuario.
+- **Seguridad y autorización son de otro equipo** (seguridad e información personal): emiten el login (Supabase Auth) y gestionarán qué roles acceden a cada ruta. Nuestra API solo verifica el token y toma el `actor`; no implementar autorización por rol por nuestra cuenta. La propiedad de `perfiles`/`roles`/`usuario_roles` está por acordar con ellos.
 - **Provisional, pendiente de confirmar:**
   - El nombre del esquema del módulo administrativo (`administrativo`).
   - La tabla `administrators` (sus validaciones sí están aprobadas).
