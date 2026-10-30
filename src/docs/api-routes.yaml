@@ -1,0 +1,7381 @@
+{
+  "tags": [
+    {
+      "name": "Estado"
+    },
+    {
+      "name": "Autenticación"
+    },
+    {
+      "name": "Estudiantes"
+    },
+    {
+      "name": "Acudientes"
+    },
+    {
+      "name": "Talleristas"
+    },
+    {
+      "name": "Administrativos"
+    },
+    {
+      "name": "Acceso (roles y aplicaciones)"
+    },
+    {
+      "name": "Perfiles"
+    },
+    {
+      "name": "Categorías de habilidades"
+    },
+    {
+      "name": "Habilidades"
+    },
+    {
+      "name": "Escalas de evaluación"
+    },
+    {
+      "name": "Talleres"
+    },
+    {
+      "name": "Asistencias"
+    },
+    {
+      "name": "Evaluaciones y calificaciones"
+    },
+    {
+      "name": "Evidencias"
+    },
+    {
+      "name": "Credenciales"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "JWT de Supabase o, en /auth/profile, el token del login"
+      },
+      "actorId": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Actor-Id",
+        "description": "UUID de un perfil activo (solo fuera de producción)"
+      }
+    },
+    "schemas": {
+      "ApiError": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "object",
+            "required": [
+              "code",
+              "message"
+            ],
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "message": {
+                "type": "string"
+              },
+              "details": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "path": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/health": {
+    "get": {
+      "tags": [
+        "Estado"
+      ],
+      "summary": "Estado del servicio (pública)",
+      "security": [],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        }
+      }
+    }
+  },
+  "/auth/register": {
+    "post": {
+      "tags": [
+        "Autenticación"
+      ],
+      "summary": "Registrar usuario (pública)",
+      "security": [],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "username": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100,
+                  "pattern": "^\\S+$",
+                  "description": "string. 1–100, sin espacios"
+                },
+                "email": {
+                  "type": "string",
+                  "description": "string. email válido, máx. 254 (se envía tal cual)"
+                },
+                "password": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "description": "string. 1–128; no se transforma"
+                },
+                "role": {
+                  "type": "string",
+                  "pattern": "^[A-Z_]{2,30}$",
+                  "description": "string. código de rol (letras y `_`), se pasa a mayúsculas. El registro público admite `ACUDIENTE` | `DONANTE`"
+                }
+              },
+              "required": [
+                "username",
+                "email",
+                "password",
+                "role"
+              ],
+              "additionalProperties": false
+            },
+            "example": {
+              "username": "carlos.donante",
+              "email": "carlos@prueba.com",
+              "password": "ClaveDonante2026",
+              "role": "DONANTE"
+            }
+          }
+        }
+      },
+      "responses": {
+        "201": {
+          "description": "Creado"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "429": {
+          "description": "Demasiados intentos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "502": {
+          "description": "El módulo administrativo falló",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "503": {
+          "description": "Autenticación sin configurar",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "504": {
+          "description": "El módulo administrativo no respondió a tiempo",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/auth/login": {
+    "post": {
+      "tags": [
+        "Autenticación"
+      ],
+      "summary": "Iniciar sesión (pública): devuelve el token",
+      "security": [],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "email": {
+                  "type": "string",
+                  "description": "string. email válido, máx. 254"
+                },
+                "password": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 128,
+                  "description": "string. 1–128"
+                }
+              },
+              "required": [
+                "email",
+                "password"
+              ],
+              "additionalProperties": false
+            },
+            "example": {
+              "email": "juan@prueba.com",
+              "password": "ClaveDePrueba2026"
+            }
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "429": {
+          "description": "Demasiados intentos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "502": {
+          "description": "El módulo administrativo falló",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "503": {
+          "description": "Autenticación sin configurar",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "504": {
+          "description": "El módulo administrativo no respondió a tiempo",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/auth/profile": {
+    "get": {
+      "tags": [
+        "Autenticación"
+      ],
+      "summary": "Usuario dueño del token (`Authorization: Bearer <token del login>`)",
+      "security": [
+        {
+          "bearerAuth": []
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "429": {
+          "description": "Demasiados intentos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "502": {
+          "description": "El módulo administrativo falló",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "503": {
+          "description": "Autenticación sin configurar",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "504": {
+          "description": "El módulo administrativo no respondió a tiempo",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/children": {
+    "get": {
+      "tags": [
+        "Estudiantes"
+      ],
+      "summary": "Estudiantes",
+      "description": "Consulta: `statusId`, `search`",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "statusId",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "search",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/children/by-document/{documentNumber}": {
+    "get": {
+      "tags": [
+        "Estudiantes"
+      ],
+      "summary": "Estudiante por número de documento",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "documentNumber",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/children/{id}": {
+    "get": {
+      "tags": [
+        "Estudiantes"
+      ],
+      "summary": "Estudiante",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/children/{id}/guardians": {
+    "get": {
+      "tags": [
+        "Estudiantes"
+      ],
+      "summary": "Acudientes del estudiante",
+      "description": "Consulta: `activeOnly` (por defecto `true`)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "activeOnly",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "true",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/guardians": {
+    "get": {
+      "tags": [
+        "Acudientes"
+      ],
+      "summary": "Acudientes",
+      "description": "Consulta: `search`",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "search",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/guardians/{id}": {
+    "get": {
+      "tags": [
+        "Acudientes"
+      ],
+      "summary": "Acudiente",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/guardians/{id}/children": {
+    "get": {
+      "tags": [
+        "Acudientes"
+      ],
+      "summary": "Estudiantes del acudiente",
+      "description": "Consulta: `activeOnly` (por defecto `true`)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "activeOnly",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "true",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/professionals": {
+    "get": {
+      "tags": [
+        "Talleristas"
+      ],
+      "summary": "Talleristas",
+      "description": "Consulta: `timeDonor`",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "timeDonor",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/professionals/by-staff/{staffId}": {
+    "get": {
+      "tags": [
+        "Talleristas"
+      ],
+      "summary": "Tallerista por `staff_id`",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "staffId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/professionals/{id}": {
+    "get": {
+      "tags": [
+        "Talleristas"
+      ],
+      "summary": "Tallerista",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/administrators": {
+    "get": {
+      "tags": [
+        "Administrativos"
+      ],
+      "summary": "Administrativos",
+      "description": "Consulta: `status`, `search`, `includeDeleted`",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "status",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "search",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "includeDeleted",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "post": {
+      "tags": [
+        "Administrativos"
+      ],
+      "summary": "Crear administrativo",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "fullName": {
+                  "type": "string",
+                  "description": "string. 3–150; solo letras (con tildes), espacios, `'` y `-`; se quitan espacios sobrantes"
+                },
+                "documentType": {
+                  "type": "string",
+                  "enum": [
+                    "CC",
+                    "TI",
+                    "CE",
+                    "PA",
+                    "RC",
+                    "PPT",
+                    "NIT"
+                  ],
+                  "description": "string. `CC` | `TI` | `CE` | `PA` | `RC` | `PPT` | `NIT`"
+                },
+                "documentNumber": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9-]{3,20}$",
+                  "description": "string. 3–20 letras, números o `-`, sin espacios"
+                },
+                "email": {
+                  "type": "string",
+                  "description": "string. email válido, máx. 254; se guarda en minúsculas"
+                },
+                "phone": {
+                  "nullable": true,
+                  "type": "string",
+                  "pattern": "^\\+?\\d{7,15}$",
+                  "description": "string | null. 7–15 dígitos, `+` opcional al inicio"
+                },
+                "position": {
+                  "type": "string",
+                  "description": "string. 2–100"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "inactive"
+                  ],
+                  "description": "string. `active` | `inactive` (por defecto `active`)"
+                }
+              },
+              "required": [
+                "fullName",
+                "documentType",
+                "documentNumber",
+                "email",
+                "position"
+              ],
+              "additionalProperties": false
+            },
+            "example": {
+              "fullName": "María José O'Neil-Pérez",
+              "documentType": "CC",
+              "documentNumber": "1020304050",
+              "email": "Maria.Oneil@Fundacion.test",
+              "phone": "+573001234567",
+              "position": "Coordinadora"
+            }
+          }
+        }
+      },
+      "responses": {
+        "201": {
+          "description": "Creado"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/administrators/{id}": {
+    "get": {
+      "tags": [
+        "Administrativos"
+      ],
+      "summary": "Administrativo",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "patch": {
+      "tags": [
+        "Administrativos"
+      ],
+      "summary": "Actualizar administrativo",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "fullName": {
+                  "type": "string"
+                },
+                "documentType": {
+                  "type": "string",
+                  "enum": [
+                    "CC",
+                    "TI",
+                    "CE",
+                    "PA",
+                    "RC",
+                    "PPT",
+                    "NIT"
+                  ]
+                },
+                "documentNumber": {
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9-]{3,20}$"
+                },
+                "email": {
+                  "type": "string"
+                },
+                "phone": {
+                  "nullable": true,
+                  "type": "string",
+                  "pattern": "^\\+?\\d{7,15}$"
+                },
+                "position": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "inactive"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            "example": {
+              "position": "Directora",
+              "status": "inactive"
+            }
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "delete": {
+      "tags": [
+        "Administrativos"
+      ],
+      "summary": "Eliminar administrativo (lógico)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "204": {
+          "description": "Eliminado (sin cuerpo)"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/administrators/{id}/restore": {
+    "post": {
+      "tags": [
+        "Administrativos"
+      ],
+      "summary": "Restaurar administrativo",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/profiles": {
+    "get": {
+      "tags": [
+        "Perfiles"
+      ],
+      "summary": "Perfiles",
+      "description": "Consulta: `status`, `search`, `includeDeleted`",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "status",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "search",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "includeDeleted",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/profiles/me": {
+    "get": {
+      "tags": [
+        "Perfiles"
+      ],
+      "summary": "Perfil del usuario autenticado",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/profiles/{id}": {
+    "get": {
+      "tags": [
+        "Perfiles"
+      ],
+      "summary": "Perfil (UUID)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "patch": {
+      "tags": [
+        "Perfiles"
+      ],
+      "summary": "Actualizar perfil",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "firstNames": {
+                  "type": "string",
+                  "description": "string. 1–100"
+                },
+                "lastNames": {
+                  "nullable": true,
+                  "type": "string",
+                  "description": "string | null. 1–100"
+                },
+                "phone": {
+                  "nullable": true,
+                  "type": "string",
+                  "pattern": "^\\+?\\d{7,15}$",
+                  "description": "string | null. 7–15 dígitos, `+` opcional"
+                },
+                "documentType": {
+                  "nullable": true,
+                  "type": "string",
+                  "enum": [
+                    "CC",
+                    "TI",
+                    "CE",
+                    "PA",
+                    "RC",
+                    "PPT",
+                    "NIT"
+                  ],
+                  "description": "string | null. `CC` | `TI` | `CE` | `PA` | `RC` | `PPT` | `NIT`"
+                },
+                "documentNumber": {
+                  "nullable": true,
+                  "type": "string",
+                  "pattern": "^[A-Za-z0-9-]{3,20}$",
+                  "description": "string | null. 3–20 letras, números o `-`"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "activo",
+                    "inactivo",
+                    "bloqueado"
+                  ],
+                  "description": "string. `activo` | `inactivo` | `bloqueado`"
+                },
+                "dataProcessingAcceptedAt": {
+                  "nullable": true,
+                  "description": "string | null. texto ISO 8601 con zona (ej. \"2026-10-20T15:00:00Z\")"
+                }
+              },
+              "additionalProperties": false
+            },
+            "example": {
+              "firstNames": "Ana María",
+              "phone": "+573001112233",
+              "dataProcessingAcceptedAt": "2026-10-27T15:00:00Z"
+            }
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "delete": {
+      "tags": [
+        "Perfiles"
+      ],
+      "summary": "Eliminar perfil (lógico)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "204": {
+          "description": "Eliminado (sin cuerpo)"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/profiles/{id}/restore": {
+    "post": {
+      "tags": [
+        "Perfiles"
+      ],
+      "summary": "Restaurar perfil",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/profiles/{userId}/roles": {
+    "get": {
+      "tags": [
+        "Acceso (roles y aplicaciones)"
+      ],
+      "summary": "Roles del usuario",
+      "description": "Consulta: `app`",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "userId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "app",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/profiles/{userId}/roles/{role}": {
+    "get": {
+      "tags": [
+        "Acceso (roles y aplicaciones)"
+      ],
+      "summary": "¿Tiene el rol? → `{ hasRole }`",
+      "description": "Consulta: `app`",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "userId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "role",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "app",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/apps": {
+    "get": {
+      "tags": [
+        "Acceso (roles y aplicaciones)"
+      ],
+      "summary": "Aplicaciones",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "post": {
+      "tags": [
+        "Acceso (roles y aplicaciones)"
+      ],
+      "summary": "Crear aplicación",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_]{2,30}$",
+                  "description": "string. 2–30 letras, números o `_`"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "string. 2–100"
+                }
+              },
+              "required": [
+                "code",
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            "example": {
+              "code": "coordinador",
+              "name": "Coordinación"
+            }
+          }
+        }
+      },
+      "responses": {
+        "201": {
+          "description": "Creado"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/roles": {
+    "get": {
+      "tags": [
+        "Acceso (roles y aplicaciones)"
+      ],
+      "summary": "Roles",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "post": {
+      "tags": [
+        "Acceso (roles y aplicaciones)"
+      ],
+      "summary": "Crear rol",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_]{2,30}$",
+                  "description": "string. 2–30 letras, números o `_`"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "string. 2–100"
+                }
+              },
+              "required": [
+                "code",
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            "example": {
+              "code": "coordinador",
+              "name": "Coordinación"
+            }
+          }
+        }
+      },
+      "responses": {
+        "201": {
+          "description": "Creado"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/user-roles": {
+    "post": {
+      "tags": [
+        "Acceso (roles y aplicaciones)"
+      ],
+      "summary": "Asignar rol",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "userId": {
+                  "type": "string",
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
+                  "description": "string. UUID (formato 8-4-4-4-12)"
+                },
+                "role": {
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_]{2,30}$",
+                  "description": "string. código de rol (2–30 letras, números o `_`)"
+                },
+                "app": {
+                  "nullable": true,
+                  "type": "string",
+                  "pattern": "^[a-zA-Z0-9_]{2,30}$",
+                  "description": "string | null. código de aplicación; `null` = rol global"
+                }
+              },
+              "required": [
+                "userId",
+                "role"
+              ],
+              "additionalProperties": false
+            },
+            "example": {
+              "userId": "a1b2c3d4-0000-4000-8000-000000000001",
+              "role": "tallerista",
+              "app": "aula_up"
+            }
+          }
+        }
+      },
+      "responses": {
+        "201": {
+          "description": "Creado"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/user-roles/{id}": {
+    "delete": {
+      "tags": [
+        "Acceso (roles y aplicaciones)"
+      ],
+      "summary": "Revocar rol",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "204": {
+          "description": "Eliminado (sin cuerpo)"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/skill-categories": {
+    "get": {
+      "tags": [
+        "Categorías de habilidades"
+      ],
+      "summary": "Categorías",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "post": {
+      "tags": [
+        "Categorías de habilidades"
+      ],
+      "summary": "Crear categoría",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "string. 2–100; se quitan espacios sobrantes"
+                },
+                "description": {
+                  "nullable": true,
+                  "type": "string",
+                  "description": "string | null. máx. 500; vacía → null"
+                }
+              },
+              "required": [
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            "example": {
+              "name": "  Habilidades   blandas ",
+              "description": "Relación con los demás"
+            }
+          }
+        }
+      },
+      "responses": {
+        "201": {
+          "description": "Creado"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/skill-categories/{id}": {
+    "get": {
+      "tags": [
+        "Categorías de habilidades"
+      ],
+      "summary": "Categoría",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "patch": {
+      "tags": [
+        "Categorías de habilidades"
+      ],
+      "summary": "Actualizar categoría",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "description": {
+                  "nullable": true,
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "example": {
+              "name": "Blandas"
+            }
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "delete": {
+      "tags": [
+        "Categorías de habilidades"
+      ],
+      "summary": "Eliminar categoría (sin habilidades)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "204": {
+          "description": "Eliminado (sin cuerpo)"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/skills": {
+    "get": {
+      "tags": [
+        "Habilidades"
+      ],
+      "summary": "Habilidades",
+      "description": "Consulta: `skillCategoryId`, `status`, `search`, `includeDeleted`",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "skillCategoryId",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "status",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "search",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "includeDeleted",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "post": {
+      "tags": [
+        "Habilidades"
+      ],
+      "summary": "Crear habilidad",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "string. 2–100; se quitan espacios sobrantes"
+                },
+                "skillCategoryId": {
+                  "description": "number | string. número o texto con un entero > 0 (ej. 12 o \"12\")"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "inactive"
+                  ],
+                  "description": "string. `active` | `inactive` (por defecto `active`)"
+                }
+              },
+              "required": [
+                "name",
+                "skillCategoryId"
+              ],
+              "additionalProperties": false
+            },
+            "example": {
+              "name": "Resolución de conflictos",
+              "skillCategoryId": 1
+            }
+          }
+        }
+      },
+      "responses": {
+        "201": {
+          "description": "Creado"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/skills/{id}": {
+    "get": {
+      "tags": [
+        "Habilidades"
+      ],
+      "summary": "Habilidad",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "patch": {
+      "tags": [
+        "Habilidades"
+      ],
+      "summary": "Actualizar habilidad",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "name": {
+                  "type": "string"
+                },
+                "skillCategoryId": {},
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "inactive"
+                  ]
+                }
+              },
+              "additionalProperties": false
+            },
+            "example": {
+              "status": "inactive"
+            }
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "delete": {
+      "tags": [
+        "Habilidades"
+      ],
+      "summary": "Eliminar habilidad (sin historial)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "204": {
+          "description": "Eliminado (sin cuerpo)"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/students/{studentId}/skills": {
+    "get": {
+      "tags": [
+        "Evaluaciones y calificaciones"
+      ],
+      "summary": "Calificaciones del estudiante (calculadas)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "studentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/students/{studentId}/category-averages": {
+    "get": {
+      "tags": [
+        "Evaluaciones y calificaciones"
+      ],
+      "summary": "Promedio por categoría del estudiante",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "studentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/evaluation-scales": {
+    "get": {
+      "tags": [
+        "Escalas de evaluación"
+      ],
+      "summary": "Escalas, ordenadas por `numValue`",
+      "description": "Consulta: `activeOnly` (por defecto `true`)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "activeOnly",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "true",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "post": {
+      "tags": [
+        "Escalas de evaluación"
+      ],
+      "summary": "Crear escala",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "pattern": "^[A-Z0-9_]{1,30}$",
+                  "description": "string. 1–30; solo MAYÚSCULAS, números y `_` (no se convierte: se rechaza)"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "string. 2–100"
+                },
+                "description": {
+                  "nullable": true,
+                  "type": "string",
+                  "description": "string | null. máx. 500"
+                },
+                "numValue": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 5,
+                  "description": "number. 0–5, máx. 2 decimales; valor de la calificación"
+                },
+                "minValue": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 5,
+                  "description": "number. 0–5, máx. 2 decimales"
+                },
+                "maxValue": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 5,
+                  "description": "number. 0–5, máx. 2 decimales"
+                },
+                "isActive": {
+                  "type": "boolean",
+                  "description": "boolean. por defecto `true`"
+                }
+              },
+              "required": [
+                "code",
+                "name",
+                "numValue",
+                "minValue",
+                "maxValue"
+              ],
+              "additionalProperties": false
+            },
+            "example": {
+              "code": "EN_PROCESO",
+              "name": "En proceso",
+              "numValue": 3,
+              "minValue": 2,
+              "maxValue": 3.49
+            }
+          }
+        }
+      },
+      "responses": {
+        "201": {
+          "description": "Creado"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/evaluation-scales/coverage-gaps": {
+    "get": {
+      "tags": [
+        "Escalas de evaluación"
+      ],
+      "summary": "Tramos de 0–5 sin escala activa",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/evaluation-scales/classify": {
+    "get": {
+      "tags": [
+        "Escalas de evaluación"
+      ],
+      "summary": "Escala en la que cae un valor",
+      "description": "Consulta: `value` (obligatorio)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "value",
+          "in": "query",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/evaluation-scales/{id}": {
+    "get": {
+      "tags": [
+        "Escalas de evaluación"
+      ],
+      "summary": "Escala",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "patch": {
+      "tags": [
+        "Escalas de evaluación"
+      ],
+      "summary": "Actualizar escala",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "type": "string",
+                  "pattern": "^[A-Z0-9_]{1,30}$"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "description": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "numValue": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 5
+                },
+                "minValue": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 5
+                },
+                "maxValue": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 5
+                },
+                "isActive": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            },
+            "example": {
+              "name": "En proceso de logro",
+              "isActive": false
+            }
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "delete": {
+      "tags": [
+        "Escalas de evaluación"
+      ],
+      "summary": "Eliminar escala (si nunca se usó)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "204": {
+          "description": "Eliminado (sin cuerpo)"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/evaluations": {
+    "post": {
+      "tags": [
+        "Evaluaciones y calificaciones"
+      ],
+      "summary": "Evaluar una habilidad en una asistencia (recalcula la calificación)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "workshopAttendanceId": {
+                  "description": "number | string. número o texto con un entero > 0 (ej. 12 o \"12\")"
+                },
+                "workshopSkillId": {
+                  "description": "number | string. número o texto con un entero > 0 (ej. 12 o \"12\")"
+                },
+                "evaluationScaleId": {
+                  "description": "number | string. número o texto con un entero > 0 (ej. 12 o \"12\")"
+                }
+              },
+              "required": [
+                "workshopAttendanceId",
+                "workshopSkillId",
+                "evaluationScaleId"
+              ],
+              "additionalProperties": false
+            },
+            "example": {
+              "workshopAttendanceId": 10,
+              "workshopSkillId": 3,
+              "evaluationScaleId": 2
+            }
+          }
+        }
+      },
+      "responses": {
+        "201": {
+          "description": "Creado"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/attendances/{attendanceId}/evaluations": {
+    "get": {
+      "tags": [
+        "Evaluaciones y calificaciones"
+      ],
+      "summary": "Evaluaciones de la asistencia",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "attendanceId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/attendances/{attendanceId}/evaluations/{workshopSkillId}": {
+    "delete": {
+      "tags": [
+        "Evaluaciones y calificaciones"
+      ],
+      "summary": "Eliminar evaluación (recalcula)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "attendanceId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "workshopSkillId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "204": {
+          "description": "Eliminado (sin cuerpo)"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/students/{studentId}/skills/{skillId}/recalculate": {
+    "post": {
+      "tags": [
+        "Evaluaciones y calificaciones"
+      ],
+      "summary": "Recalcular a mano una calificación",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "studentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "skillId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/workshops": {
+    "get": {
+      "tags": [
+        "Talleres"
+      ],
+      "summary": "Talleres",
+      "description": "Consulta: `evaluatorId`, `status`, `search`, `includeDeleted`",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "evaluatorId",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "status",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "search",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "includeDeleted",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "post": {
+      "tags": [
+        "Talleres"
+      ],
+      "summary": "Crear taller (nace `planned`)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "evaluatorId": {
+                  "description": "number | string. número o texto con un entero > 0 (ej. 12 o \"12\"); tallerista (professional_id)"
+                },
+                "name": {
+                  "type": "string",
+                  "description": "string. 3–150"
+                },
+                "startsAt": {
+                  "nullable": true,
+                  "description": "string | null. texto ISO 8601 con zona (ej. \"2026-10-20T15:00:00Z\")"
+                },
+                "endsAt": {
+                  "nullable": true,
+                  "description": "string | null. texto ISO 8601 con zona (ej. \"2026-10-20T15:00:00Z\")"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "planned"
+                  ],
+                  "description": "string. solo `planned` (todo taller nace `planned`)"
+                }
+              },
+              "required": [
+                "evaluatorId",
+                "name"
+              ],
+              "additionalProperties": false
+            },
+            "example": {
+              "evaluatorId": 500,
+              "name": "Música y ritmo",
+              "startsAt": "2026-11-03T15:00:00Z"
+            }
+          }
+        }
+      },
+      "responses": {
+        "201": {
+          "description": "Creado"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/workshops/{id}": {
+    "get": {
+      "tags": [
+        "Talleres"
+      ],
+      "summary": "Taller",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "patch": {
+      "tags": [
+        "Talleres"
+      ],
+      "summary": "Editar (solo `planned`) o cambiar estado",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "evaluatorId": {},
+                "name": {
+                  "type": "string"
+                },
+                "startsAt": {
+                  "nullable": true
+                },
+                "endsAt": {
+                  "nullable": true
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "planned",
+                    "active",
+                    "finished",
+                    "cancelled"
+                  ],
+                  "description": "string. `planned` | `active` | `finished` | `cancelled`"
+                }
+              },
+              "additionalProperties": false
+            },
+            "example": {
+              "status": "finished",
+              "endsAt": "2026-12-15T15:00:00Z"
+            }
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "delete": {
+      "tags": [
+        "Talleres"
+      ],
+      "summary": "Eliminar taller (sin asistencias)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "204": {
+          "description": "Eliminado (sin cuerpo)"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/workshops/{id}/skills": {
+    "get": {
+      "tags": [
+        "Talleres"
+      ],
+      "summary": "Habilidades del taller",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/workshops/{id}/skills/{skillId}": {
+    "put": {
+      "tags": [
+        "Talleres"
+      ],
+      "summary": "Asociar habilidad (o restaurarla)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "skillId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "delete": {
+      "tags": [
+        "Talleres"
+      ],
+      "summary": "Quitar habilidad (recalcula)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "skillId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "204": {
+          "description": "Eliminado (sin cuerpo)"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/workshops/{id}/attendances": {
+    "get": {
+      "tags": [
+        "Talleres"
+      ],
+      "summary": "Asistencias del taller",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/students/{studentId}/attendances": {
+    "get": {
+      "tags": [
+        "Asistencias"
+      ],
+      "summary": "Asistencias del estudiante",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "studentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/attendances": {
+    "post": {
+      "tags": [
+        "Asistencias"
+      ],
+      "summary": "Registrar asistencia",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "studentId": {
+                  "description": "number | string. número o texto con un entero > 0 (ej. 12 o \"12\"); joven (child_id)"
+                },
+                "workshopId": {
+                  "description": "number | string. número o texto con un entero > 0 (ej. 12 o \"12\")"
+                },
+                "attendedAt": {
+                  "description": "string. texto ISO 8601 con zona (ej. \"2026-10-20T15:00:00Z\"); por defecto, ahora"
+                },
+                "observation": {
+                  "nullable": true,
+                  "type": "string",
+                  "description": "string | null. máx. 1000; vacía → null"
+                }
+              },
+              "required": [
+                "studentId",
+                "workshopId"
+              ],
+              "additionalProperties": false
+            },
+            "example": {
+              "studentId": 1,
+              "workshopId": 2,
+              "attendedAt": "2026-10-20T15:00:00Z",
+              "observation": "Participó activamente"
+            }
+          }
+        }
+      },
+      "responses": {
+        "201": {
+          "description": "Creado"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/attendances/{id}": {
+    "get": {
+      "tags": [
+        "Asistencias"
+      ],
+      "summary": "Asistencia",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "patch": {
+      "tags": [
+        "Asistencias"
+      ],
+      "summary": "Actualizar asistencia",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "attendedAt": {
+                  "description": "string. texto ISO 8601 con zona (ej. \"2026-10-20T15:00:00Z\")"
+                },
+                "observation": {
+                  "nullable": true,
+                  "type": "string",
+                  "description": "string | null. máx. 1000; vacía → null"
+                }
+              },
+              "additionalProperties": false
+            },
+            "example": {
+              "observation": "Llegó tarde"
+            }
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "delete": {
+      "tags": [
+        "Asistencias"
+      ],
+      "summary": "Eliminar asistencia (recalcula)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "204": {
+          "description": "Eliminado (sin cuerpo)"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/evidences": {
+    "post": {
+      "tags": [
+        "Evidencias"
+      ],
+      "summary": "Subir evidencia",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "maxLength": 2048,
+                  "pattern": "^\\S+$",
+                  "description": "string. URL `https://…`, sin espacios, máx. 2048"
+                },
+                "title": {
+                  "type": "string",
+                  "description": "string. 2–150"
+                },
+                "studentIds": {
+                  "type": "array",
+                  "items": {},
+                  "description": "array. 1–50 ids (número o texto con un entero > 0 (ej. 12 o \"12\")); los repetidos se cuentan una vez"
+                }
+              },
+              "required": [
+                "url",
+                "title",
+                "studentIds"
+              ],
+              "additionalProperties": false
+            },
+            "example": {
+              "url": "https://storage.fundacion.test/evidencias/mural.jpg",
+              "title": "Mural colectivo",
+              "studentIds": [
+                1,
+                "2"
+              ]
+            }
+          }
+        }
+      },
+      "responses": {
+        "201": {
+          "description": "Creado"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/evidences/{id}": {
+    "get": {
+      "tags": [
+        "Evidencias"
+      ],
+      "summary": "Evidencia",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "patch": {
+      "tags": [
+        "Evidencias"
+      ],
+      "summary": "Actualizar evidencia",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "maxLength": 2048,
+                  "pattern": "^\\S+$"
+                },
+                "title": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "example": {
+              "title": "Mural colectivo (versión final)"
+            }
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "delete": {
+      "tags": [
+        "Evidencias"
+      ],
+      "summary": "Eliminar evidencia (y sus relaciones)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "204": {
+          "description": "Eliminado (sin cuerpo)"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/evidences/{id}/students": {
+    "get": {
+      "tags": [
+        "Evidencias"
+      ],
+      "summary": "Estudiantes de la evidencia",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/evidences/{id}/students/{studentId}": {
+    "put": {
+      "tags": [
+        "Evidencias"
+      ],
+      "summary": "Relacionar estudiante (o restaurarlo)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "studentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "delete": {
+      "tags": [
+        "Evidencias"
+      ],
+      "summary": "Quitar estudiante (no el último)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "studentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "204": {
+          "description": "Eliminado (sin cuerpo)"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/students/{studentId}/evidences": {
+    "get": {
+      "tags": [
+        "Evidencias"
+      ],
+      "summary": "Evidencias del estudiante",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "studentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/credentials": {
+    "post": {
+      "tags": [
+        "Credenciales"
+      ],
+      "summary": "Registrar credencial (nace `pending`)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "studentId": {
+                  "description": "number | string. número o texto con un entero > 0 (ej. 12 o \"12\")"
+                },
+                "organizationName": {
+                  "type": "string",
+                  "description": "string. 2–150"
+                },
+                "workshopId": {
+                  "nullable": true,
+                  "description": "number | string | null. número o texto con un entero > 0 (ej. 12 o \"12\")"
+                },
+                "url": {
+                  "type": "string",
+                  "maxLength": 2048,
+                  "pattern": "^\\S+$",
+                  "description": "string. URL `https://…`, sin espacios, máx. 2048"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pending"
+                  ],
+                  "description": "string. solo `pending` (toda credencial nace `pending`)"
+                }
+              },
+              "required": [
+                "studentId",
+                "organizationName",
+                "url"
+              ],
+              "additionalProperties": false
+            },
+            "example": {
+              "studentId": 1,
+              "organizationName": "Fundación Asisco",
+              "url": "https://storage.fundacion.test/certificados/c-1.pdf",
+              "workshopId": 1
+            }
+          }
+        }
+      },
+      "responses": {
+        "201": {
+          "description": "Creado"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/credentials/{id}": {
+    "get": {
+      "tags": [
+        "Credenciales"
+      ],
+      "summary": "Credencial",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "patch": {
+      "tags": [
+        "Credenciales"
+      ],
+      "summary": "Editar (solo `pending`) o cambiar estado",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "organizationName": {
+                  "type": "string"
+                },
+                "workshopId": {
+                  "nullable": true
+                },
+                "url": {
+                  "type": "string",
+                  "maxLength": 2048,
+                  "pattern": "^\\S+$"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pending",
+                    "valid",
+                    "revoked"
+                  ],
+                  "description": "string. `pending` | `valid` | `revoked`"
+                }
+              },
+              "additionalProperties": false
+            },
+            "example": {
+              "status": "valid"
+            }
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "delete": {
+      "tags": [
+        "Credenciales"
+      ],
+      "summary": "Eliminar credencial (solo `pending`)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "204": {
+          "description": "Eliminado (sin cuerpo)"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/students/{studentId}/credentials": {
+    "get": {
+      "tags": [
+        "Credenciales"
+      ],
+      "summary": "Credenciales del estudiante",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "studentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "Perfil inactivo o bloqueado",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

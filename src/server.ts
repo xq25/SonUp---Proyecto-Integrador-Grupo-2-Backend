@@ -1,5 +1,6 @@
 import { createContainer } from "./container.js";
-import { API_PREFIX, createApp } from "./shared/http/app.js";
+import { API_PREFIX } from "./shared/http/api.routes.js";
+import { createApp } from "./shared/http/app.js";
 
 // Arranque del servidor HTTP: `npm run dev` (recarga al guardar) o `npm start`.
 const port = Number(process.env["PORT"] ?? 3000);

@@ -47,7 +47,7 @@ export interface Operation {
   /** Llamada al servicio que atiende la ruta. */
   service: string;
   /**
-   * Ruta HTTP (relativa a `/api/v1`, con `:param` como en Express).
+   * Ruta HTTP (relativa a `/api`, con `:param` como en Express).
    * `saveIdAs`: en Postman, el `id` de la respuesta se guarda en esa variable
    * para que las peticiones siguientes (p. ej. actualizar) usen lo recién creado.
    */
@@ -543,7 +543,7 @@ export type HttpMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 
 export interface RouteDoc {
   method: HttpMethod;
-  /** Relativa a `/api/v1`, con `:param` como en Express. */
+  /** Relativa a `/api`, con `:param` como en Express. */
   path: string;
   description: string;
   /** Parámetros de consulta admitidos (los demás se rechazan con 400). */

@@ -32,9 +32,9 @@
 
 - **Verificación de la firma.** Se usa la clave pública del proyecto (JWKS en `${SUPABASE_URL}/auth/v1/.well-known/jwks.json`). Si el proyecto usa el secreto compartido antiguo, se define `SUPABASE_JWT_SECRET` y se verifica con HS256.
 - **El perfil debe existir y estar `activo`.** Si no, la petición se rechaza con **401** o **403**.
-- **Todas las rutas `/api/v1` exigen actor**, salvo `GET /api/v1/health`. El backend usa una conexión que no aplica RLS, así que la API no puede quedar abierta.
+- **Todas las rutas `/api` exigen actor**, salvo `GET /api/health`. El backend usa una conexión que no aplica RLS, así que la API no puede quedar abierta.
 
-### 2.3 Rutas: REST en inglés bajo `/api/v1`
+### 2.3 Rutas: REST en inglés bajo `/api`
 
 - **Coherentes con el código:** recursos en plural y `kebab-case` (`/workshops`, `/skill-categories`, `/evaluation-scales`).
 - **Verbos:**

@@ -45,6 +45,7 @@
 | Validación de entrada (nivel 1) | `zod` | 4.6.x — ver [ADR-001](decisiones/ADR-001-zod-esquemas-de-entrada.md) |
 | HTTP | `express` + `cors` | 5.x / 2.x — ver [ADR-002](decisiones/ADR-002-capa-http-express.md) |
 | Verificación de JWT de Supabase | `jose` | 6.x — ver [ADR-002](decisiones/ADR-002-capa-http-express.md) |
+| Documentación interactiva | `swagger-jsdoc` + `swagger-ui-express` | 6.x / 5.x — ver [ADR-005](decisiones/ADR-005-swagger-desde-el-catalogo.md) |
 
 - El cliente de Prisma se genera en `generated/prisma/`, que está ignorado por git. Se regenera con `npm run prisma:generate`.
 - La configuración de la CLI está en `prisma7.config.ts`. Como no usa el nombre por defecto, todos los comandos de Prisma llevan `--config prisma7.config.ts`.
@@ -61,7 +62,7 @@
 | `npm run prisma:studio` | Abre Prisma Studio (requiere BD) |
 | `npm run db:check` | Verifica la conexión y el estado de la BD configurada en `.env` (solo lectura) |
 | `npm run db:seed:dev` | Carga datos de prueba en la **BD de pruebas** usando los servicios del módulo (solo corre si existe el simulado del administrativo) |
-| `npm run docs:requests` | Regenera [api/CUERPOS_DE_PETICION.md](api/CUERPOS_DE_PETICION.md) (rutas y cuerpos), la colección `api/postman-coleccion.json` y `api/postman-casos.json` desde `scripts/request-catalog.ts`. Valida cada ejemplo contra los esquemas Zod y cada ruta contra Express |
+| `npm run docs:requests` | Regenera [api/CUERPOS_DE_PETICION.md](api/CUERPOS_DE_PETICION.md) (rutas y cuerpos), la colección `api/postman-coleccion.json`, `api/postman-casos.json` y `src/docs/api-routes.yaml` (Swagger UI) desde `scripts/request-catalog.ts`. Valida cada ejemplo contra los esquemas Zod y cada ruta contra Express |
 
 ### Variables de entorno
 
@@ -75,6 +76,7 @@
 | `SUPABASE_URL` | `https://<ref>.supabase.co`: emisor del JWT y su JWKS. Sin ella solo funciona `X-Actor-Id` |
 | `SUPABASE_JWT_SECRET` | Opcional: secreto HS256 si el proyecto usa las claves JWT antiguas |
 | `CORS_ORIGIN` | Opcional: orígenes permitidos separados por comas (sin ella, cualquiera) |
+| `PUBLIC_URL` | Opcional: URL pública del despliegue, sin el prefijo. Agrega ese servidor en Swagger |
 | `RENDER_API_URL` | URL base del servicio de autenticación del módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)). Sin ella, `/auth/*` responde 503 |
 | `RENDER_REGISTER_PATH` / `RENDER_LOGIN_PATH` / `RENDER_PROFILE_PATH` | Rutas de registro, login y perfil allá (por defecto `/auth/registro`, `/auth/login`, `/auth/perfil`) |
 | `RENDER_HTTP_TIMEOUT_MS` | Tiempo límite de cada llamada (por defecto 10000). Render gratuito tarda ~30 s en despertar |
@@ -282,7 +284,9 @@ src/
 │   │   ├── dates.ts             # "Hoy" en America/Bogota y fechas de columnas date
 │   │   └── errors.ts            # DomainError, NotFoundError, ConflictError, ValidationError, Unauthorized/Forbidden, ExternalServiceError
 │   ├── http/
-│   │   ├── app.ts               # createApp(container): middlewares, routers bajo /api/v1, errores
+│   │   ├── app.ts               # createApp(container): middlewares, API bajo /api, errores
+│   │   ├── api.routes.ts        # Directorio general: reúne los catálogos de los módulos; API_DOC_FILES para Swagger
+│   │   ├── swagger.ts           # Especificación OpenAPI para Swagger UI en /api-docs (ADR-005)
 │   │   ├── authenticate.ts      # actor: JWT de Supabase (jose) o X-Actor-Id solo en desarrollo
 │   │   ├── error-handler.ts     # Errores de dominio → HTTP; formato { error: { code, message, details? } }
 │   │   └── request.ts           # readParams/readQuery (Zod), actorOf(res), esquemas de parámetros
@@ -316,7 +320,8 @@ Cada feature tiene la misma forma y **un archivo por entidad en cada capa** ([AD
 ├── infrastructure/
 │   └── prisma-<entity>.repository.ts   # Adaptador Prisma
 ├── http/
-│   └── <entities>.routes.ts       # Router Express: solo servicios, sin reglas de negocio (ADR-002)
+│   ├── <entities>.routes.ts       # Router Express: solo servicios, sin reglas de negocio (ADR-002)
+│   └── <feature>.catalog.ts       # Catálogo del módulo: reúne sus routers
 └── index.ts                       # API pública: dominio + aplicación (sin infraestructura)
 ```
 
@@ -387,7 +392,7 @@ await app.evaluations.evaluate(
 4. Crear `src/<feature>/application/<entities>.service.ts` y `<entity>.schemas.ts`; el servicio recibe las interfaces por constructor.
 5. Crear `src/<feature>/infrastructure/prisma-<entity>.repository.ts`. Debe usar `auditSelect`, `notDeleted` y `audit.*(actor)`, y su `delete` debe hacer un `update` con `audit.delete`.
 6. Exportar dominio y aplicación en `src/<feature>/index.ts` y registrar la feature en `src/container.ts`.
-7. Crear `src/<feature>/http/<entities>.routes.ts`, montarlo en `src/shared/http/app.ts` y documentar sus rutas (y cuerpos) en `scripts/request-catalog.ts`. Ejecutar `npm run docs:requests`.
+7. Crear `src/<feature>/http/<entities>.routes.ts` y agregarlo al catálogo `<feature>.catalog.ts`; un módulo nuevo se monta en `src/shared/http/api.routes.ts`. Documentar sus rutas (y cuerpos) en `scripts/request-catalog.ts`. Ejecutar `npm run docs:requests`.
 8. Ejecutar `npm run typecheck`.
 
 ---
@@ -415,7 +420,7 @@ await app.evaluations.evaluate(
 - [ ] Hacer atómicos el cambio y su recálculo (transacción). Hoy, si el recálculo falla (p. ej. un promedio cae en un hueco entre escalas), el cambio ya quedó guardado y la calificación queda desactualizada hasta el próximo recálculo.
 - [ ] Decidir qué pasa con las calificaciones ya calculadas si cambia el `num_value` o el intervalo de una escala.
 - [ ] Ligar el `actor` (cuenta) con su tallerista para que solo el tallerista del taller pueda evaluar (§3.9 de VALIDACIONES.md).
-- [x] Capa de entrada HTTP: Express 5 bajo `/api/v1`, actor del JWT de Supabase ([ADR-002](decisiones/ADR-002-capa-http-express.md)).
+- [x] Capa de entrada HTTP: Express 5 bajo `/api`, actor del JWT de Supabase ([ADR-002](decisiones/ADR-002-capa-http-express.md)).
 - [x] Autenticación del front a través de nuestra API: `/auth/register`, `/auth/login`, `/auth/profile` remiten al módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)).
 - [ ] **En pausa** hasta que el módulo administrativo defina la tecnología del token. Luego: validar en `authenticate` el token del login administrativo (con `AuthGateway.getProfile`) y definir cómo su id de usuario llega al `actor` de la auditoría.
 - [ ] Pedir al módulo administrativo ejemplos de respuesta exitosa (registro, login, perfil) y una excepción del límite de intentos para nuestra IP.

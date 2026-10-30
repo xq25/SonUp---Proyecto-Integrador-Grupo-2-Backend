@@ -9,10 +9,13 @@
 // 2. Escribe:
 //    - docs/api/CUERPOS_DE_PETICION.md: rutas, cuerpos y reglas (para leer);
 //    - docs/api/postman-coleccion.json: colección de Postman v2.1, una carpeta por entidad, con pruebas;
-//    - docs/api/postman-casos.json: los casos de cuerpo como archivo de datos.
+//    - docs/api/postman-casos.json: los casos de cuerpo como archivo de datos;
+//    - src/docs/api-routes.yaml: las rutas en OpenAPI, para Swagger UI (ADR-005).
 import { mkdirSync, writeFileSync } from "node:fs";
 import type { Container } from "../src/container.js";
-import { API_PREFIX, createApp } from "../src/shared/http/app.js";
+import { z } from "zod";
+import { API_PREFIX } from "../src/shared/http/api.routes.js";
+import { createApp } from "../src/shared/http/app.js";
 import { parseInput } from "../src/shared/application/validation.js";
 import { ValidationError } from "../src/shared/domain/errors.js";
 import { type Operation, operations, type RouteDoc, routes } from "./request-catalog.js";
@@ -44,7 +47,7 @@ for (const op of operations) {
 
 // ── 1b. Rutas documentadas contra las registradas en Express ──
 
-/** Recorre la pila de Express (los routers de cada feature se montan sin prefijo dentro de /api/v1). */
+/** Recorre la pila de Express (los routers de cada feature se montan sin prefijo dentro de /api). */
 function registeredRoutes(): string[] {
   // Solo se registran las rutas: los servicios no se llaman, así que el contenedor puede ir vacío.
   const app = createApp({} as Container, { allowDevHeader: true });
@@ -417,7 +420,7 @@ const requestCount = folders.reduce((n, f) => n + f.item.length, 0);
 
 const collection = {
   info: {
-    name: "Seguimiento de estudiantes · API v1",
+    name: "Seguimiento de estudiantes · API",
     description: [
       "Generada con `npm run docs:requests` desde scripts/request-catalog.ts. No editar a mano.",
       "",
@@ -446,7 +449,7 @@ const inline = (body: unknown) => show(body).replace(/\s*\n\s*/g, " ");
 const cell = (text: string) => text.replace(/\|/g, "\\|");
 
 const md: string[] = [];
-md.push(`# API v1: rutas y cuerpos de petición
+md.push(`# API: rutas y cuerpos de petición
 
 > **Generado** con \`npm run docs:requests\` desde \`scripts/request-catalog.ts\`. No editar a mano: cambia el catálogo y regenera.
 > Cada ejemplo se validó contra los esquemas Zod reales (nivel 1, [ADR-001](../decisiones/ADR-001-zod-esquemas-de-entrada.md)) y cada ruta contra las registradas en Express ([ADR-002](../decisiones/ADR-002-capa-http-express.md)).
@@ -591,6 +594,129 @@ const cases = operations.flatMap((op) => {
   ];
 });
 
+// ── OpenAPI para Swagger UI ──
+
+const isPublic = (path: string) => path === "/health" || path.startsWith("/auth/");
+const errorRef = (description: string) => ({
+  description,
+  content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
+});
+const errorDescriptions: Record<number, string> = {
+  400: "Datos inválidos",
+  401: "Sin autenticación válida",
+  403: "Perfil inactivo o bloqueado",
+  404: "No existe",
+  409: "Conflicto con el estado actual",
+  429: "Demasiados intentos",
+  502: "El módulo administrativo falló",
+  503: "Autenticación sin configurar",
+  504: "El módulo administrativo no respondió a tiempo",
+};
+const errorCodes = (route: RouteDoc): number[] => {
+  if (route.path === "/health") return [];
+  if (isPublic(route.path)) return [400, 401, 403, 409, 429, 502, 503, 504];
+  return route.method === "GET" ? [400, 401, 403, 404] : [400, 401, 403, 404, 409];
+};
+const successOf = (route: RouteDoc): { status: number; description: string } => {
+  if (route.method === "DELETE") return { status: 204, description: "Eliminado (sin cuerpo)" };
+  const creates = route.method === "POST" && opByRoute.has(key(route.method, route.path)) && route.path !== "/auth/login";
+  return creates ? { status: 201, description: "Creado" } : { status: 200, description: "Correcto" };
+};
+
+/** Esquema del cuerpo: la forma sale de Zod; las reglas y el ejemplo, del catálogo. */
+function bodySchema(op: Operation) {
+  const schema = z.toJSONSchema(op.schema, { target: "openapi-3.0", io: "input", unrepresentable: "any" }) as {
+    properties?: Record<string, Record<string, unknown>>;
+  };
+  for (const field of op.fields) {
+    const property = schema.properties?.[field.name];
+    if (property) property["description"] = `${field.type}. ${field.rules}`;
+  }
+  return schema;
+}
+
+const apiPaths: Record<string, Record<string, unknown>> = {};
+for (const route of routes) {
+  const op = opByRoute.get(key(route.method, route.path));
+  const success = successOf(route);
+  const pathParams = [...route.path.matchAll(/:(\w+)/g)].map((m) => ({
+    name: m[1],
+    in: "path",
+    required: true,
+    schema: { type: "string" },
+  }));
+  const queryParams = [...(route.query ?? "").matchAll(/`(\w+)`/g)].map((m) => ({
+    name: m[1],
+    in: "query",
+    required: route.path in exampleQuery,
+    schema: { type: "string" },
+  }));
+  const responses: Record<string, unknown> = { [success.status]: { description: success.description } };
+  for (const code of errorCodes(route)) responses[code] = errorRef(errorDescriptions[code]!);
+
+  const openApiPath = route.path.replace(/:(\w+)/g, "{$1}");
+  apiPaths[openApiPath] ??= {};
+  apiPaths[openApiPath][route.method.toLowerCase()] = {
+    tags: [entityOf(route.path)],
+    summary: route.description,
+    ...(route.query ? { description: `Consulta: ${route.query}` } : {}),
+    // Pública: sin autenticación. El perfil usa el token del login administrativo.
+    security:
+      route.path === "/auth/profile"
+        ? [{ bearerAuth: [] }]
+        : isPublic(route.path)
+          ? []
+          : [{ bearerAuth: [] }, { actorId: [] }],
+    ...(pathParams.length + queryParams.length > 0 ? { parameters: [...pathParams, ...queryParams] } : {}),
+    ...(op
+      ? {
+          requestBody: {
+            required: true,
+            content: { "application/json": { schema: bodySchema(op), example: op.valid } },
+          },
+        }
+      : {}),
+    responses,
+  };
+}
+
+const apiDocs = {
+  tags: entities.map((entity) => ({ name: entity.name })),
+  components: {
+    securitySchemes: {
+      bearerAuth: { type: "http", scheme: "bearer", description: "JWT de Supabase o, en /auth/profile, el token del login" },
+      actorId: { type: "apiKey", in: "header", name: "X-Actor-Id", description: "UUID de un perfil activo (solo fuera de producción)" },
+    },
+    schemas: {
+      ApiError: {
+        type: "object",
+        required: ["error"],
+        properties: {
+          error: {
+            type: "object",
+            required: ["code", "message"],
+            properties: {
+              code: { type: "string" },
+              message: { type: "string" },
+              details: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: { path: { type: "string" }, message: { type: "string" } },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+  ...apiPaths,
+};
+
+mkdirSync("src/docs", { recursive: true });
+// JSON también es YAML válido. Generado: no editar a mano.
+writeFileSync("src/docs/api-routes.yaml", JSON.stringify(apiDocs, null, 2) + "\n", "utf8");
 mkdirSync("docs/api", { recursive: true });
 writeFileSync("docs/api/CUERPOS_DE_PETICION.md", md.join("\n"), "utf8");
 writeFileSync("docs/api/postman-coleccion.json", JSON.stringify(collection, null, 2) + "\n", "utf8");
@@ -601,3 +727,4 @@ console.log("  → docs/api/CUERPOS_DE_PETICION.md");
 console.log(`  → docs/api/postman-coleccion.json (${folders.length} carpetas, ${requestCount} peticiones)`);
 for (const f of folders) console.log(`      · ${f.name}: ${f.item.length}`);
 console.log("  → docs/api/postman-casos.json");
+console.log("  → src/docs/api-routes.yaml (Swagger UI)");
