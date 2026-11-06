@@ -13,8 +13,8 @@
 |---|---|---|
 | Estudiante (joven) | `administrativo.children` | Solo lectura |
 | Acudiente | `administrativo.guardians` + `children_guardians` | Solo lectura |
-| Tallerista | `administrativo.professionals` | Solo lectura. Sus datos personales están en `staff`, que no se integra |
-| Administrativo | `public.administrators` | **Provisional**. Puede consultar información y subir evidencias |
+| Tallerista | `administrativo.professionals` | Solo lectura. Sus datos personales están en `staff` (`staff_id`) |
+| Administrativo | `administrativo.staff` | Solo lectura ([ADR-006](decisiones/ADR-006-administrativos-desde-saga.md)). Puede consultar información y subir evidencias |
 
 - **No se usa `profile_id`** para enlazar actores con cuentas; fue una decisión de diseño. `perfiles` (1 a 1 con `auth.users`) solo sirve para el login y para identificar al `actor` que queda en la auditoría.
 
@@ -88,7 +88,7 @@ El módulo tiene su **propio proyecto de Supabase para pruebas**. El código lee
 **Preparar la BD de pruebas** (SQL Editor de Supabase, en este orden):
 
 1. `database/asisco_login_supabase.sql`: nuestras tablas. Es el mismo script que se ejecutará en la BD general.
-2. `database/dev/administrativo_simulado.sql`: simula `administrativo.children`, `guardians`, `children_guardians` y `professionals` con datos de ejemplo. **Solo en la BD de pruebas; nunca en la general**, donde esas tablas son del equipo administrativo. Se puede ejecutar varias veces sin duplicar.
+2. `database/dev/administrativo_simulado.sql`: simula `administrativo.children`, `guardians`, `children_guardians`, `professionals` y `staff` con datos de ejemplo. **Solo en la BD de pruebas; nunca en la general**, donde esas tablas son del equipo administrativo. Se puede ejecutar varias veces sin duplicar.
 3. En Authentication → Add user, crear un usuario. El trigger `crear_perfil` crea su perfil; su UUID es el `actor` (opcional en `DB_CHECK_ACTOR`).
 4. Completar la contraseña en `.env` y ejecutar `npm run db:check`.
 5. Opcional: `npm run db:seed:dev` para cargar datos de prueba de consumo.
@@ -99,7 +99,6 @@ El módulo tiene su **propio proyecto de Supabase para pruebas**. El código lee
 - **Qué carga:**
   - 3 categorías y 8 habilidades.
   - 4 escalas que cubren 0–5 sin huecos (`BAJO` 1, `BASICO` 2.5, `ALTO` 3.5, `SUPERIOR` 4.5).
-  - 2 administrativos.
   - 3 talleres: "Música y ritmo" (finalizado), "Teatro y expresión" y "Pintura creativa" (activos). En total, unas 31 asistencias con 90 evaluaciones.
   - 3 evidencias.
   - 2 credenciales (una validada).
@@ -140,11 +139,7 @@ El módulo tiene su **propio proyecto de Supabase para pruebas**. El código lee
 | `perfiles` | `Profile` | `id` (= `auth.users.id`) | Lo crea el trigger `crear_perfil` al registrarse |
 | `usuario_roles` | `UserRole` | `id` | `aplicacion = null` significa rol global. `unique nulls not distinct` (`usuario_id`, `rol`, `aplicacion`) |
 
-**Administrativos (provisional).**
-
-| Tabla | Modelo | Notas |
-|---|---|---|
-| `administrators` | `Administrator` | Obligatorios: `full_name`, `document_type` (catálogo), `document_number` (único), `email` (único, en minúsculas) y `position`. Opcional: `phone`. `status` (`active` \| `inactive`). Validaciones: [VALIDACIONES.md §3.1](VALIDACIONES.md) |
+Los administrativos no tienen tabla propia: son personal (`staff`) del módulo administrativo (§3.3, [ADR-006](decisiones/ADR-006-administrativos-desde-saga.md)).
 
 **Habilidades.**
 
@@ -226,12 +221,13 @@ Los valores de `status` de todas las tablas del módulo están aprobados (ver [V
 | `children` | `Child` | `child_id` (bigint) | Datos personales del estudiante. `sex`, `document_type` y `status_id` son códigos de catálogos del módulo administrativo. **`notes` es la anamnesis del joven** (historia personal, familiar y de salud): dato sensible |
 | `guardians` | `Guardian` | `guardian_id` (bigint) | Datos del acudiente |
 | `children_guardians` | `ChildGuardian` | `child_guardian_id` (bigint) | Vínculo estudiante–acudiente. `end_date = null` significa vigente |
-| `professionals` | `Professional` | `professional_id` (bigint) | Tallerista: títulos, instituciones, `time_donor`. Solo `staff_id` de `staff` |
+| `professionals` | `Professional` | `professional_id` (bigint) | Tallerista: títulos, instituciones, `time_donor`. Sus datos personales están en `staff` (`staff_id`) |
+| `staff` | `Staff` | `staff_id` (bigint) | Personal: administrativos y talleristas. Se exponen nombre, documento, `role`, fechas, `status`, teléfono y email; los datos laborales (`contract_type`, `hours_*`) no se leen. `role` y `status` son valores de Saga ([ADR-006](decisiones/ADR-006-administrativos-desde-saga.md)) |
 
 \* Nombre de esquema provisional.
 
 - **Solo lectura:** se mapean con `@@schema("administrativo")` y sus nombres tal cual, sin auditoría, sin escritura y fuera de nuestro SQL.
-- **Puertos `*Reader`:** `ChildReader`, `GuardianReader`, `ChildGuardianReader` y `ProfessionalReader`, solo con métodos `find*`. Los usan `ChildrenService`, `GuardiansService`, `ProfessionalsService` y los servicios que validan estudiantes o talleristas.
+- **Puertos `*Reader`:** `ChildReader`, `GuardianReader`, `ChildGuardianReader`, `ProfessionalReader` y `StaffReader`, solo con métodos `find*`. Los usan `ChildrenService`, `GuardiansService`, `ProfessionalsService`, `StaffService` y los servicios que validan estudiantes o talleristas.
 - **Nulabilidad asumida:** su diagrama no la indica, así que, salvo las llaves, todo se asume opcional.
 
 ### 3.4 Calificaciones
@@ -296,10 +292,9 @@ src/
 │       ├── mappers.ts           # decimalToNumber()
 │       └── prisma-errors.ts     # withPrismaErrors(): errores de Prisma → errores de dominio
 ├── auth/             # Registro, login y perfil remitidos al módulo administrativo (ADR-003)
-├── administrative/   # Lectura: children, guardians, children_guardians, professionals
+├── administrative/   # Lectura (Saga): children, guardians, children_guardians, professionals, staff
 ├── profiles/         # perfiles (cuentas)
 ├── access/           # aplicaciones, roles, usuario_roles
-├── administrators/   # administrators (provisional)
 ├── skills/           # skill_categories, skills, student_skills
 ├── evaluations/      # evaluation_scales, evaluation_skills
 ├── workshops/        # workshops, workshop_skills, workshop_attendances
@@ -355,7 +350,7 @@ Todos los métodos que escriben reciben `actor`. Eliminar es siempre borrado ló
 | `children` | `ChildrenService` | `get`, `findByDocument`, `list`, `getGuardians` (vínculos vigentes por defecto) |
 | `guardians` | `GuardiansService` | `get`, `list`, `getChildren` |
 | `professionals` | `ProfessionalsService` | `get`, `findByStaffId`, `list` |
-| `administrators` | `AdministratorsService` | `get`, `list`, `create` y `update` (documento y email únicos; email normalizado), `delete`, `restore` |
+| `staff` | `StaffService` | `get`, `list` (filtros `role`, `status`, `search`): administrativos y talleristas, solo lectura |
 | `profiles` | `ProfilesService` | `get`, `list`, `update`, `delete`, `restore` |
 | `apps` / `roles` | `AppsService` / `RolesService` | Catálogos: `list`, `create` (código único) |
 | `userRoles` | `UserRolesService` | `assign`, `revoke`, `getUserRoles`, `hasRole` |
@@ -413,7 +408,9 @@ await app.evaluations.evaluate(
   - La nulabilidad de sus columnas.
   - Los catálogos de `sex`, `document_type`, `status_id` y `legal_status_id`.
   - Los permisos de lectura para este módulo.
-- [ ] Definir el alcance definitivo de los administrativos: tabla propia, datos del módulo administrativo y permisos.
+- [x] Alcance de los administrativos: se leen de `staff` de Saga, en solo lectura ([ADR-006](decisiones/ADR-006-administrativos-desde-saga.md)).
+- [ ] Pedir a Saga los valores de `role` y `status` de `staff` (p. ej. el `role` de un administrativo) y el permiso de lectura sobre esa tabla.
+- [ ] Decidir si se retira la tabla `public.administrators` que ya existe en la BD de pruebas (quedó sin uso).
 - [ ] BD de pruebas del módulo: completar la contraseña en `.env`, ejecutar los dos SQL (§2.1) y pasar `npm run db:check` contra Supabase.
 - [ ] BD general: reemplazar las URLs en `.env`, confirmar el nombre del esquema administrativo y comparar con `prisma db pull --print`.
 - [ ] Probar los repositorios y las políticas RLS en Supabase con usuarios reales.
