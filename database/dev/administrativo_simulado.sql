@@ -29,7 +29,7 @@ create table if not exists administrativo.children (
   admission_date  date,
   exit_date       date,       -- con fecha pasada = el joven ya salió de la fundación
   status_id       smallint,
-  notes           text
+  notes           text        -- anamnesis del joven (dato sensible)
 );
 
 create table if not exists administrativo.guardians (

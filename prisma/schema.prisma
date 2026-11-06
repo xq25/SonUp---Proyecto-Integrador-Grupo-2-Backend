@@ -377,6 +377,7 @@ model Child {
   admissionDate  DateTime? @map("admission_date") @db.Date
   exitDate       DateTime? @map("exit_date") @db.Date
   statusId       Int?      @map("status_id") @db.SmallInt
+  /// Anamnesis del joven (dato sensible).
   notes          String?
 
   guardians ChildGuardian[]

@@ -652,7 +652,7 @@
       "name": "Estudiantes",
       "item": [
         {
-          "name": "Estudiantes · GET /children",
+          "name": "Estudiantes (incluye `notes`: la anamnesis del joven, dato sensible) · GET /children",
           "event": [
             {
               "listen": "test",
@@ -683,7 +683,7 @@
           }
         },
         {
-          "name": "Estudiante por número de documento · GET /children/by-document/:documentNumber",
+          "name": "Estudiante por número de documento (incluye `notes`: la anamnesis del joven, dato sensible) · GET /children/by-document/:documentNumber",
           "event": [
             {
               "listen": "test",
@@ -716,7 +716,7 @@
           }
         },
         {
-          "name": "Estudiante · GET /children/:id",
+          "name": "Estudiante (incluye `notes`: la anamnesis del joven, dato sensible) · GET /children/:id",
           "event": [
             {
               "listen": "test",
@@ -849,7 +849,7 @@
           }
         },
         {
-          "name": "Estudiantes del acudiente · GET /guardians/:id/children",
+          "name": "Estudiantes del acudiente (incluye `notes`: la anamnesis del joven, dato sensible) · GET /guardians/:id/children",
           "event": [
             {
               "listen": "test",

@@ -17,6 +17,10 @@ export interface Child {
   admissionDate: Date | null;
   exitDate: Date | null;
   statusId: number | null;
+  /**
+   * Anamnesis del joven (historia personal, familiar y de salud que registra el
+   * módulo administrativo). Dato sensible: mostrarlo solo a quien corresponda.
+   */
   notes: string | null;
 }
 

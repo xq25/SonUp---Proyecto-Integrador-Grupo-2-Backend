@@ -66,9 +66,9 @@
 
 | Método | Ruta | Descripción | Consulta | Cuerpo |
 |---|---|---|---|---|
-| `GET` | `/children` | Estudiantes | `statusId`, `search` |  |
-| `GET` | `/children/by-document/:documentNumber` | Estudiante por número de documento |  |  |
-| `GET` | `/children/:id` | Estudiante |  |  |
+| `GET` | `/children` | Estudiantes (incluye `notes`: la anamnesis del joven, dato sensible) | `statusId`, `search` |  |
+| `GET` | `/children/by-document/:documentNumber` | Estudiante por número de documento (incluye `notes`: la anamnesis del joven, dato sensible) |  |  |
+| `GET` | `/children/:id` | Estudiante (incluye `notes`: la anamnesis del joven, dato sensible) |  |  |
 | `GET` | `/children/:id/guardians` | Acudientes del estudiante | `activeOnly` (por defecto `true`) |  |
 
 ### Acudientes
@@ -77,7 +77,7 @@
 |---|---|---|---|---|
 | `GET` | `/guardians` | Acudientes | `search` |  |
 | `GET` | `/guardians/:id` | Acudiente |  |  |
-| `GET` | `/guardians/:id/children` | Estudiantes del acudiente | `activeOnly` (por defecto `true`) |  |
+| `GET` | `/guardians/:id/children` | Estudiantes del acudiente (incluye `notes`: la anamnesis del joven, dato sensible) | `activeOnly` (por defecto `true`) |  |
 
 ### Talleristas
 
