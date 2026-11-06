@@ -24,10 +24,10 @@ Módulo de servicio de un proyecto general. Consume una **base de datos general 
   - Cada módulo maneja su propio esquema de Postgres. Sus tablas se mapean en Prisma con `@@schema("<esquema>")` y con sus nombres de tabla y columna tal cual.
   - Se acceden por puertos `*Reader` (nunca `*Repository`), sin create/update/delete y sin auditoría.
   - No se agregan a nuestro SQL ni se les crean FKs: nuestras columnas que los referencian (`student_id` → `children`, `evaluator_id` → `professionals`) son `bigint` sin FK física ni relación Prisma. Los servicios validan su existencia con los `*Reader`.
-  - Del módulo administrativo solo se consumen `children`, `guardians`, `children_guardians` y `professionals` (feature `src/administrative/`).
+  - Del módulo administrativo (Saga) solo se consumen `children`, `guardians`, `children_guardians`, `professionals` y `staff` (feature `src/administrative/`).
 - **Actores:** estudiante (`children`), acudiente (`guardians`), tallerista (`professionals`) y administrativo.
   - **No se usa `profile_id`** para enlazar actores con cuentas (decisión de diseño). `perfiles` solo identifica al `actor` que audita las operaciones.
-  - Los administrativos tienen una tabla **provisional** (`administrators`, feature `src/administrators/`), aislada tras su puerto para poder reemplazarla.
+  - Los administrativos son personal (`staff`) de Saga y se consumen en **solo lectura** (`GET /staff`, [ADR-006](docs/decisiones/ADR-006-administrativos-desde-saga.md)). No tenemos tabla propia de administrativos.
 - **Inversión de dependencias, arquitectura por features:**
   - `domain` no importa nada externo.
   - `application` depende solo de interfaces de repositorio.
@@ -90,7 +90,7 @@ Todo cambio de datos propios empieza en el SQL y baja en ese orden. Las tablas d
   - El SQL simulado **nunca** se ejecuta en la BD general.
   - Pasar a la BD general = cambiar `DATABASE_URL` y `DIRECT_URL` (ver CONTEXTO §2.1).
 - El modelo se rehízo según el diagrama del módulo (Talleres, Habilidades, Evidencias). Compila y está probado en PGlite.
-- **Validaciones:** las 12 tablas del módulo están aprobadas e implementadas en `docs/VALIDACIONES.md` (✅). Respetarlas; cualquier cambio de regla se acuerda primero ahí.
+- **Validaciones:** las 11 tablas del módulo están aprobadas e implementadas en `docs/VALIDACIONES.md` (✅). Respetarlas; cualquier cambio de regla se acuerda primero ahí.
 - **Capa HTTP: Express 5** bajo `/api` ([ADR-002](docs/decisiones/ADR-002-capa-http-express.md)). 81 rutas, probadas en PGlite y en la BD de pruebas de Supabase (HTTP de punta a punta y la colección de Postman).
 - **Autenticación (feature `src/auth/`, [ADR-003](docs/decisiones/ADR-003-autenticacion-modulo-administrativo.md)):** el login, los usuarios y los roles son del módulo administrativo (servicio en Render, URLs `RENDER_*` en `.env`). Nuestras rutas públicas `/auth/register`, `/auth/login` y `/auth/profile` los remiten por el puerto `AuthGateway` y devuelven nuestros DTOs; el formato de ellos solo lo conoce `administrative-auth.mapper.ts`. Las demás rutas aún autentican con JWT de Supabase o `X-Actor-Id`. Toda ruta nueva sigue yendo a `scripts/request-catalog.ts`.
 - **Esquemas de entrada (nivel 1): Zod** en todas las features ([ADR-001](docs/decisiones/ADR-001-zod-esquemas-de-entrada.md)). No escribir validaciones de forma a mano en los servicios: van en los esquemas.
@@ -98,7 +98,7 @@ Todo cambio de datos propios empieza en el SQL y baja en ese orden. Las tablas d
 - **Seguridad y autorización son de otro equipo** (seguridad e información personal): emiten el login (Supabase Auth) y gestionarán qué roles acceden a cada ruta. Nuestra API solo verifica el token y toma el `actor`; no implementar autorización por rol por nuestra cuenta. La propiedad de `perfiles`/`roles`/`usuario_roles` está por acordar con ellos.
 - **Provisional, pendiente de confirmar:**
   - El nombre del esquema del módulo administrativo (`administrativo`).
-  - La tabla `administrators` (sus validaciones sí están aprobadas).
+  - Los valores de `role` y `status` de `staff` (Saga).
 
 ## Referencia completa
 

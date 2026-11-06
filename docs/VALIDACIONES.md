@@ -46,7 +46,9 @@ Si una regla de la BD se viola desde el backend, `withPrismaErrors` la traduce a
 
 ## 3. Tablas del módulo
 
-### 3.1 `administrators` (provisional) — ✅ Aprobada
+### 3.1 `administrators` (provisional) — ⛔ Retirada
+
+> **Retirada el 2026-11-06** ([ADR-006](decisiones/ADR-006-administrativos-desde-saga.md)): los administrativos son personal (`staff`) del módulo administrativo y se leen en solo lectura. Estas reglas se conservan como historial; ya no se aplican.
 
 | Campo | Tipo | Requerido | Regla | Nivel |
 |---|---|---|---|---|

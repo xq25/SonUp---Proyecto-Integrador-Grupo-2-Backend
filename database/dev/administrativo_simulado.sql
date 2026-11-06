@@ -1,7 +1,7 @@
 -- =====================================================================
 -- SOLO PARA LA BD DE PRUEBAS DEL MÓDULO. NUNCA EJECUTAR EN LA BD GENERAL.
 --
--- Simula las tablas del módulo administrativo que este módulo consume en
+-- Simula las tablas del módulo administrativo (Saga) que este módulo consume en
 -- solo lectura (docs/CONTEXTO_Y_ARQUITECTURA.md §3.3). En la BD general esas
 -- tablas son del equipo administrativo: ejecutar este script allí podría
 -- chocar con ellas o mezclar datos falsos con datos reales.
@@ -53,16 +53,33 @@ create table if not exists administrativo.children_guardians (
 
 create table if not exists administrativo.professionals (
   professional_id bigint primary key,
-  staff_id        bigint not null, -- staff no se integra en este módulo
+  staff_id        bigint not null, -- datos personales del tallerista en staff
   titles          text,
   institutions    text,
   observations    text,
   time_donor      boolean
 );
 
+-- Personal de la fundación: administrativos y talleristas (ADR-006).
+create table if not exists administrativo.staff (
+  staff_id        bigint primary key,
+  full_name       text,
+  document_type   text,
+  document_number text,
+  role            text,
+  hire_date       date,
+  exit_date       date,
+  contract_type   text,
+  status          text,
+  phone           text,
+  email           text,
+  hours_worked    numeric,
+  hours_payed     numeric
+);
+
 -- Datos de ejemplo -----------------------------------------------------
--- Los códigos de sex, document_type y status_id son inventados: el catálogo
--- real lo define el módulo administrativo.
+-- Los códigos de sex, document_type y status_id, y los valores de role,
+-- contract_type y status de staff, son inventados: los define el módulo administrativo.
 
 insert into administrativo.children
   (child_id, first_name, last_name, birth_date, sex, document_type, document_number, admission_date, exit_date, status_id, notes)
@@ -99,3 +116,14 @@ values
   (501, 78, 'Psicología',             'Universidad Nacional',     'Talleres socioemocionales', false),
   (502, 79, 'Artes Plásticas',        'Universidad de Caldas',    null, true)
 on conflict (professional_id) do nothing;
+
+-- 77–79: talleristas (professionals 500–502); 80–81: administrativos.
+insert into administrativo.staff
+  (staff_id, full_name, document_type, document_number, role, hire_date, exit_date, contract_type, status, phone, email, hours_worked, hours_payed)
+values
+  (77, 'Camilo Arango',     'CC', '1036001', 'tallerista',     '2023-02-01', null, 'prestación', 'activo', '3005550077', 'camilo.arango@fundacion.test', 120, 120),
+  (78, 'Diana Londoño',     'CC', '1036002', 'tallerista',     '2022-08-15', null, 'indefinido', 'activo', '3005550078', 'diana.londono@fundacion.test', 160, 160),
+  (79, 'Esteban Cardona',   'CC', '1036003', 'tallerista',     '2024-01-10', null, 'voluntario', 'activo', '3005550079', 'esteban.cardona@fundacion.test', 40, 0),
+  (80, 'Carolina Restrepo', 'CC', '43100200', 'administrativo', '2021-03-01', null, 'indefinido', 'activo', '3001234567', 'coordinacion@fundacion.test', 160, 160),
+  (81, 'Andrés Gómez',      'CC', '71300400', 'administrativo', '2020-06-01', '2025-11-30', 'fijo', 'retirado', '3007654321', 'comunicaciones@fundacion.test', 0, 0)
+on conflict (staff_id) do nothing;

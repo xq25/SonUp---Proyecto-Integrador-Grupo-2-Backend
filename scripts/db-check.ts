@@ -49,13 +49,14 @@ await check("Triggers de auditoría y borrado lógico", async () => {
     where trigger_schema = 'public' and trigger_name in ('auditar', 'borrado_logico')`;
   const n = row?.n ?? 0;
   if (n === 0) throw new Error("no hay triggers: ¿se ejecutó el SQL del módulo?");
-  return `${n} (esperado: 48 = 16 tablas × 3)`;
+  return `${n} (esperado: 45 = 15 tablas × 3)`;
 });
 
 console.log("\nMódulo administrativo (solo lectura)");
 await check("Jóvenes (children)", async () => `${(await app.children.list()).length}`);
 await check("Acudientes (guardians)", async () => `${(await app.guardians.list()).length}`);
 await check("Talleristas (professionals)", async () => `${(await app.professionals.list()).length}`);
+await check("Personal (staff)", async () => `${(await app.staff.list()).length}`);
 
 const actor = process.env["DB_CHECK_ACTOR"];
 if (actor) {

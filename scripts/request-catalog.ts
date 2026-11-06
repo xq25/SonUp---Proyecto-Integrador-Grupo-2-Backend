@@ -9,10 +9,6 @@ import { assignRoleSchema } from "../src/access/application/user-role.schemas.js
 import { loginSchema } from "../src/auth/application/auth-session.schemas.js";
 import { registerUserSchema } from "../src/auth/application/registration.schemas.js";
 import {
-  createAdministratorSchema,
-  updateAdministratorSchema,
-} from "../src/administrators/application/administrator.schemas.js";
-import {
   createEvaluationScaleSchema,
   updateEvaluationScaleSchema,
 } from "../src/evaluations/application/evaluation-scale.schemas.js";
@@ -124,56 +120,6 @@ export const operations: Operation[] = [
     ],
     external: { writes: false, saveTokenAs: "authToken" },
   },
-  // ───────────── Administrativos ─────────────
-  {
-    id: "administrators.create",
-    title: "Crear administrativo",
-    feature: "administrators",
-    service: "app.administrators.create(body, actor)",
-    http: { method: "POST", path: "/administrators", saveIdAs: "administratorId" },
-    schema: createAdministratorSchema,
-    fields: [
-      { name: "fullName", type: "string", required: true, rules: "3–150; solo letras (con tildes), espacios, `'` y `-`; se quitan espacios sobrantes" },
-      { name: "documentType", type: "string", required: true, rules: "`CC` | `TI` | `CE` | `PA` | `RC` | `PPT` | `NIT`" },
-      { name: "documentNumber", type: "string", required: true, rules: "3–20 letras, números o `-`, sin espacios" },
-      { name: "email", type: "string", required: true, rules: "email válido, máx. 254; se guarda en minúsculas" },
-      { name: "phone", type: "string | null", required: false, rules: "7–15 dígitos, `+` opcional al inicio" },
-      { name: "position", type: "string", required: true, rules: "2–100" },
-      { name: "status", type: "string", required: false, rules: "`active` | `inactive` (por defecto `active`)" },
-    ],
-    valid: {
-      fullName: "María José O'Neil-Pérez",
-      documentType: "CC",
-      documentNumber: "1020304050",
-      email: "Maria.Oneil@Fundacion.test",
-      phone: "+573001234567",
-      position: "Coordinadora",
-    },
-    invalid: [
-      { name: "Falta el email", body: { fullName: "Ana Gil", documentType: "CC", documentNumber: "123", position: "Aux" }, errorPaths: ["email"] },
-      { name: "Nombre con dígitos y documento con espacios", body: { fullName: "Ana 2", documentType: "CC", documentNumber: "12 34", email: "a@b.co", position: "Aux" }, errorPaths: ["fullName", "documentNumber"] },
-      { name: "Tipo de documento fuera del catálogo", body: { fullName: "Ana Gil", documentType: "DNI", documentNumber: "123", email: "a@b.co", position: "Aux" }, errorPaths: ["documentType"] },
-      { name: "Teléfono inválido", body: { fullName: "Ana Gil", documentType: "CC", documentNumber: "123", email: "a@b.co", position: "Aux", phone: "12-34" }, errorPaths: ["phone"] },
-      { name: "Campo no permitido", body: { fullName: "Ana Gil", documentType: "CC", documentNumber: "123", email: "a@b.co", position: "Aux", role: "admin" }, errorPaths: ["role"] },
-    ],
-    businessRules: ["`documentNumber` único → 409", "`email` único sin distinguir mayúsculas → 409"],
-  },
-  {
-    id: "administrators.update",
-    title: "Actualizar administrativo",
-    feature: "administrators",
-    service: "app.administrators.update(id, body, actor)",
-    http: { method: "PATCH", path: "/administrators/:id" },
-    schema: updateAdministratorSchema,
-    fields: [{ name: "(todos)", type: "—", required: false, rules: "Los mismos campos y reglas de crear; todos opcionales. Solo se cambian los enviados" }],
-    valid: { position: "Directora", status: "inactive" },
-    invalid: [
-      { name: "Email inválido", body: { email: "no-es-email" }, errorPaths: ["email"] },
-      { name: "Estado fuera del catálogo", body: { status: "deleted" }, errorPaths: ["status"] },
-    ],
-    businessRules: ["El administrativo debe existir → 404", "Documento y email únicos → 409"],
-  },
-
   // ───────────── Habilidades ─────────────
   {
     id: "skillCategories.create",
@@ -571,13 +517,9 @@ export const routes: RouteDoc[] = [
   { method: "GET", path: "/professionals", description: "Talleristas", query: "`timeDonor`" },
   { method: "GET", path: "/professionals/by-staff/:staffId", description: "Tallerista por `staff_id`" },
   { method: "GET", path: "/professionals/:id", description: "Tallerista" },
+  { method: "GET", path: "/staff", description: "Personal: administrativos y talleristas (solo lectura, Saga)", query: "`role`, `status`, `search`" },
+  { method: "GET", path: "/staff/:id", description: "Persona del personal (solo lectura, Saga)" },
   // Administrativos
-  { method: "GET", path: "/administrators", description: "Administrativos", query: "`status`, `search`, `includeDeleted`" },
-  { method: "GET", path: "/administrators/:id", description: "Administrativo" },
-  { method: "POST", path: "/administrators", description: "Crear administrativo" },
-  { method: "PATCH", path: "/administrators/:id", description: "Actualizar administrativo" },
-  { method: "DELETE", path: "/administrators/:id", description: "Eliminar administrativo (lógico)" },
-  { method: "POST", path: "/administrators/:id/restore", description: "Restaurar administrativo" },
   // Perfiles y acceso
   { method: "GET", path: "/profiles", description: "Perfiles", query: "`status`, `search`, `includeDeleted`" },
   { method: "GET", path: "/profiles/me", description: "Perfil del usuario autenticado" },

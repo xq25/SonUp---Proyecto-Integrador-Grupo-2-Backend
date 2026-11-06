@@ -71,18 +71,7 @@ try {
     scales.push(existing ?? (count("escalas"), await app.evaluationScales.create(def, actor)));
   }
 
-  // ── Administrativos (provisional) ──
-  const adminDefs = [
-    { fullName: "Carolina Restrepo", documentType: "CC", documentNumber: "43100200", email: "coordinacion@fundacion.test", phone: "+573001234567", position: "Coordinadora académica" },
-    { fullName: "Andrés Gómez", documentType: "CC", documentNumber: "71300400", email: "comunicaciones@fundacion.test", position: "Comunicaciones" },
-  ] as const;
-  for (const def of adminDefs) {
-    const exists = (await app.administrators.list({ search: def.documentNumber, includeDeleted: true })).length > 0;
-    if (!exists) {
-      count("administrativos");
-      await app.administrators.create(def, actor);
-    }
-  }
+  // Los administrativos son personal (staff) del módulo administrativo: vienen del simulado (ADR-006).
 
   // ── Talleres con asistencias y evaluaciones ──
   // Estudiantes activos del simulado: 1, 2, 4, 5 (el 3 ya salió de la fundación).

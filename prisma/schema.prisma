@@ -107,28 +107,6 @@ model UserRole {
   @@schema("public")
 }
 
-// ═════════════════════ Administrativos (provisional) ═════════════════════
-
-model Administrator {
-  id             BigInt    @id @default(autoincrement())
-  fullName       String    @map("full_name") // check: 3–150
-  documentType   String    @map("document_type") // check: CC | TI | CE | PA | RC | PPT | NIT
-  documentNumber String    @unique @map("document_number") // check: ^[A-Za-z0-9-]{3,20}$
-  email          String    @unique // en minúsculas (check)
-  phone          String?
-  position       String // check: 2–100
-  status         String    @default("active") // check: active | inactive
-  createdAt      DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
-  createdBy      String?   @map("creado_por") @db.Uuid
-  updatedAt      DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
-  updatedBy      String?   @map("actualizado_por") @db.Uuid
-  deletedAt      DateTime? @map("eliminado_en") @db.Timestamptz(6)
-  deletedBy      String?   @map("eliminado_por") @db.Uuid
-
-  @@map("administrators")
-  @@schema("public")
-}
-
 // ═════════════════════ Habilidades ═════════════════════
 
 model SkillCategory {
@@ -418,8 +396,7 @@ model ChildGuardian {
   @@schema("administrativo")
 }
 
-/// Tallerista (tabla `professionals`). Sus datos personales viven en `staff`,
-/// que no se integra: aquí solo queda `staffId` como referencia.
+/// Tallerista (tabla `professionals`). Sus datos personales viven en `staff` (`staffId`).
 model Professional {
   id           BigInt   @id @map("professional_id")
   staffId      BigInt   @map("staff_id")
@@ -429,5 +406,25 @@ model Professional {
   timeDonor    Boolean? @map("time_donor")
 
   @@map("professionals")
+  @@schema("administrativo")
+}
+
+/// Personal de la fundación (tabla `staff`): administrativos y talleristas (ADR-006).
+model Staff {
+  id             BigInt    @id @map("staff_id")
+  fullName       String?   @map("full_name")
+  documentType   String?   @map("document_type")
+  documentNumber String?   @map("document_number")
+  role           String?
+  hireDate       DateTime? @map("hire_date") @db.Date
+  exitDate       DateTime? @map("exit_date") @db.Date
+  contractType   String?   @map("contract_type")
+  status         String?
+  phone          String?
+  email          String?
+  hoursWorked    Decimal?  @map("hours_worked")
+  hoursPayed     Decimal?  @map("hours_payed")
+
+  @@map("staff")
   @@schema("administrativo")
 }

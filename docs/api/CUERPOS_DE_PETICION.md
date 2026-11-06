@@ -87,16 +87,12 @@
 | `GET` | `/professionals/by-staff/:staffId` | Tallerista por `staff_id` |  |  |
 | `GET` | `/professionals/:id` | Tallerista |  |  |
 
-### Administrativos
+### Personal (administrativos)
 
 | Método | Ruta | Descripción | Consulta | Cuerpo |
 |---|---|---|---|---|
-| `GET` | `/administrators` | Administrativos | `status`, `search`, `includeDeleted` |  |
-| `GET` | `/administrators/:id` | Administrativo |  |  |
-| `POST` | `/administrators` | Crear administrativo |  | [`administrators.create`](#administratorscreate) |
-| `PATCH` | `/administrators/:id` | Actualizar administrativo |  | [`administrators.update`](#administratorsupdate) |
-| `DELETE` | `/administrators/:id` | Eliminar administrativo (lógico) |  |  |
-| `POST` | `/administrators/:id/restore` | Restaurar administrativo |  |  |
+| `GET` | `/staff` | Personal: administrativos y talleristas (solo lectura, Saga) | `role`, `status`, `search` |  |
+| `GET` | `/staff/:id` | Persona del personal (solo lectura, Saga) |  |  |
 
 ### Acceso (roles y aplicaciones)
 
@@ -284,82 +280,6 @@
 - Credenciales incorrectas → 401 (mensaje del módulo administrativo)
 - El módulo administrativo limita los intentos (hoy 20 cada 15 min por IP) → 429
 - Servicio caído o sin token en la respuesta → 502; sin respuesta a tiempo → 504
-
-
----
-
-## Cuerpos · feature `administrators`
-
-### administrators.create
-
-**Crear administrativo** · `POST /api/administrators` · `app.administrators.create(body, actor)`
-
-| Campo | Tipo JSON | Requerido | Reglas |
-|---|---|---|---|
-| `fullName` | string | **Sí** | 3–150; solo letras (con tildes), espacios, `'` y `-`; se quitan espacios sobrantes |
-| `documentType` | string | **Sí** | `CC` \| `TI` \| `CE` \| `PA` \| `RC` \| `PPT` \| `NIT` |
-| `documentNumber` | string | **Sí** | 3–20 letras, números o `-`, sin espacios |
-| `email` | string | **Sí** | email válido, máx. 254; se guarda en minúsculas |
-| `phone` | string \| null | No | 7–15 dígitos, `+` opcional al inicio |
-| `position` | string | **Sí** | 2–100 |
-| `status` | string | No | `active` \| `inactive` (por defecto `active`) |
-
-**Cuerpo válido:**
-
-```json
-{
-  "fullName": "María José O'Neil-Pérez",
-  "documentType": "CC",
-  "documentNumber": "1020304050",
-  "email": "Maria.Oneil@Fundacion.test",
-  "phone": "+573001234567",
-  "position": "Coordinadora"
-}
-```
-
-**Casos inválidos (400, `VALIDATION`):**
-
-| Caso | Cuerpo | Campos con error (`details[].path`) |
-|---|---|---|
-| Falta el email | `{ "fullName": "Ana Gil", "documentType": "CC", "documentNumber": "123", "position": "Aux" }` | `email` |
-| Nombre con dígitos y documento con espacios | `{ "fullName": "Ana 2", "documentType": "CC", "documentNumber": "12 34", "email": "a@b.co", "position": "Aux" }` | `fullName`, `documentNumber` |
-| Tipo de documento fuera del catálogo | `{ "fullName": "Ana Gil", "documentType": "DNI", "documentNumber": "123", "email": "a@b.co", "position": "Aux" }` | `documentType` |
-| Teléfono inválido | `{ "fullName": "Ana Gil", "documentType": "CC", "documentNumber": "123", "email": "a@b.co", "position": "Aux", "phone": "12-34" }` | `phone` |
-| Campo no permitido | `{ "fullName": "Ana Gil", "documentType": "CC", "documentNumber": "123", "email": "a@b.co", "position": "Aux", "role": "admin" }` | `role` |
-
-**Reglas de negocio** (las valida el servicio, no el esquema):
-
-- `documentNumber` único → 409
-- `email` único sin distinguir mayúsculas → 409
-
-### administrators.update
-
-**Actualizar administrativo** · `PATCH /api/administrators/:id` · `app.administrators.update(id, body, actor)`
-
-| Campo | Tipo JSON | Requerido | Reglas |
-|---|---|---|---|
-| `(todos)` | — | No | Los mismos campos y reglas de crear; todos opcionales. Solo se cambian los enviados |
-
-**Cuerpo válido:**
-
-```json
-{
-  "position": "Directora",
-  "status": "inactive"
-}
-```
-
-**Casos inválidos (400, `VALIDATION`):**
-
-| Caso | Cuerpo | Campos con error (`details[].path`) |
-|---|---|---|
-| Email inválido | `{ "email": "no-es-email" }` | `email` |
-| Estado fuera del catálogo | `{ "status": "deleted" }` | `status` |
-
-**Reglas de negocio** (las valida el servicio, no el esquema):
-
-- El administrativo debe existir → 404
-- Documento y email únicos → 409
 
 
 ---
@@ -1005,7 +925,7 @@
 
 ## Uso en Postman
 
-**Archivo:** `docs/api/postman-coleccion.json` (Postman v2.1). Trae las 84 rutas en 134 peticiones, **una carpeta por entidad**: Estado, Autenticación, Estudiantes, Acudientes, Talleristas, Administrativos, Acceso (roles y aplicaciones), Perfiles, Categorías de habilidades, Habilidades, Escalas de evaluación, Talleres, Asistencias, Evaluaciones y calificaciones, Evidencias, Credenciales.
+**Archivo:** `docs/api/postman-coleccion.json` (Postman v2.1). Trae las 80 rutas en 123 peticiones, **una carpeta por entidad**: Estado, Autenticación, Estudiantes, Acudientes, Talleristas, Personal (administrativos), Acceso (roles y aplicaciones), Perfiles, Categorías de habilidades, Habilidades, Escalas de evaluación, Talleres, Asistencias, Evaluaciones y calificaciones, Evidencias, Credenciales.
 
 1. En Postman: *Import → File* y elige `docs/api/postman-coleccion.json`.
 2. En la pestaña *Variables* de la colección llena:

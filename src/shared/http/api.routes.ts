@@ -2,7 +2,6 @@ import { Router } from "express";
 import type { Container } from "../../container.js";
 import { createAccessCatalog } from "../../access/http/access.catalog.js";
 import { createAdministrativeCatalog } from "../../administrative/http/administrative.catalog.js";
-import { createAdministratorsCatalog } from "../../administrators/http/administrators.catalog.js";
 import { createAuthCatalog } from "../../auth/http/auth.catalog.js";
 import { createEvaluationsCatalog } from "../../evaluations/http/evaluations.catalog.js";
 import { createEvidencesCatalog } from "../../evidences/http/evidences.catalog.js";
@@ -34,7 +33,6 @@ export function createApiRouter(container: Container, auth: AuthOptions): Router
 
   api.use(authenticate(container.profiles, auth));
   api.use(createAdministrativeCatalog(container));
-  api.use(createAdministratorsCatalog(container));
   api.use(createProfilesCatalog(container));
   api.use(createAccessCatalog(container));
   api.use(createSkillsCatalog(container));

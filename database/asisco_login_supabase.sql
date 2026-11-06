@@ -253,31 +253,8 @@ as $$
   );
 $$;
 
--- =====================================================================
--- ADMINISTRATIVOS (PROVISIONAL)
--- Actor que no se había contemplado. Tabla mínima y aislada para poder
--- reemplazarla (p. ej. por datos del módulo administrativo) sin afectar
--- el resto. Sin enlace a cuentas (decisión de diseño: no se usa profile_id).
--- =====================================================================
-
-create table public.administrators (
-  id bigint generated always as identity primary key,
-  full_name text not null
-    check (char_length(full_name) between 3 and 150),
-  document_type text not null
-    check (document_type in ('CC', 'TI', 'CE', 'PA', 'RC', 'PPT', 'NIT')),
-  document_number text not null unique
-    check (document_number ~ '^[A-Za-z0-9-]{3,20}$'),
-  -- Se guarda en minúsculas: así el unique no distingue mayúsculas.
-  email text not null unique
-    check (email = lower(email) and char_length(email) <= 254),
-  phone text,
-  position text not null
-    check (char_length(position) between 2 and 100),
-  status text not null default 'active'
-    check (status in ('active', 'inactive'))
-);
-select public.habilitar_auditoria('administrators', 'id');
+-- Los administrativos no tienen tabla propia: son personal (`staff`) del
+-- módulo administrativo (Saga), que este módulo solo lee (ADR-006).
 
 -- =====================================================================
 -- HABILIDADES
@@ -473,7 +450,6 @@ alter table public.aplicaciones enable row level security;
 alter table public.roles enable row level security;
 alter table public.perfiles enable row level security;
 alter table public.usuario_roles enable row level security;
-alter table public.administrators enable row level security;
 alter table public.skill_categories enable row level security;
 alter table public.skills enable row level security;
 alter table public.evaluation_scales enable row level security;
@@ -531,7 +507,7 @@ declare
   t text;
 begin
   foreach t in array array[
-    'administrators', 'skill_categories', 'skills', 'evaluation_scales', 'student_skills',
+    'skill_categories', 'skills', 'evaluation_scales', 'student_skills',
     'workshops', 'workshop_skills', 'workshop_attendances', 'evaluation_skills',
     'evidences', 'student_evidences', 'credentials'
   ] loop

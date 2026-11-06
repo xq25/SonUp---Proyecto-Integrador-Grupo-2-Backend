@@ -14,12 +14,12 @@ import { PrismaUserRoleRepository } from "./access/infrastructure/prisma-user-ro
 import { ChildrenService } from "./administrative/application/children.service.js";
 import { GuardiansService } from "./administrative/application/guardians.service.js";
 import { ProfessionalsService } from "./administrative/application/professionals.service.js";
+import { StaffService } from "./administrative/application/staff.service.js";
 import { PrismaChildReader } from "./administrative/infrastructure/prisma-child.reader.js";
 import { PrismaChildGuardianReader } from "./administrative/infrastructure/prisma-child-guardian.reader.js";
 import { PrismaGuardianReader } from "./administrative/infrastructure/prisma-guardian.reader.js";
 import { PrismaProfessionalReader } from "./administrative/infrastructure/prisma-professional.reader.js";
-import { AdministratorsService } from "./administrators/application/administrators.service.js";
-import { PrismaAdministratorRepository } from "./administrators/infrastructure/prisma-administrator.repository.js";
+import { PrismaStaffReader } from "./administrative/infrastructure/prisma-staff.reader.js";
 import { AuthService } from "./auth/application/auth.service.js";
 import {
   administrativeAuthConfigFromEnv,
@@ -88,11 +88,11 @@ export function createContainer(prisma: PrismaClient = createPrismaClient()) {
       appRepository,
       profileRepository,
     ),
-    // Módulo administrativo (solo lectura) y administrativos (provisional)
+    // Módulo administrativo (solo lectura)
     children: new ChildrenService(childReader, childGuardianReader),
     guardians: new GuardiansService(new PrismaGuardianReader(prisma), childGuardianReader),
     professionals: new ProfessionalsService(professionalReader),
-    administrators: new AdministratorsService(new PrismaAdministratorRepository(prisma)),
+    staff: new StaffService(new PrismaStaffReader(prisma)),
     // Habilidades
     skillCategories: new SkillCategoriesService(skillCategoryRepository, skillRepository),
     skills: new SkillsService(skillRepository, skillCategoryRepository),
