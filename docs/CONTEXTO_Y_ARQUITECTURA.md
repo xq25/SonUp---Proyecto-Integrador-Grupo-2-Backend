@@ -223,7 +223,7 @@ Los valores de `status` de todas las tablas del módulo están aprobados (ver [V
 
 | Tabla (esquema `administrativo`*) | Modelo / entidad | Clave | Uso |
 |---|---|---|---|
-| `children` | `Child` | `child_id` (bigint) | Datos personales del estudiante. `sex`, `document_type` y `status_id` son códigos de catálogos del módulo administrativo |
+| `children` | `Child` | `child_id` (bigint) | Datos personales del estudiante. `sex`, `document_type` y `status_id` son códigos de catálogos del módulo administrativo. **`notes` es la anamnesis del joven** (historia personal, familiar y de salud): dato sensible |
 | `guardians` | `Guardian` | `guardian_id` (bigint) | Datos del acudiente |
 | `children_guardians` | `ChildGuardian` | `child_guardian_id` (bigint) | Vínculo estudiante–acudiente. `end_date = null` significa vigente |
 | `professionals` | `Professional` | `professional_id` (bigint) | Tallerista: títulos, instituciones, `time_donor`. Solo `staff_id` de `staff` |

@@ -486,7 +486,7 @@
       "tags": [
         "Estudiantes"
       ],
-      "summary": "Estudiantes",
+      "summary": "Estudiantes (incluye `notes`: la anamnesis del joven, dato sensible)",
       "description": "Consulta: `statusId`, `search`",
       "security": [
         {
@@ -566,7 +566,7 @@
       "tags": [
         "Estudiantes"
       ],
-      "summary": "Estudiante por número de documento",
+      "summary": "Estudiante por número de documento (incluye `notes`: la anamnesis del joven, dato sensible)",
       "security": [
         {
           "bearerAuth": []
@@ -637,7 +637,7 @@
       "tags": [
         "Estudiantes"
       ],
-      "summary": "Estudiante",
+      "summary": "Estudiante (incluye `notes`: la anamnesis del joven, dato sensible)",
       "security": [
         {
           "bearerAuth": []
@@ -939,7 +939,7 @@
       "tags": [
         "Acudientes"
       ],
-      "summary": "Estudiantes del acudiente",
+      "summary": "Estudiantes del acudiente (incluye `notes`: la anamnesis del joven, dato sensible)",
       "description": "Consulta: `activeOnly` (por defecto `true`)",
       "security": [
         {
