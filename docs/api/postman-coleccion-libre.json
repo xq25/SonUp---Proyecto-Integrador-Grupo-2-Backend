@@ -1,0 +1,2079 @@
+{
+  "info": {
+    "name": "Seguimiento de estudiantes · API (libre)",
+    "description": "Generada con `npm run docs:requests` desde scripts/request-catalog.ts. No editar a mano.\n\nColección para probar a mano: una petición por ruta, con un cuerpo válido de ejemplo, SIN protecciones ni pruebas.\nCada petición se envía siempre: cambia los ids en las variables o directamente en la URL, y el cuerpo a tu gusto.\nCrear y asociar guardan el id nuevo en su variable; el login guarda el token en `authToken`.\n\nAntes de usarla: llena `actorId` (UUID de un perfil activo) o `token` (access_token de Supabase), y `baseUrl`.\nOJO: todo se ejecuta de verdad sobre la BD de `baseUrl` (crear, actualizar, eliminar). Úsala solo con la BD de pruebas.\nLos perfiles se modifican con `profileId`: nunca pongas el propio (perderías el acceso).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "const token = pm.variables.get('token');",
+          "if (token) {",
+          "  pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });",
+          "} else {",
+          "  pm.request.headers.upsert({ key: 'X-Actor-Id', value: pm.variables.get('actorId') });",
+          "}"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000/api"
+    },
+    {
+      "key": "actorId",
+      "value": ""
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "authToken",
+      "value": ""
+    },
+    {
+      "key": "profileId",
+      "value": ""
+    },
+    {
+      "key": "studentId",
+      "value": "1"
+    },
+    {
+      "key": "guardianId",
+      "value": "10"
+    },
+    {
+      "key": "professionalId",
+      "value": "500"
+    },
+    {
+      "key": "staffId",
+      "value": "77"
+    },
+    {
+      "key": "documentNumber",
+      "value": "TI-1001"
+    },
+    {
+      "key": "skillCategoryId",
+      "value": "1"
+    },
+    {
+      "key": "skillId",
+      "value": "1"
+    },
+    {
+      "key": "evaluationScaleId",
+      "value": "1"
+    },
+    {
+      "key": "workshopId",
+      "value": "1"
+    },
+    {
+      "key": "workshopSkillId",
+      "value": "1"
+    },
+    {
+      "key": "attendanceId",
+      "value": "1"
+    },
+    {
+      "key": "evidenceId",
+      "value": "1"
+    },
+    {
+      "key": "credentialId",
+      "value": "1"
+    },
+    {
+      "key": "userRoleId",
+      "value": "1"
+    },
+    {
+      "key": "role",
+      "value": "administrador"
+    },
+    {
+      "key": "classifyValue",
+      "value": "3.2"
+    }
+  ],
+  "item": [
+    {
+      "name": "Estado",
+      "item": [
+        {
+          "name": "Estado del servicio (pública) · GET /health",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "health"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Autenticación",
+      "item": [
+        {
+          "name": "Registrar usuario (pública) · POST /auth/register",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"carlos.donante\",\n  \"email\": \"carlos@prueba.com\",\n  \"password\": \"ClaveDonante2026\",\n  \"role\": \"DONANTE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Iniciar sesión (pública): devuelve el token · POST /auth/login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body && body.token) pm.collectionVariables.set('authToken', body.token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"juan@prueba.com\",\n  \"password\": \"ClaveDePrueba2026\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Usuario dueño del token (`Authorization: Bearer <token del login>`) · GET /auth/profile",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const authToken = pm.variables.get('authToken');",
+                  "if (authToken) pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + authToken });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "profile"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Estudiantes",
+      "item": [
+        {
+          "name": "Estudiantes (incluye `notes`: la anamnesis del joven, dato sensible) · GET /children",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/children",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "children"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Estudiante por número de documento (incluye `notes`: la anamnesis del joven, dato sensible) · GET /children/by-document/:documentNumber",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/children/by-document/{{documentNumber}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "children",
+                "by-document",
+                "{{documentNumber}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Estudiante (incluye `notes`: la anamnesis del joven, dato sensible) · GET /children/:id",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/children/{{studentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "children",
+                "{{studentId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Acudientes del estudiante · GET /children/:id/guardians",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/children/{{studentId}}/guardians",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "children",
+                "{{studentId}}",
+                "guardians"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Acudientes",
+      "item": [
+        {
+          "name": "Acudientes · GET /guardians",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/guardians",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "guardians"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Acudiente · GET /guardians/:id",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/guardians/{{guardianId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "guardians",
+                "{{guardianId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Estudiantes del acudiente (incluye `notes`: la anamnesis del joven, dato sensible) · GET /guardians/:id/children",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/guardians/{{guardianId}}/children",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "guardians",
+                "{{guardianId}}",
+                "children"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Talleristas",
+      "item": [
+        {
+          "name": "Talleristas · GET /professionals",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/professionals",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "professionals"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Tallerista por `staff_id` · GET /professionals/by-staff/:staffId",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/professionals/by-staff/{{staffId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "professionals",
+                "by-staff",
+                "{{staffId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Tallerista · GET /professionals/:id",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/professionals/{{professionalId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "professionals",
+                "{{professionalId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Personal (administrativos)",
+      "item": [
+        {
+          "name": "Personal: administrativos y talleristas (solo lectura, Saga) · GET /staff",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/staff",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "staff"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Persona del personal (solo lectura, Saga) · GET /staff/:id",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/staff/{{staffId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "staff",
+                "{{staffId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Acceso (roles y aplicaciones)",
+      "item": [
+        {
+          "name": "Crear aplicación · POST /apps",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"coordinador\",\n  \"name\": \"Coordinación\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/apps",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "apps"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear rol · POST /roles",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"coordinador\",\n  \"name\": \"Coordinación\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/roles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "roles"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Asignar rol · POST /user-roles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body && body.id) pm.collectionVariables.set('userRoleId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"a1b2c3d4-0000-4000-8000-000000000001\",\n  \"role\": \"tallerista\",\n  \"app\": \"aula_up\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user-roles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user-roles"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Roles del usuario · GET /profiles/:userId/roles",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profiles/{{actorId}}/roles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "profiles",
+                "{{actorId}}",
+                "roles"
+              ]
+            }
+          }
+        },
+        {
+          "name": "¿Tiene el rol? → `{ hasRole }` · GET /profiles/:userId/roles/:role",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profiles/{{actorId}}/roles/{{role}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "profiles",
+                "{{actorId}}",
+                "roles",
+                "{{role}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Aplicaciones · GET /apps",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/apps",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "apps"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Roles · GET /roles",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/roles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "roles"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Revocar rol · DELETE /user-roles/:id",
+          "event": [],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/user-roles/{{userRoleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user-roles",
+                "{{userRoleId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Perfiles",
+      "item": [
+        {
+          "name": "Perfiles · GET /profiles",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profiles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "profiles"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Perfil del usuario autenticado · GET /profiles/me",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profiles/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "profiles",
+                "me"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Perfil (UUID) · GET /profiles/:id",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profiles/{{actorId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "profiles",
+                "{{actorId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Actualizar perfil · PATCH /profiles/:id",
+          "event": [],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstNames\": \"Ana María\",\n  \"phone\": \"+573001112233\",\n  \"dataProcessingAcceptedAt\": \"2026-10-27T15:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/profiles/{{profileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "profiles",
+                "{{profileId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Eliminar perfil (lógico) · DELETE /profiles/:id",
+          "event": [],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profiles/{{profileId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "profiles",
+                "{{profileId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Restaurar perfil · POST /profiles/:id/restore",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/profiles/{{profileId}}/restore",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "profiles",
+                "{{profileId}}",
+                "restore"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Categorías de habilidades",
+      "item": [
+        {
+          "name": "Crear categoría · POST /skill-categories",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body && body.id) pm.collectionVariables.set('skillCategoryId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"  Habilidades   blandas \",\n  \"description\": \"Relación con los demás\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/skill-categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "skill-categories"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Categorías · GET /skill-categories",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/skill-categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "skill-categories"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Categoría · GET /skill-categories/:id",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/skill-categories/{{skillCategoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "skill-categories",
+                "{{skillCategoryId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Actualizar categoría · PATCH /skill-categories/:id",
+          "event": [],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Blandas\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/skill-categories/{{skillCategoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "skill-categories",
+                "{{skillCategoryId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Eliminar categoría (sin habilidades) · DELETE /skill-categories/:id",
+          "event": [],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/skill-categories/{{skillCategoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "skill-categories",
+                "{{skillCategoryId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Habilidades",
+      "item": [
+        {
+          "name": "Crear habilidad · POST /skills",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body && body.id) pm.collectionVariables.set('skillId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Resolución de conflictos\",\n  \"skillCategoryId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/skills",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "skills"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Habilidades · GET /skills",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/skills",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "skills"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Habilidad · GET /skills/:id",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/skills/{{skillId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "skills",
+                "{{skillId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Actualizar habilidad · PATCH /skills/:id",
+          "event": [],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"inactive\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/skills/{{skillId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "skills",
+                "{{skillId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Eliminar habilidad (sin historial) · DELETE /skills/:id",
+          "event": [],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/skills/{{skillId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "skills",
+                "{{skillId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Escalas de evaluación",
+      "item": [
+        {
+          "name": "Crear escala · POST /evaluation-scales",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body && body.id) pm.collectionVariables.set('evaluationScaleId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"EN_PROCESO\",\n  \"name\": \"En proceso\",\n  \"numValue\": 3,\n  \"minValue\": 2,\n  \"maxValue\": 3.49\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluation-scales",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluation-scales"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Escalas, ordenadas por `numValue` · GET /evaluation-scales",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/evaluation-scales",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluation-scales"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Tramos de 0–5 sin escala activa · GET /evaluation-scales/coverage-gaps",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/evaluation-scales/coverage-gaps",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluation-scales",
+                "coverage-gaps"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Escala en la que cae un valor · GET /evaluation-scales/classify",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/evaluation-scales/classify?value={{classifyValue}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluation-scales",
+                "classify"
+              ],
+              "query": [
+                {
+                  "key": "value",
+                  "value": "{{classifyValue}}"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Escala · GET /evaluation-scales/:id",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/evaluation-scales/{{evaluationScaleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluation-scales",
+                "{{evaluationScaleId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Actualizar escala · PATCH /evaluation-scales/:id",
+          "event": [],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"En proceso de logro\",\n  \"isActive\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluation-scales/{{evaluationScaleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluation-scales",
+                "{{evaluationScaleId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Eliminar escala (si nunca se usó) · DELETE /evaluation-scales/:id",
+          "event": [],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/evaluation-scales/{{evaluationScaleId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluation-scales",
+                "{{evaluationScaleId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Talleres",
+      "item": [
+        {
+          "name": "Crear taller (nace `planned`) · POST /workshops",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body && body.id) pm.collectionVariables.set('workshopId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"evaluatorId\": 500,\n  \"name\": \"Música y ritmo\",\n  \"startsAt\": \"2026-11-03T15:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/workshops",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workshops"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Talleres · GET /workshops",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workshops",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workshops"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Taller · GET /workshops/:id",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workshops/{{workshopId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workshops",
+                "{{workshopId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Habilidades del taller · GET /workshops/:id/skills",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workshops/{{workshopId}}/skills",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workshops",
+                "{{workshopId}}",
+                "skills"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Asistencias del taller · GET /workshops/:id/attendances",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workshops/{{workshopId}}/attendances",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workshops",
+                "{{workshopId}}",
+                "attendances"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Editar (solo `planned`) o cambiar estado · PATCH /workshops/:id",
+          "event": [],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"finished\",\n  \"endsAt\": \"2026-12-15T15:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/workshops/{{workshopId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workshops",
+                "{{workshopId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Asociar habilidad (o restaurarla) · PUT /workshops/:id/skills/:skillId",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body && body.id) pm.collectionVariables.set('workshopSkillId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workshops/{{workshopId}}/skills/{{skillId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workshops",
+                "{{workshopId}}",
+                "skills",
+                "{{skillId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Quitar habilidad (recalcula) · DELETE /workshops/:id/skills/:skillId",
+          "event": [],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workshops/{{workshopId}}/skills/{{skillId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workshops",
+                "{{workshopId}}",
+                "skills",
+                "{{skillId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Eliminar taller (sin asistencias) · DELETE /workshops/:id",
+          "event": [],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workshops/{{workshopId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workshops",
+                "{{workshopId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Asistencias",
+      "item": [
+        {
+          "name": "Registrar asistencia · POST /attendances",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body && body.id) pm.collectionVariables.set('attendanceId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": 1,\n  \"workshopId\": 2,\n  \"attendedAt\": \"2026-10-20T15:00:00Z\",\n  \"observation\": \"Participó activamente\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/attendances",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "attendances"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Asistencias del estudiante · GET /students/:studentId/attendances",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/students/{{studentId}}/attendances",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "{{studentId}}",
+                "attendances"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Asistencia · GET /attendances/:id",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/attendances/{{attendanceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "attendances",
+                "{{attendanceId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Actualizar asistencia · PATCH /attendances/:id",
+          "event": [],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"observation\": \"Llegó tarde\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/attendances/{{attendanceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "attendances",
+                "{{attendanceId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Eliminar asistencia (recalcula) · DELETE /attendances/:id",
+          "event": [],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/attendances/{{attendanceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "attendances",
+                "{{attendanceId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Evaluaciones y calificaciones",
+      "item": [
+        {
+          "name": "Evaluar una habilidad en una asistencia (recalcula la calificación) · POST /evaluations",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"workshopAttendanceId\": 10,\n  \"workshopSkillId\": 3,\n  \"evaluationScaleId\": 2\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evaluations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evaluations"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Calificaciones del estudiante (calculadas) · GET /students/:studentId/skills",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/students/{{studentId}}/skills",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "{{studentId}}",
+                "skills"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Promedio por categoría del estudiante · GET /students/:studentId/category-averages",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/students/{{studentId}}/category-averages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "{{studentId}}",
+                "category-averages"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Evaluaciones de la asistencia · GET /attendances/:attendanceId/evaluations",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/attendances/{{attendanceId}}/evaluations",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "attendances",
+                "{{attendanceId}}",
+                "evaluations"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Recalcular a mano una calificación · POST /students/:studentId/skills/:skillId/recalculate",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/students/{{studentId}}/skills/{{skillId}}/recalculate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "{{studentId}}",
+                "skills",
+                "{{skillId}}",
+                "recalculate"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Eliminar evaluación (recalcula) · DELETE /attendances/:attendanceId/evaluations/:workshopSkillId",
+          "event": [],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/attendances/{{attendanceId}}/evaluations/{{workshopSkillId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "attendances",
+                "{{attendanceId}}",
+                "evaluations",
+                "{{workshopSkillId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Evidencias",
+      "item": [
+        {
+          "name": "Subir evidencia · POST /evidences",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body && body.id) pm.collectionVariables.set('evidenceId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://storage.fundacion.test/evidencias/mural.jpg\",\n  \"title\": \"Mural colectivo\",\n  \"studentIds\": [\n    1,\n    \"2\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evidences",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evidences"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Evidencia · GET /evidences/:id",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/evidences/{{evidenceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evidences",
+                "{{evidenceId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Estudiantes de la evidencia · GET /evidences/:id/students",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/evidences/{{evidenceId}}/students",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evidences",
+                "{{evidenceId}}",
+                "students"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Evidencias del estudiante · GET /students/:studentId/evidences",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/students/{{studentId}}/evidences",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "{{studentId}}",
+                "evidences"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Actualizar evidencia · PATCH /evidences/:id",
+          "event": [],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Mural colectivo (versión final)\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evidences/{{evidenceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evidences",
+                "{{evidenceId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Relacionar estudiante (o restaurarlo) · PUT /evidences/:id/students/:studentId",
+          "event": [],
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/evidences/{{evidenceId}}/students/{{studentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evidences",
+                "{{evidenceId}}",
+                "students",
+                "{{studentId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Quitar estudiante (no el último) · DELETE /evidences/:id/students/:studentId",
+          "event": [],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/evidences/{{evidenceId}}/students/{{studentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evidences",
+                "{{evidenceId}}",
+                "students",
+                "{{studentId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Eliminar evidencia (y sus relaciones) · DELETE /evidences/:id",
+          "event": [],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/evidences/{{evidenceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evidences",
+                "{{evidenceId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Credenciales",
+      "item": [
+        {
+          "name": "Registrar credencial (nace `pending`) · POST /credentials",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body && body.id) pm.collectionVariables.set('credentialId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"studentId\": 1,\n  \"organizationName\": \"Fundación Asisco\",\n  \"url\": \"https://storage.fundacion.test/certificados/c-1.pdf\",\n  \"workshopId\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/credentials",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "credentials"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Credencial · GET /credentials/:id",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/credentials/{{credentialId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "credentials",
+                "{{credentialId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Credenciales del estudiante · GET /students/:studentId/credentials",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/students/{{studentId}}/credentials",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "{{studentId}}",
+                "credentials"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Editar (solo `pending`) o cambiar estado · PATCH /credentials/:id",
+          "event": [],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"valid\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/credentials/{{credentialId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "credentials",
+                "{{credentialId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Eliminar credencial (solo `pending`) · DELETE /credentials/:id",
+          "event": [],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/credentials/{{credentialId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "credentials",
+                "{{credentialId}}"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

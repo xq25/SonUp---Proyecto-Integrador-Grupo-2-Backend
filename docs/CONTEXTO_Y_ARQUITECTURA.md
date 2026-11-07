@@ -62,7 +62,7 @@
 | `npm run prisma:studio` | Abre Prisma Studio (requiere BD) |
 | `npm run db:check` | Verifica la conexión y el estado de la BD configurada en `.env` (solo lectura) |
 | `npm run db:seed:dev` | Carga datos de prueba en la **BD de pruebas** usando los servicios del módulo (solo corre si existe el simulado del administrativo) |
-| `npm run docs:requests` | Regenera [api/CUERPOS_DE_PETICION.md](api/CUERPOS_DE_PETICION.md) (rutas y cuerpos), la colección `api/postman-coleccion.json`, `api/postman-casos.json` y `src/docs/api-routes.yaml` (Swagger UI) desde `scripts/request-catalog.ts`. Valida cada ejemplo contra los esquemas Zod y cada ruta contra Express |
+| `npm run docs:requests` | Regenera [api/CUERPOS_DE_PETICION.md](api/CUERPOS_DE_PETICION.md) (rutas y cuerpos), la colección `api/postman-coleccion.json`, la colección libre `api/postman-coleccion-libre.json` (sin protecciones, para probar a mano), `api/postman-casos.json` y `src/docs/api-routes.yaml` (Swagger UI) desde `scripts/request-catalog.ts`. Valida cada ejemplo contra los esquemas Zod y cada ruta contra Express |
 
 ### Variables de entorno
 

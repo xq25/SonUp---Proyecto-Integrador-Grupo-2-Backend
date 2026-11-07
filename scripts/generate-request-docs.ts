@@ -9,6 +9,7 @@
 // 2. Escribe:
 //    - docs/api/CUERPOS_DE_PETICION.md: rutas, cuerpos y reglas (para leer);
 //    - docs/api/postman-coleccion.json: colección de Postman v2.1, una carpeta por entidad, con pruebas;
+//    - docs/api/postman-coleccion-libre.json: la misma API sin protecciones ni pruebas, para probar a mano;
 //    - docs/api/postman-casos.json: los casos de cuerpo como archivo de datos;
 //    - src/docs/api-routes.yaml: las rutas en OpenAPI, para Swagger UI (ADR-005).
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -402,9 +403,10 @@ function itemsFor(route: RouteDoc): Item[] {
   ];
 }
 
-const folders = entities.map((entity) => {
-  const entityRoutes = routes
-    .filter((r) => entityOf(r.path) === entity.name)
+/** Rutas de una entidad en el orden de ejecución de su carpeta. */
+const orderedRoutes = (entityName: string) =>
+  routes
+    .filter((r) => entityOf(r.path) === entityName)
     .map((r, index) => ({ r, index }))
     .sort(
       (a, b) =>
@@ -413,8 +415,8 @@ const folders = entities.map((entity) => {
         a.index - b.index,
     )
     .map(({ r }) => r);
-  return { name: entity.name, item: entityRoutes.flatMap(itemsFor) };
-});
+
+const folders = entities.map((entity) => ({ name: entity.name, item: orderedRoutes(entity.name).flatMap(itemsFor) }));
 const requestCount = folders.reduce((n, f) => n + f.item.length, 0);
 
 const collection = {
@@ -439,6 +441,68 @@ const collection = {
   item: folders,
 };
 
+// ── Colección libre de Postman ──
+// Para probar a mano (front y equipo): una petición por ruta con su cuerpo válido de
+// ejemplo, sin protecciones ni pruebas. Siempre se envía con los ids que tenga la URL.
+
+/** Si la petición crea algo o inicia sesión, guarda el id (o el token) para las siguientes. */
+const freeSaveLines = (route: RouteDoc, op: Operation | undefined): string[] => {
+  const idVariable = op?.http.saveIdAs ?? actionSaves[key(route.method, route.path)];
+  const tokenVariable = op?.external?.saveTokenAs;
+  if (!idVariable && !tokenVariable) return [];
+  return [
+    "if (pm.response.code === 200 || pm.response.code === 201) {",
+    "  const body = pm.response.json();",
+    ...(idVariable ? [`  if (body && body.id) pm.collectionVariables.set('${idVariable}', body.id);`] : []),
+    ...(tokenVariable ? [`  if (body && body.token) pm.collectionVariables.set('${tokenVariable}', body.token);`] : []),
+    "}",
+  ];
+};
+
+/** GET /auth/profile usa el token del login (`authToken`) si existe. */
+const freeProfileAuth = [
+  "const authToken = pm.variables.get('authToken');",
+  "if (authToken) pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + authToken });",
+];
+
+function freeItem(route: RouteDoc) {
+  const op = opByRoute.get(key(route.method, route.path));
+  const url = postmanPath(route.path, route.method !== "GET");
+  const saveLines = freeSaveLines(route, op);
+  return {
+    name: `${route.description} · ${route.method} ${route.path}`,
+    event: [
+      ...(route.path === "/auth/profile" ? [script("prerequest", freeProfileAuth)] : []),
+      ...(saveLines.length > 0 ? [script("test", saveLines)] : []),
+    ],
+    request: request(route.method, url, op?.valid, exampleQuery[route.path] ?? ""),
+  };
+}
+
+const freeFolders = entities.map((entity) => ({ name: entity.name, item: orderedRoutes(entity.name).map(freeItem) }));
+const { runExternalWrites: _unused, ...freeVariables } = variables;
+
+const freeCollection = {
+  info: {
+    name: "Seguimiento de estudiantes · API (libre)",
+    description: [
+      "Generada con `npm run docs:requests` desde scripts/request-catalog.ts. No editar a mano.",
+      "",
+      "Colección para probar a mano: una petición por ruta, con un cuerpo válido de ejemplo, SIN protecciones ni pruebas.",
+      "Cada petición se envía siempre: cambia los ids en las variables o directamente en la URL, y el cuerpo a tu gusto.",
+      "Crear y asociar guardan el id nuevo en su variable; el login guarda el token en `authToken`.",
+      "",
+      "Antes de usarla: llena `actorId` (UUID de un perfil activo) o `token` (access_token de Supabase), y `baseUrl`.",
+      "OJO: todo se ejecuta de verdad sobre la BD de `baseUrl` (crear, actualizar, eliminar). Úsala solo con la BD de pruebas.",
+      "Los perfiles se modifican con `profileId`: nunca pongas el propio (perderías el acceso).",
+    ].join("\n"),
+    schema: "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+  },
+  event: [script("prerequest", authScript)],
+  variable: Object.entries(freeVariables).map(([k, value]) => ({ key: k, value })),
+  item: freeFolders,
+};
+
 // ── Markdown ──
 
 /** JSON legible; los textos muy largos (casos de longitud máxima) se resumen. */
@@ -452,7 +516,7 @@ md.push(`# API: rutas y cuerpos de petición
 
 > **Generado** con \`npm run docs:requests\` desde \`scripts/request-catalog.ts\`. No editar a mano: cambia el catálogo y regenera.
 > Cada ejemplo se validó contra los esquemas Zod reales (nivel 1, [ADR-001](../decisiones/ADR-001-zod-esquemas-de-entrada.md)) y cada ruta contra las registradas en Express ([ADR-002](../decisiones/ADR-002-capa-http-express.md)).
-> Reglas completas por tabla: [VALIDACIONES.md](../VALIDACIONES.md). Colección de Postman: [postman-coleccion.json](postman-coleccion.json) (ver [Uso en Postman](#uso-en-postman)).
+> Reglas completas por tabla: [VALIDACIONES.md](../VALIDACIONES.md). Colecciones de Postman: [postman-coleccion.json](postman-coleccion.json), con pruebas, y [postman-coleccion-libre.json](postman-coleccion-libre.json), para probar a mano (ver [Uso en Postman](#uso-en-postman)).
 
 ## Convenciones generales
 
@@ -580,6 +644,16 @@ md.push(`
 - Los casos válidos de **crear sí escriben** en la BD de \`baseUrl\`: úsala solo con la BD de pruebas. Al repetir la colección, varios responden 409 (ya existen): es esperado.
 
 Las variables de ids traen valores de la BD de pruebas (\`npm run db:seed:dev\` y el simulado del módulo administrativo: estudiante \`1\`, acudiente \`10\`, tallerista \`500\`).
+
+### Colección libre (pruebas a mano)
+
+**Archivo:** \`docs/api/postman-coleccion-libre.json\`. Para el front y para probar flujos a mano: **una petición por ruta** (${routes.length}), con un cuerpo válido de ejemplo y **sin protecciones ni pruebas**.
+
+- Cada petición **se envía siempre**, con los ids que tengan las variables o los que escribas en la URL (p. ej. \`/workshops/10/skills/1\`).
+- Crear y asociar guardan el id nuevo en su variable (\`workshopId\`, \`skillId\`, \`workshopSkillId\`…), así que un flujo como crear taller → asociar habilidad → activar funciona en orden.
+- El login guarda el token en \`authToken\`, que usa \`GET /auth/profile\`.
+- Se configura igual: \`baseUrl\` y \`actorId\` (o \`token\`).
+- ⚠️ **Todo se ejecuta de verdad** sobre la BD de \`baseUrl\`: crear, actualizar y eliminar. Úsala solo con la BD de pruebas, y nunca pongas tu propio perfil en \`profileId\`.
 
 \`postman-casos.json\` tiene los casos de cuerpo como **archivo de datos** (*Data file* del Collection Runner), con \`method\` y \`path\` de cada uno.
 `);
@@ -719,11 +793,13 @@ writeFileSync("src/docs/api-routes.yaml", JSON.stringify(apiDocs, null, 2) + "\n
 mkdirSync("docs/api", { recursive: true });
 writeFileSync("docs/api/CUERPOS_DE_PETICION.md", md.join("\n"), "utf8");
 writeFileSync("docs/api/postman-coleccion.json", JSON.stringify(collection, null, 2) + "\n", "utf8");
+writeFileSync("docs/api/postman-coleccion-libre.json", JSON.stringify(freeCollection, null, 2) + "\n", "utf8");
 writeFileSync("docs/api/postman-casos.json", JSON.stringify(cases, null, 2) + "\n", "utf8");
 console.log(`✔ ${operations.length} operaciones y ${cases.length} casos validados contra los esquemas Zod.`);
 console.log(`✔ ${routes.length} rutas verificadas contra Express.`);
 console.log("  → docs/api/CUERPOS_DE_PETICION.md");
 console.log(`  → docs/api/postman-coleccion.json (${folders.length} carpetas, ${requestCount} peticiones)`);
 for (const f of folders) console.log(`      · ${f.name}: ${f.item.length}`);
+console.log(`  → docs/api/postman-coleccion-libre.json (${freeFolders.length} carpetas, ${routes.length} peticiones, sin protecciones)`);
 console.log("  → docs/api/postman-casos.json");
 console.log("  → src/docs/api-routes.yaml (Swagger UI)");
