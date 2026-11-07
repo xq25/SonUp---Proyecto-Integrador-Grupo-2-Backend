@@ -20,7 +20,15 @@ import { PrismaChildGuardianReader } from "./administrative/infrastructure/prism
 import { PrismaGuardianReader } from "./administrative/infrastructure/prisma-guardian.reader.js";
 import { PrismaProfessionalReader } from "./administrative/infrastructure/prisma-professional.reader.js";
 import { PrismaStaffReader } from "./administrative/infrastructure/prisma-staff.reader.js";
+import { SagaChildReader } from "./administrative/infrastructure/saga/saga-child.reader.js";
+import { SagaChildGuardianReader } from "./administrative/infrastructure/saga/saga-child-guardian.reader.js";
+import { SagaGuardianReader } from "./administrative/infrastructure/saga/saga-guardian.reader.js";
+import { SagaHttpClient, sagaConfigFromEnv } from "./administrative/infrastructure/saga/saga-http.client.js";
+import { SagaProfessionalReader } from "./administrative/infrastructure/saga/saga-professional.reader.js";
+import { SagaStaffReader } from "./administrative/infrastructure/saga/saga-staff.reader.js";
 import { AuthService } from "./auth/application/auth.service.js";
+import { ServiceSession } from "./auth/application/service-session.js";
+import type { AuthGateway } from "./auth/domain/auth.gateway.js";
 import {
   administrativeAuthConfigFromEnv,
   HttpAdministrativeAuthGateway,
@@ -51,11 +59,44 @@ import { PrismaWorkshopAttendanceRepository } from "./workshops/infrastructure/p
 import { PrismaWorkshopSkillRepository } from "./workshops/infrastructure/prisma-workshop-skill.repository.js";
 import { PrismaWorkshopRepository } from "./workshops/infrastructure/prisma-workshop.repository.js";
 
+/**
+ * Lectores del módulo administrativo (solo lectura, ADR-007): con `SAGA_API_URL`
+ * se consulta la API de Saga con el usuario de servicio; sin ella, las tablas
+ * simuladas del esquema `administrativo` (desarrollo y pruebas).
+ */
+function createAdministrativeReaders(prisma: PrismaClient, authGateway: AuthGateway) {
+  const saga = sagaConfigFromEnv();
+  if (!saga.baseUrl) {
+    return {
+      source: "bd-simulada" as const,
+      children: new PrismaChildReader(prisma),
+      guardians: new PrismaGuardianReader(prisma),
+      childGuardians: new PrismaChildGuardianReader(prisma),
+      professionals: new PrismaProfessionalReader(prisma),
+      staff: new PrismaStaffReader(prisma),
+    };
+  }
+  const client = new SagaHttpClient(saga, new ServiceSession(authGateway, saga.credentials));
+  const children = new SagaChildReader(client);
+  const guardians = new SagaGuardianReader(client);
+  return {
+    source: "saga" as const,
+    children,
+    guardians,
+    childGuardians: new SagaChildGuardianReader(client, children, guardians),
+    professionals: new SagaProfessionalReader(client),
+    staff: new SagaStaffReader(client),
+  };
+}
+
 export function createContainer(prisma: PrismaClient = createPrismaClient()) {
+  // Login del módulo administrativo: lo usan el front (AuthService) y este backend (sesión de servicio).
+  const authGateway = new HttpAdministrativeAuthGateway(administrativeAuthConfigFromEnv());
   // Lectores del módulo administrativo (solo lectura).
-  const childReader = new PrismaChildReader(prisma);
-  const childGuardianReader = new PrismaChildGuardianReader(prisma);
-  const professionalReader = new PrismaProfessionalReader(prisma);
+  const administrative = createAdministrativeReaders(prisma, authGateway);
+  const childReader = administrative.children;
+  const childGuardianReader = administrative.childGuardians;
+  const professionalReader = administrative.professionals;
 
   // Repositorios compartidos entre servicios.
   const appRepository = new PrismaAppRepository(prisma);
@@ -76,8 +117,10 @@ export function createContainer(prisma: PrismaClient = createPrismaClient()) {
 
   return {
     prisma,
+    /** De dónde se leen los datos del módulo administrativo: `saga` o `bd-simulada`. */
+    administrativeSource: administrative.source,
     // Autenticación delegada al módulo administrativo (ADR-003)
-    auth: new AuthService(new HttpAdministrativeAuthGateway(administrativeAuthConfigFromEnv())),
+    auth: new AuthService(authGateway),
     // Acceso
     profiles: new ProfilesService(profileRepository),
     apps: new AppsService(appRepository),
@@ -90,9 +133,9 @@ export function createContainer(prisma: PrismaClient = createPrismaClient()) {
     ),
     // Módulo administrativo (solo lectura)
     children: new ChildrenService(childReader, childGuardianReader),
-    guardians: new GuardiansService(new PrismaGuardianReader(prisma), childGuardianReader),
+    guardians: new GuardiansService(administrative.guardians, childGuardianReader),
     professionals: new ProfessionalsService(professionalReader),
-    staff: new StaffService(new PrismaStaffReader(prisma)),
+    staff: new StaffService(administrative.staff),
     // Habilidades
     skillCategories: new SkillCategoriesService(skillCategoryRepository, skillRepository),
     skills: new SkillsService(skillRepository, skillCategoryRepository),

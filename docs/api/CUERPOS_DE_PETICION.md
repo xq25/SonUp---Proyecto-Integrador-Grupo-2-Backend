@@ -2,7 +2,7 @@
 
 > **Generado** con `npm run docs:requests` desde `scripts/request-catalog.ts`. No editar a mano: cambia el catálogo y regenera.
 > Cada ejemplo se validó contra los esquemas Zod reales (nivel 1, [ADR-001](../decisiones/ADR-001-zod-esquemas-de-entrada.md)) y cada ruta contra las registradas en Express ([ADR-002](../decisiones/ADR-002-capa-http-express.md)).
-> Reglas completas por tabla: [VALIDACIONES.md](../VALIDACIONES.md). Colección de Postman: [postman-coleccion.json](postman-coleccion.json) (ver [Uso en Postman](#uso-en-postman)).
+> Reglas completas por tabla: [VALIDACIONES.md](../VALIDACIONES.md). Colecciones de Postman: [postman-coleccion.json](postman-coleccion.json), con pruebas, y [postman-coleccion-libre.json](postman-coleccion-libre.json), para probar a mano (ver [Uso en Postman](#uso-en-postman)).
 
 ## Convenciones generales
 
@@ -66,7 +66,7 @@
 
 | Método | Ruta | Descripción | Consulta | Cuerpo |
 |---|---|---|---|---|
-| `GET` | `/children` | Estudiantes (incluye `notes`: la anamnesis del joven, dato sensible) | `statusId`, `search` |  |
+| `GET` | `/children` | Estudiantes (incluye `notes`: la anamnesis del joven, dato sensible) | `statusId` (id de catálogo de Saga), `search` |  |
 | `GET` | `/children/by-document/:documentNumber` | Estudiante por número de documento (incluye `notes`: la anamnesis del joven, dato sensible) |  |  |
 | `GET` | `/children/:id` | Estudiante (incluye `notes`: la anamnesis del joven, dato sensible) |  |  |
 | `GET` | `/children/:id/guardians` | Acudientes del estudiante | `activeOnly` (por defecto `true`) |  |
@@ -91,7 +91,7 @@
 
 | Método | Ruta | Descripción | Consulta | Cuerpo |
 |---|---|---|---|---|
-| `GET` | `/staff` | Personal: administrativos y talleristas (solo lectura, Saga) | `role`, `status`, `search` |  |
+| `GET` | `/staff` | Personal: administrativos y talleristas (solo lectura, Saga) | `roleId`, `statusId` (ids de catálogo de Saga), `search` |  |
 | `GET` | `/staff/:id` | Persona del personal (solo lectura, Saga) |  |  |
 
 ### Acceso (roles y aplicaciones)
@@ -952,5 +952,15 @@
 - Los casos válidos de **crear sí escriben** en la BD de `baseUrl`: úsala solo con la BD de pruebas. Al repetir la colección, varios responden 409 (ya existen): es esperado.
 
 Las variables de ids traen valores de la BD de pruebas (`npm run db:seed:dev` y el simulado del módulo administrativo: estudiante `1`, acudiente `10`, tallerista `500`).
+
+### Colección libre (pruebas a mano)
+
+**Archivo:** `docs/api/postman-coleccion-libre.json`. Para el front y para probar flujos a mano: **una petición por ruta** (80), con un cuerpo válido de ejemplo y **sin protecciones ni pruebas**.
+
+- Cada petición **se envía siempre**, con los ids que tengan las variables o los que escribas en la URL (p. ej. `/workshops/10/skills/1`).
+- Crear y asociar guardan el id nuevo en su variable (`workshopId`, `skillId`, `workshopSkillId`…), así que un flujo como crear taller → asociar habilidad → activar funciona en orden.
+- El login guarda el token en `authToken`, que usa `GET /auth/profile`.
+- Se configura igual: `baseUrl` y `actorId` (o `token`).
+- ⚠️ **Todo se ejecuta de verdad** sobre la BD de `baseUrl`: crear, actualizar y eliminar. Úsala solo con la BD de pruebas, y nunca pongas tu propio perfil en `profileId`.
 
 `postman-casos.json` tiene los casos de cuerpo como **archivo de datos** (*Data file* del Collection Runner), con `method` y `path` de cada uno.

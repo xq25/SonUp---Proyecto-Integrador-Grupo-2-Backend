@@ -21,7 +21,7 @@ Módulo de servicio de un proyecto general. Consume una **base de datos general 
     - En Prisma se mapean con `@@map`/`@map`.
   - Los valores de datos definidos por checks de la BD (`'activo'`, `'planned'`…) se escriben tal como están en la BD.
 - **Los datos de otros módulos se consumen en SOLO LECTURA.**
-  - Cada módulo maneja su propio esquema de Postgres. Sus tablas se mapean en Prisma con `@@schema("<esquema>")` y con sus nombres de tabla y columna tal cual.
+  - **Saga (módulo administrativo) se consume por su API REST** ([ADR-007](docs/decisiones/ADR-007-saga-por-api.md)): lectores `Saga*Reader` en `src/administrative/infrastructure/saga/`, con el token de un usuario de servicio (`ServiceSession`). Con `SAGA_API_URL` se usa Saga; sin ella, las tablas simuladas del esquema `administrativo` (solo desarrollo y pruebas, lectores `Prisma*Reader`).
   - Se acceden por puertos `*Reader` (nunca `*Repository`), sin create/update/delete y sin auditoría.
   - No se agregan a nuestro SQL ni se les crean FKs: nuestras columnas que los referencian (`student_id` → `children`, `evaluator_id` → `professionals`) son `bigint` sin FK física ni relación Prisma. Los servicios validan su existencia con los `*Reader`.
   - Del módulo administrativo (Saga) solo se consumen `children`, `guardians`, `children_guardians`, `professionals` y `staff` (feature `src/administrative/`).
@@ -78,7 +78,7 @@ Todo cambio de datos propios empieza en el SQL y baja en ese orden. Las tablas d
 - `npm run dev`: arranca la API en `http://localhost:3000/api` (recarga al guardar). Autenticación: JWT de Supabase o, solo fuera de producción, `X-Actor-Id`. **En producción `NODE_ENV=production` es obligatorio.**
 - `npm run db:check`: verifica la conexión y el estado de la BD de `.env` (solo lectura).
 - `npm run db:seed:dev`: datos de prueba en la BD de pruebas, vía servicios. Es idempotente y se niega a correr sin el simulado del administrativo.
-- `npm run docs:requests`: regenera `docs/api/CUERPOS_DE_PETICION.md`, la colección `docs/api/postman-coleccion.json`, `docs/api/postman-casos.json` y `src/docs/api-routes.yaml` (Swagger UI en `/api-docs`, [ADR-005](docs/decisiones/ADR-005-swagger-desde-el-catalogo.md)). **Al cambiar un esquema Zod o una ruta, actualiza `scripts/request-catalog.ts` y regenera**; el script falla si los ejemplos no coinciden con los esquemas o las rutas con Express.
+- `npm run docs:requests`: regenera `docs/api/CUERPOS_DE_PETICION.md`, la colección `docs/api/postman-coleccion.json` (con protecciones y pruebas), la colección libre `docs/api/postman-coleccion-libre.json` (sin protecciones, para probar a mano), `docs/api/postman-casos.json` y `src/docs/api-routes.yaml` (Swagger UI en `/api-docs`, [ADR-005](docs/decisiones/ADR-005-swagger-desde-el-catalogo.md)). **Al cambiar un esquema Zod o una ruta, actualiza `scripts/request-catalog.ts` y regenera**; el script falla si los ejemplos no coinciden con los esquemas o las rutas con Express.
 - `npm run prisma:validate` / `npm run prisma:generate`: después de tocar el schema.
 - Los comandos de la CLI de Prisma llevan `--config prisma7.config.ts`.
 

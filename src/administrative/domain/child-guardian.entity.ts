@@ -1,14 +1,15 @@
 import type { Child } from "./child.entity.js";
 import type { Guardian } from "./guardian.entity.js";
 
-// Dato del módulo administrativo, en solo lectura (sin AuditableEntity).
+// Dato del módulo administrativo (Saga), en solo lectura (sin AuditableEntity).
 
 /** Vínculo joven–acudiente (`children_guardians`). `endDate = null` indica que sigue vigente. */
 export interface ChildGuardian {
   id: bigint;
   childId: bigint;
   guardianId: bigint;
-  guardianshipType: string | null;
+  /** Id del tipo de acudiente en el catálogo de Saga (`guardianship_type_id`). */
+  guardianshipTypeId: string | null;
   startDate: Date | null;
   endDate: Date | null;
 }
