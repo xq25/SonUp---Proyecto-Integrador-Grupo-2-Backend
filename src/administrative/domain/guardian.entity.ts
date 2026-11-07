@@ -1,14 +1,16 @@
-// Dato del módulo administrativo, en solo lectura (sin AuditableEntity).
+// Dato del módulo administrativo (Saga), en solo lectura (sin AuditableEntity).
 
-/** Acudiente (`guardians`). */
+/** Acudiente (`guardians`). Los catálogos llegan como id de Saga y, si lo envía, con su nombre. */
 export interface Guardian {
   id: bigint;
   fullName: string | null;
-  documentType: string | null;
+  documentTypeId: string | null;
+  documentTypeName: string | null;
   documentNumber: string | null;
   phone: string | null;
   address: string | null;
   legalStatusId: string | null;
+  legalStatusName: string | null;
 }
 
 export interface GuardianFilter {

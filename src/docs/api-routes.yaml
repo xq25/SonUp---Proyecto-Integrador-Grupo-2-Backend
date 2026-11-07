@@ -487,7 +487,7 @@
         "Estudiantes"
       ],
       "summary": "Estudiantes (incluye `notes`: la anamnesis del joven, dato sensible)",
-      "description": "Consulta: `statusId`, `search`",
+      "description": "Consulta: `statusId` (id de catálogo de Saga), `search`",
       "security": [
         {
           "bearerAuth": []
@@ -1242,7 +1242,7 @@
         "Personal (administrativos)"
       ],
       "summary": "Personal: administrativos y talleristas (solo lectura, Saga)",
-      "description": "Consulta: `role`, `status`, `search`",
+      "description": "Consulta: `roleId`, `statusId` (ids de catálogo de Saga), `search`",
       "security": [
         {
           "bearerAuth": []
@@ -1253,7 +1253,7 @@
       ],
       "parameters": [
         {
-          "name": "role",
+          "name": "roleId",
           "in": "query",
           "required": false,
           "schema": {
@@ -1261,7 +1261,7 @@
           }
         },
         {
-          "name": "status",
+          "name": "statusId",
           "in": "query",
           "required": false,
           "schema": {

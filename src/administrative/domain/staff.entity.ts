@@ -2,26 +2,28 @@
 
 /**
  * Personal de la fundación (`staff`): administrativos y talleristas (estos se
- * enlazan desde `professionals.staff_id`). `role` y `status` son valores de Saga.
- * No se exponen `contract_type`, `hours_worked` ni `hours_payed`: son datos
- * laborales que este módulo no usa.
+ * enlazan desde `professionals.staff_id`). Rol, estado y tipo de documento son
+ * ids de los catálogos de Saga. No se exponen el tipo de contrato ni las horas:
+ * son datos laborales que este módulo no usa.
  */
 export interface Staff {
   id: bigint;
   fullName: string | null;
-  documentType: string | null;
+  documentTypeId: string | null;
   documentNumber: string | null;
-  role: string | null;
+  roleId: string | null;
   hireDate: Date | null;
   exitDate: Date | null;
-  status: string | null;
+  statusId: string | null;
   phone: string | null;
   email: string | null;
 }
 
 export interface StaffFilter {
-  role?: string;
-  status?: string;
+  /** Id del rol en el catálogo de Saga (`staff_role_id`). */
+  roleId?: string;
+  /** Id del estado en el catálogo de Saga (`staff_status_id`). */
+  statusId?: string;
   /** Busca en el nombre completo, el número de documento o el email. */
   search?: string;
 }

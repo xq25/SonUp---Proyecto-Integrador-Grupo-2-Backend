@@ -5,9 +5,10 @@ import type { StaffService } from "../application/staff.service.js";
 
 // Personal del módulo administrativo (solo lectura): administrativos y talleristas.
 
+// roleId y statusId: ids de los catálogos de Saga (staff_role_id, staff_status_id).
 const staffQuery = z.strictObject({
-  role: z.string().trim().min(1).max(50).exactOptional(),
-  status: z.string().trim().min(1).max(50).exactOptional(),
+  roleId: z.string().trim().min(1).max(50).exactOptional(),
+  statusId: z.string().trim().min(1).max(50).exactOptional(),
   search: searchQuery.exactOptional(),
 });
 

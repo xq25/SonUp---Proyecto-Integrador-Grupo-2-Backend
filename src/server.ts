@@ -10,6 +10,12 @@ const app = createApp(container);
 if (process.env["NODE_ENV"] !== "production") {
   console.warn("⚠ Modo desarrollo: se acepta la cabecera X-Actor-Id (nunca en producción).");
 }
+// Fuente de los datos del módulo administrativo (ADR-007).
+console.log(
+  container.administrativeSource === "saga"
+    ? "✔ Módulo administrativo: API de Saga (SAGA_API_URL)"
+    : "⚠ Módulo administrativo: tablas simuladas de la BD (sin SAGA_API_URL; solo desarrollo y pruebas)",
+);
 
 const server = app.listen(port, () => {
   console.log(`✔ API escuchando en http://localhost:${port}${API_PREFIX}`);

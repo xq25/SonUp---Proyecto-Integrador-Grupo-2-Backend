@@ -2,7 +2,7 @@ import type { Prisma, PrismaClient } from "../../shared/infrastructure/prisma/pr
 import type { Staff, StaffFilter } from "../domain/staff.entity.js";
 import type { StaffReader } from "../domain/staff.reader.js";
 
-// Solo consulta: la tabla es del módulo administrativo (sin escritura ni auditoría).
+// Solo consulta las tablas simuladas del módulo administrativo (desarrollo y pruebas sin Saga, ADR-007).
 
 const staffSelect = {
   id: true,
@@ -17,21 +17,33 @@ const staffSelect = {
   email: true,
 } satisfies Prisma.StaffSelect;
 
+type StaffRow = Prisma.StaffGetPayload<{ select: typeof staffSelect }>;
+
+// En el simulado, rol, estado y tipo de documento son textos; en Saga son ids de catálogo.
+const toStaff = ({ documentType, role, status, ...row }: StaffRow): Staff => ({
+  ...row,
+  documentTypeId: documentType,
+  roleId: role,
+  statusId: status,
+});
+
 export class PrismaStaffReader implements StaffReader {
   constructor(private readonly prisma: PrismaClient) {}
 
-  findById(id: bigint): Promise<Staff | null> {
-    return this.prisma.staff.findUnique({ where: { id }, select: staffSelect });
+  async findById(id: bigint): Promise<Staff | null> {
+    const row = await this.prisma.staff.findUnique({ where: { id }, select: staffSelect });
+    return row && toStaff(row);
   }
 
-  findMany(filter: StaffFilter = {}): Promise<Staff[]> {
+  async findMany(filter: StaffFilter = {}): Promise<Staff[]> {
     const where: Prisma.StaffWhereInput = {};
-    if (filter.role !== undefined) where.role = filter.role;
-    if (filter.status !== undefined) where.status = filter.status;
+    if (filter.roleId !== undefined) where.role = filter.roleId;
+    if (filter.statusId !== undefined) where.status = filter.statusId;
     if (filter.search) {
       const contains = { contains: filter.search, mode: "insensitive" } as const;
       where.OR = [{ fullName: contains }, { documentNumber: contains }, { email: contains }];
     }
-    return this.prisma.staff.findMany({ where, select: staffSelect, orderBy: { fullName: "asc" } });
+    const rows = await this.prisma.staff.findMany({ where, select: staffSelect, orderBy: { fullName: "asc" } });
+    return rows.map(toStaff);
   }
 }

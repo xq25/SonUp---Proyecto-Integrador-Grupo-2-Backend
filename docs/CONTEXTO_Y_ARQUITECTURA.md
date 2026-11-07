@@ -80,6 +80,9 @@
 | `RENDER_API_URL` | URL base del servicio de autenticación del módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)). Sin ella, `/auth/*` responde 503 |
 | `RENDER_REGISTER_PATH` / `RENDER_LOGIN_PATH` / `RENDER_PROFILE_PATH` | Rutas de registro, login y perfil allá (por defecto `/auth/registro`, `/auth/login`, `/auth/perfil`) |
 | `RENDER_HTTP_TIMEOUT_MS` | Tiempo límite de cada llamada (por defecto 10000). Render gratuito tarda ~30 s en despertar |
+| `SAGA_API_URL` | URL de la API de Saga (módulo administrativo, [ADR-007](decisiones/ADR-007-saga-por-api.md)). **Sin ella** se leen las tablas simuladas del esquema `administrativo` (solo desarrollo y pruebas) |
+| `SAGA_SERVICE_EMAIL` / `SAGA_SERVICE_PASSWORD` | Usuario de servicio de este módulo en el login; su token se envía a Saga. Lo entrega el equipo de seguridad |
+| `SAGA_HTTP_TIMEOUT_MS` | Tiempo límite de cada llamada a Saga (por defecto 10000) |
 
 ### 2.1 BD de pruebas del módulo
 
@@ -216,6 +219,10 @@ Los valores de `status` de todas las tablas del módulo están aprobados (ver [V
 
 ### 3.3 Consumo del módulo administrativo (solo lectura)
 
+> **Desde el 2026-11-07 Saga se consume por su API REST** ([ADR-007](decisiones/ADR-007-saga-por-api.md)): `GET /children`, `/guardians`, `/children-guardians`, `/professionals` y `/staff` (y `/{id}`), con el token de un usuario de servicio. Las tablas de abajo describen el modelo de Saga; el esquema `administrativo` solo existe simulado en la BD de pruebas, y se lee cuando no hay `SAGA_API_URL`. Los catálogos llegan como ids de texto (`sexId`, `documentTypeId`, `statusId`, `roleId`…) y, si Saga los envía, con su nombre.
+>
+> **No confundir:** `/workshops` de Saga son **propuestas** de talleristas para ser aceptados en la organización. Los talleres de este módulo son los talleres prácticos que se dictan (§3.1); no se consumen de Saga.
+
 | Tabla (esquema `administrativo`*) | Modelo / entidad | Clave | Uso |
 |---|---|---|---|
 | `children` | `Child` | `child_id` (bigint) | Datos personales del estudiante. `sex`, `document_type` y `status_id` son códigos de catálogos del módulo administrativo. **`notes` es la anamnesis del joven** (historia personal, familiar y de salud): dato sensible |
@@ -226,8 +233,8 @@ Los valores de `status` de todas las tablas del módulo están aprobados (ver [V
 
 \* Nombre de esquema provisional.
 
-- **Solo lectura:** se mapean con `@@schema("administrativo")` y sus nombres tal cual, sin auditoría, sin escritura y fuera de nuestro SQL.
-- **Puertos `*Reader`:** `ChildReader`, `GuardianReader`, `ChildGuardianReader`, `ProfessionalReader` y `StaffReader`, solo con métodos `find*`. Los usan `ChildrenService`, `GuardiansService`, `ProfessionalsService`, `StaffService` y los servicios que validan estudiantes o talleristas.
+- **Solo lectura:** con Saga, solo `GET` a su API; con el simulado, se mapean con `@@schema("administrativo")`, sin auditoría, sin escritura y fuera de nuestro SQL.
+- **Puertos `*Reader`:** `ChildReader`, `GuardianReader`, `ChildGuardianReader`, `ProfessionalReader` y `StaffReader`, solo con métodos `find*`. Dos implementaciones: `Saga*Reader` (API de Saga) y `Prisma*Reader` (simulado); `src/container.ts` elige según `SAGA_API_URL`. Los usan `ChildrenService`, `GuardiansService`, `ProfessionalsService`, `StaffService` y los servicios que validan estudiantes o talleristas.
 - **Nulabilidad asumida:** su diagrama no la indica, así que, salvo las llaves, todo se asume opcional.
 
 ### 3.4 Calificaciones
@@ -292,7 +299,7 @@ src/
 │       ├── mappers.ts           # decimalToNumber()
 │       └── prisma-errors.ts     # withPrismaErrors(): errores de Prisma → errores de dominio
 ├── auth/             # Registro, login y perfil remitidos al módulo administrativo (ADR-003)
-├── administrative/   # Lectura (Saga): children, guardians, children_guardians, professionals, staff
+├── administrative/   # Lectura (Saga, por su API; ADR-007): children, guardians, children_guardians, professionals, staff
 ├── profiles/         # perfiles (cuentas)
 ├── access/           # aplicaciones, roles, usuario_roles
 ├── skills/           # skill_categories, skills, student_skills
@@ -409,7 +416,9 @@ await app.evaluations.evaluate(
   - Los catálogos de `sex`, `document_type`, `status_id` y `legal_status_id`.
   - Los permisos de lectura para este módulo.
 - [x] Alcance de los administrativos: se leen de `staff` de Saga, en solo lectura ([ADR-006](decisiones/ADR-006-administrativos-desde-saga.md)).
-- [ ] Pedir a Saga los valores de `role` y `status` de `staff` (p. ej. el `role` de un administrativo) y el permiso de lectura sobre esa tabla.
+- [x] Consumir Saga por su API REST con un usuario de servicio ([ADR-007](decisiones/ADR-007-saga-por-api.md)).
+- [ ] Pedir al equipo de seguridad el usuario de servicio de este módulo (`SAGA_SERVICE_EMAIL`/`SAGA_SERVICE_PASSWORD`) con permiso para leer `children`, `guardians`, `children-guardians`, `professionals` y `staff` en Saga.
+- [ ] Pedir a Saga los valores de sus catálogos (p. ej. el `staff_role_id` de un administrativo) y, si las listas crecen, filtros o paginación.
 - [ ] Decidir si se retira la tabla `public.administrators` que ya existe en la BD de pruebas (quedó sin uso).
 - [ ] BD de pruebas del módulo: completar la contraseña en `.env`, ejecutar los dos SQL (§2.1) y pasar `npm run db:check` contra Supabase.
 - [ ] BD general: reemplazar las URLs en `.env`, confirmar el nombre del esquema administrativo y comparar con `prisma db pull --print`.

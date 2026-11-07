@@ -507,7 +507,7 @@ export const routes: RouteDoc[] = [
   { method: "POST", path: "/auth/login", description: "Iniciar sesión (pública): devuelve el token" },
   { method: "GET", path: "/auth/profile", description: "Usuario dueño del token (`Authorization: Bearer <token del login>`)" },
   // Módulo administrativo (solo lectura)
-  { method: "GET", path: "/children", description: "Estudiantes (incluye `notes`: la anamnesis del joven, dato sensible)", query: "`statusId`, `search`" },
+  { method: "GET", path: "/children", description: "Estudiantes (incluye `notes`: la anamnesis del joven, dato sensible)", query: "`statusId` (id de catálogo de Saga), `search`" },
   { method: "GET", path: "/children/by-document/:documentNumber", description: "Estudiante por número de documento (incluye `notes`: la anamnesis del joven, dato sensible)" },
   { method: "GET", path: "/children/:id", description: "Estudiante (incluye `notes`: la anamnesis del joven, dato sensible)" },
   { method: "GET", path: "/children/:id/guardians", description: "Acudientes del estudiante", query: "`activeOnly` (por defecto `true`)" },
@@ -517,7 +517,7 @@ export const routes: RouteDoc[] = [
   { method: "GET", path: "/professionals", description: "Talleristas", query: "`timeDonor`" },
   { method: "GET", path: "/professionals/by-staff/:staffId", description: "Tallerista por `staff_id`" },
   { method: "GET", path: "/professionals/:id", description: "Tallerista" },
-  { method: "GET", path: "/staff", description: "Personal: administrativos y talleristas (solo lectura, Saga)", query: "`role`, `status`, `search`" },
+  { method: "GET", path: "/staff", description: "Personal: administrativos y talleristas (solo lectura, Saga)", query: "`roleId`, `statusId` (ids de catálogo de Saga), `search`" },
   { method: "GET", path: "/staff/:id", description: "Persona del personal (solo lectura, Saga)" },
   // Administrativos
   // Perfiles y acceso

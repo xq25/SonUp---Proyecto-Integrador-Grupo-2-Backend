@@ -66,7 +66,7 @@
 
 | Método | Ruta | Descripción | Consulta | Cuerpo |
 |---|---|---|---|---|
-| `GET` | `/children` | Estudiantes (incluye `notes`: la anamnesis del joven, dato sensible) | `statusId`, `search` |  |
+| `GET` | `/children` | Estudiantes (incluye `notes`: la anamnesis del joven, dato sensible) | `statusId` (id de catálogo de Saga), `search` |  |
 | `GET` | `/children/by-document/:documentNumber` | Estudiante por número de documento (incluye `notes`: la anamnesis del joven, dato sensible) |  |  |
 | `GET` | `/children/:id` | Estudiante (incluye `notes`: la anamnesis del joven, dato sensible) |  |  |
 | `GET` | `/children/:id/guardians` | Acudientes del estudiante | `activeOnly` (por defecto `true`) |  |
@@ -91,7 +91,7 @@
 
 | Método | Ruta | Descripción | Consulta | Cuerpo |
 |---|---|---|---|---|
-| `GET` | `/staff` | Personal: administrativos y talleristas (solo lectura, Saga) | `role`, `status`, `search` |  |
+| `GET` | `/staff` | Personal: administrativos y talleristas (solo lectura, Saga) | `roleId`, `statusId` (ids de catálogo de Saga), `search` |  |
 | `GET` | `/staff/:id` | Persona del personal (solo lectura, Saga) |  |  |
 
 ### Acceso (roles y aplicaciones)

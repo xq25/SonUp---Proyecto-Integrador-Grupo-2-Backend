@@ -7,7 +7,8 @@ import type { ChildrenService } from "../application/children.service.js";
 // Estudiantes del módulo administrativo (solo lectura).
 
 const childrenQuery = z.strictObject({
-  statusId: z.coerce.number({ error: "Debe ser un número" }).int("Debe ser un entero").exactOptional(),
+  /** Id del estado en el catálogo de Saga. */
+  statusId: z.string().trim().min(1).max(50).exactOptional(),
   search: searchQuery.exactOptional(),
 });
 const documentParams = z.object({ documentNumber: z.string().trim().min(1).max(30) });

@@ -1,9 +1,9 @@
 import { isoDate, todayIsoDate } from "../../shared/domain/dates.js";
 
-// Datos del módulo administrativo. Este módulo los consume en solo lectura:
+// Datos del módulo administrativo (Saga). Este módulo los consume en solo lectura:
 // no extienden AuditableEntity porque la auditoría de esas tablas es de ellos.
-// `sex`, `documentType` y `statusId` del joven son códigos de catálogos del
-// módulo administrativo (aún no compartidos con nosotros).
+// Los catálogos (sexo, tipo de documento, estado) llegan como id de Saga y, cuando
+// Saga lo envía, con su nombre.
 
 /** Joven (`children`). */
 export interface Child {
@@ -11,12 +11,15 @@ export interface Child {
   firstName: string | null;
   lastName: string | null;
   birthDate: Date | null;
-  sex: number | null;
-  documentType: number | null;
+  sexId: string | null;
+  sexName: string | null;
+  documentTypeId: string | null;
+  documentTypeName: string | null;
   documentNumber: string | null;
   admissionDate: Date | null;
   exitDate: Date | null;
-  statusId: number | null;
+  statusId: string | null;
+  statusName: string | null;
   /**
    * Anamnesis del joven (historia personal, familiar y de salud que registra el
    * módulo administrativo). Dato sensible: mostrarlo solo a quien corresponda.
@@ -25,7 +28,8 @@ export interface Child {
 }
 
 export interface ChildFilter {
-  statusId?: number;
+  /** Id del estado en el catálogo de Saga (`child_status_id`). */
+  statusId?: string;
   /** Busca en nombres, apellidos o número de documento. */
   search?: string;
 }
