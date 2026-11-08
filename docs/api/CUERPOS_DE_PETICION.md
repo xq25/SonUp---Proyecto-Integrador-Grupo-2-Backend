@@ -9,7 +9,8 @@
 | Tema | Regla |
 |---|---|
 | Base | `http://localhost:3000/api` (`npm run dev`; puerto con `PORT`) |
-| Autenticación | `Authorization: Bearer <access_token de Supabase>`. Solo fuera de producción: `X-Actor-Id: <uuid de un perfil>`. El perfil debe existir y estar `activo`. Públicas: `/health` y `/auth/register`, `/auth/login`, `/auth/profile` (remiten al módulo administrativo, [ADR-003](../decisiones/ADR-003-autenticacion-modulo-administrativo.md)) |
+| Autenticación | `Authorization: Bearer <token del login>` (el mismo token de Saga). Solo fuera de producción: `X-Actor-Id: <id del usuario>` y `X-Actor-Roles: TALLERISTA` (sin roles se asume `ADMIN`) y, para "lo suyo", `X-Actor-Professional-Id`, `X-Actor-Child-Id` o `X-Actor-Guardian-Id`. [ADR-008](../decisiones/ADR-008-seguridad-por-roles.md) |
+| Permisos | Roles válidos: `ADMIN` (todo), `TALLERISTA`, `ESTUDIANTE`, `ACUDIENTE` y `DONANTE` (aún sin acceso). Cada ruta admite ciertos roles (columna **Roles**); sin el rol: **403**. Dentro de la ruta, el tallerista solo gestiona **sus** talleres y el joven o acudiente solo ve **lo suyo** (si no, **403**). Matriz en `src/shared/http/route-permissions.ts`; "lo suyo" en `src/auth/application/access-policy.ts`. Públicas: `/health` y `/auth/register`, `/auth/login`, `/auth/profile` (remiten al módulo administrativo, [ADR-003](../decisiones/ADR-003-autenticacion-modulo-administrativo.md)) |
 | Formato | Cuerpo JSON (`Content-Type: application/json`) |
 | Ids | En la entrada, número o texto con un entero positivo (`12` o `"12"`). En las respuestas, **texto** (`"12"`) |
 | Fechas | Texto ISO 8601 con zona: `"2026-10-20T15:00:00Z"`. Las fechas de negocio se interpretan en hora de Bogotá |
@@ -36,8 +37,8 @@
 |---|---|---|
 | Error de forma (esquema) o regla de negocio que invalida la entrada | 400 | `VALIDATION` |
 | JSON mal formado | 400 | `BAD_REQUEST` |
-| Sin autenticación, token inválido o perfil inexistente | 401 | `UNAUTHORIZED` |
-| Perfil `inactivo` o `bloqueado` | 403 | `FORBIDDEN` |
+| Sin autenticación, o token inválido o vencido | 401 | `UNAUTHORIZED` |
+| El rol del usuario no tiene permiso para la ruta | 403 | `FORBIDDEN` |
 | No existe (registro o ruta) | 404 | `NOT_FOUND` |
 | Conflicto (duplicado, estado que no lo permite) | 409 | `CONFLICT` |
 | Demasiados intentos (lo informa el módulo administrativo) | 429 | `EXTERNAL_SERVICE` |
@@ -50,163 +51,163 @@
 
 ### Estado
 
-| Método | Ruta | Descripción | Consulta | Cuerpo |
-|---|---|---|---|---|
-| `GET` | `/health` | Estado del servicio (pública) |  |  |
+| Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
+|---|---|---|---|---|---|
+| `GET` | `/health` | Estado del servicio (pública) | Pública |  |  |
 
 ### Autenticación
 
-| Método | Ruta | Descripción | Consulta | Cuerpo |
-|---|---|---|---|---|
-| `POST` | `/auth/register` | Registrar usuario (pública) |  | [`auth.register`](#authregister) |
-| `POST` | `/auth/login` | Iniciar sesión (pública): devuelve el token |  | [`auth.login`](#authlogin) |
-| `GET` | `/auth/profile` | Usuario dueño del token (`Authorization: Bearer <token del login>`) |  |  |
+| Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
+|---|---|---|---|---|---|
+| `POST` | `/auth/register` | Registrar usuario (pública) | Pública |  | [`auth.register`](#authregister) |
+| `POST` | `/auth/login` | Iniciar sesión (pública): devuelve el token | Pública |  | [`auth.login`](#authlogin) |
+| `GET` | `/auth/profile` | Usuario dueño del token (`Authorization: Bearer <token del login>`) | Pública |  |  |
 
 ### Estudiantes
 
-| Método | Ruta | Descripción | Consulta | Cuerpo |
-|---|---|---|---|---|
-| `GET` | `/children` | Estudiantes (incluye `notes`: la anamnesis del joven, dato sensible) | `statusId` (id de catálogo de Saga), `search` |  |
-| `GET` | `/children/by-document/:documentNumber` | Estudiante por número de documento (incluye `notes`: la anamnesis del joven, dato sensible) |  |  |
-| `GET` | `/children/:id` | Estudiante (incluye `notes`: la anamnesis del joven, dato sensible) |  |  |
-| `GET` | `/children/:id/guardians` | Acudientes del estudiante | `activeOnly` (por defecto `true`) |  |
+| Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
+|---|---|---|---|---|---|
+| `GET` | `/children` | Estudiantes (incluye `notes`: la anamnesis del joven, dato sensible) | ADMIN, TALLERISTA | `statusId` (id de catálogo de Saga), `search` |  |
+| `GET` | `/children/by-document/:documentNumber` | Estudiante por número de documento (incluye `notes`: la anamnesis del joven, dato sensible) | ADMIN, TALLERISTA |  |  |
+| `GET` | `/children/:id` | Estudiante (incluye `notes`: la anamnesis del joven, dato sensible) | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
+| `GET` | `/children/:id/guardians` | Acudientes del estudiante | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE | `activeOnly` (por defecto `true`) |  |
 
 ### Acudientes
 
-| Método | Ruta | Descripción | Consulta | Cuerpo |
-|---|---|---|---|---|
-| `GET` | `/guardians` | Acudientes | `search` |  |
-| `GET` | `/guardians/:id` | Acudiente |  |  |
-| `GET` | `/guardians/:id/children` | Estudiantes del acudiente (incluye `notes`: la anamnesis del joven, dato sensible) | `activeOnly` (por defecto `true`) |  |
+| Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
+|---|---|---|---|---|---|
+| `GET` | `/guardians` | Acudientes | ADMIN | `search` |  |
+| `GET` | `/guardians/:id` | Acudiente | ADMIN, ACUDIENTE |  |  |
+| `GET` | `/guardians/:id/children` | Estudiantes del acudiente (incluye `notes`: la anamnesis del joven, dato sensible) | ADMIN, ACUDIENTE | `activeOnly` (por defecto `true`) |  |
 
 ### Talleristas
 
-| Método | Ruta | Descripción | Consulta | Cuerpo |
-|---|---|---|---|---|
-| `GET` | `/professionals` | Talleristas | `timeDonor` |  |
-| `GET` | `/professionals/by-staff/:staffId` | Tallerista por `staff_id` |  |  |
-| `GET` | `/professionals/:id` | Tallerista |  |  |
+| Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
+|---|---|---|---|---|---|
+| `GET` | `/professionals` | Talleristas | ADMIN | `timeDonor` |  |
+| `GET` | `/professionals/by-staff/:staffId` | Tallerista por `staff_id` | ADMIN |  |  |
+| `GET` | `/professionals/:id` | Tallerista | ADMIN |  |  |
 
 ### Personal (administrativos)
 
-| Método | Ruta | Descripción | Consulta | Cuerpo |
-|---|---|---|---|---|
-| `GET` | `/staff` | Personal: administrativos y talleristas (solo lectura, Saga) | `roleId`, `statusId` (ids de catálogo de Saga), `search` |  |
-| `GET` | `/staff/:id` | Persona del personal (solo lectura, Saga) |  |  |
+| Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
+|---|---|---|---|---|---|
+| `GET` | `/staff` | Personal: administrativos y talleristas (solo lectura, Saga) | ADMIN | `roleId`, `statusId` (ids de catálogo de Saga), `search` |  |
+| `GET` | `/staff/:id` | Persona del personal (solo lectura, Saga) | ADMIN |  |  |
 
 ### Acceso (roles y aplicaciones)
 
-| Método | Ruta | Descripción | Consulta | Cuerpo |
-|---|---|---|---|---|
-| `GET` | `/profiles/:userId/roles` | Roles del usuario | `app` |  |
-| `GET` | `/profiles/:userId/roles/:role` | ¿Tiene el rol? → `{ hasRole }` | `app` |  |
-| `GET` | `/apps` | Aplicaciones |  |  |
-| `POST` | `/apps` | Crear aplicación |  | [`apps.create`](#appscreate) |
-| `GET` | `/roles` | Roles |  |  |
-| `POST` | `/roles` | Crear rol |  | [`roles.create`](#rolescreate) |
-| `POST` | `/user-roles` | Asignar rol |  | [`userRoles.assign`](#userrolesassign) |
-| `DELETE` | `/user-roles/:id` | Revocar rol |  |  |
+| Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
+|---|---|---|---|---|---|
+| `GET` | `/profiles/:userId/roles` | Roles del usuario | ADMIN | `app` |  |
+| `GET` | `/profiles/:userId/roles/:role` | ¿Tiene el rol? → `{ hasRole }` | ADMIN | `app` |  |
+| `GET` | `/apps` | Aplicaciones | ADMIN |  |  |
+| `POST` | `/apps` | Crear aplicación | ADMIN |  | [`apps.create`](#appscreate) |
+| `GET` | `/roles` | Roles | ADMIN |  |  |
+| `POST` | `/roles` | Crear rol | ADMIN |  | [`roles.create`](#rolescreate) |
+| `POST` | `/user-roles` | Asignar rol | ADMIN |  | [`userRoles.assign`](#userrolesassign) |
+| `DELETE` | `/user-roles/:id` | Revocar rol | ADMIN |  |  |
 
 ### Perfiles
 
-| Método | Ruta | Descripción | Consulta | Cuerpo |
-|---|---|---|---|---|
-| `GET` | `/profiles` | Perfiles | `status`, `search`, `includeDeleted` |  |
-| `GET` | `/profiles/me` | Perfil del usuario autenticado |  |  |
-| `GET` | `/profiles/:id` | Perfil (UUID) |  |  |
-| `PATCH` | `/profiles/:id` | Actualizar perfil |  | [`profiles.update`](#profilesupdate) |
-| `DELETE` | `/profiles/:id` | Eliminar perfil (lógico) |  |  |
-| `POST` | `/profiles/:id/restore` | Restaurar perfil |  |  |
+| Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
+|---|---|---|---|---|---|
+| `GET` | `/profiles` | Perfiles | ADMIN | `status`, `search`, `includeDeleted` |  |
+| `GET` | `/profiles/me` | Perfil del usuario autenticado | ADMIN |  |  |
+| `GET` | `/profiles/:id` | Perfil (UUID) | ADMIN |  |  |
+| `PATCH` | `/profiles/:id` | Actualizar perfil | ADMIN |  | [`profiles.update`](#profilesupdate) |
+| `DELETE` | `/profiles/:id` | Eliminar perfil (lógico) | ADMIN |  |  |
+| `POST` | `/profiles/:id/restore` | Restaurar perfil | ADMIN |  |  |
 
 ### Categorías de habilidades
 
-| Método | Ruta | Descripción | Consulta | Cuerpo |
-|---|---|---|---|---|
-| `GET` | `/skill-categories` | Categorías |  |  |
-| `GET` | `/skill-categories/:id` | Categoría |  |  |
-| `POST` | `/skill-categories` | Crear categoría |  | [`skillCategories.create`](#skillcategoriescreate) |
-| `PATCH` | `/skill-categories/:id` | Actualizar categoría |  | [`skillCategories.update`](#skillcategoriesupdate) |
-| `DELETE` | `/skill-categories/:id` | Eliminar categoría (sin habilidades) |  |  |
+| Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
+|---|---|---|---|---|---|
+| `GET` | `/skill-categories` | Categorías | ADMIN, TALLERISTA |  |  |
+| `GET` | `/skill-categories/:id` | Categoría | ADMIN, TALLERISTA |  |  |
+| `POST` | `/skill-categories` | Crear categoría | ADMIN |  | [`skillCategories.create`](#skillcategoriescreate) |
+| `PATCH` | `/skill-categories/:id` | Actualizar categoría | ADMIN |  | [`skillCategories.update`](#skillcategoriesupdate) |
+| `DELETE` | `/skill-categories/:id` | Eliminar categoría (sin habilidades) | ADMIN |  |  |
 
 ### Habilidades
 
-| Método | Ruta | Descripción | Consulta | Cuerpo |
-|---|---|---|---|---|
-| `GET` | `/skills` | Habilidades | `skillCategoryId`, `status`, `search`, `includeDeleted` |  |
-| `GET` | `/skills/:id` | Habilidad |  |  |
-| `POST` | `/skills` | Crear habilidad |  | [`skills.create`](#skillscreate) |
-| `PATCH` | `/skills/:id` | Actualizar habilidad |  | [`skills.update`](#skillsupdate) |
-| `DELETE` | `/skills/:id` | Eliminar habilidad (sin historial) |  |  |
+| Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
+|---|---|---|---|---|---|
+| `GET` | `/skills` | Habilidades | ADMIN, TALLERISTA | `skillCategoryId`, `status`, `search`, `includeDeleted` |  |
+| `GET` | `/skills/:id` | Habilidad | ADMIN, TALLERISTA |  |  |
+| `POST` | `/skills` | Crear habilidad | ADMIN |  | [`skills.create`](#skillscreate) |
+| `PATCH` | `/skills/:id` | Actualizar habilidad | ADMIN |  | [`skills.update`](#skillsupdate) |
+| `DELETE` | `/skills/:id` | Eliminar habilidad (sin historial) | ADMIN |  |  |
 
 ### Escalas de evaluación
 
-| Método | Ruta | Descripción | Consulta | Cuerpo |
-|---|---|---|---|---|
-| `GET` | `/evaluation-scales` | Escalas, ordenadas por `numValue` | `activeOnly` (por defecto `true`) |  |
-| `GET` | `/evaluation-scales/coverage-gaps` | Tramos de 0–5 sin escala activa |  |  |
-| `GET` | `/evaluation-scales/classify` | Escala en la que cae un valor | `value` (obligatorio) |  |
-| `GET` | `/evaluation-scales/:id` | Escala |  |  |
-| `POST` | `/evaluation-scales` | Crear escala |  | [`evaluationScales.create`](#evaluationscalescreate) |
-| `PATCH` | `/evaluation-scales/:id` | Actualizar escala |  | [`evaluationScales.update`](#evaluationscalesupdate) |
-| `DELETE` | `/evaluation-scales/:id` | Eliminar escala (si nunca se usó) |  |  |
+| Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
+|---|---|---|---|---|---|
+| `GET` | `/evaluation-scales` | Escalas, ordenadas por `numValue` | ADMIN, TALLERISTA | `activeOnly` (por defecto `true`) |  |
+| `GET` | `/evaluation-scales/coverage-gaps` | Tramos de 0–5 sin escala activa | ADMIN, TALLERISTA |  |  |
+| `GET` | `/evaluation-scales/classify` | Escala en la que cae un valor | ADMIN, TALLERISTA | `value` (obligatorio) |  |
+| `GET` | `/evaluation-scales/:id` | Escala | ADMIN, TALLERISTA |  |  |
+| `POST` | `/evaluation-scales` | Crear escala | ADMIN |  | [`evaluationScales.create`](#evaluationscalescreate) |
+| `PATCH` | `/evaluation-scales/:id` | Actualizar escala | ADMIN |  | [`evaluationScales.update`](#evaluationscalesupdate) |
+| `DELETE` | `/evaluation-scales/:id` | Eliminar escala (si nunca se usó) | ADMIN |  |  |
 
 ### Talleres
 
-| Método | Ruta | Descripción | Consulta | Cuerpo |
-|---|---|---|---|---|
-| `GET` | `/workshops` | Talleres | `evaluatorId`, `status`, `search`, `includeDeleted` |  |
-| `GET` | `/workshops/:id` | Taller |  |  |
-| `POST` | `/workshops` | Crear taller (nace `planned`) |  | [`workshops.create`](#workshopscreate) |
-| `PATCH` | `/workshops/:id` | Editar (solo `planned`) o cambiar estado |  | [`workshops.update`](#workshopsupdate) |
-| `DELETE` | `/workshops/:id` | Eliminar taller (sin asistencias) |  |  |
-| `GET` | `/workshops/:id/skills` | Habilidades del taller |  |  |
-| `PUT` | `/workshops/:id/skills/:skillId` | Asociar habilidad (o restaurarla) |  |  |
-| `DELETE` | `/workshops/:id/skills/:skillId` | Quitar habilidad (recalcula) |  |  |
-| `GET` | `/workshops/:id/attendances` | Asistencias del taller |  |  |
+| Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
+|---|---|---|---|---|---|
+| `GET` | `/workshops` | Talleres | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE | `evaluatorId`, `status`, `search`, `includeDeleted` |  |
+| `GET` | `/workshops/:id` | Taller | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
+| `POST` | `/workshops` | Crear taller (nace `planned`) | ADMIN, TALLERISTA |  | [`workshops.create`](#workshopscreate) |
+| `PATCH` | `/workshops/:id` | Editar (solo `planned`) o cambiar estado | ADMIN, TALLERISTA |  | [`workshops.update`](#workshopsupdate) |
+| `DELETE` | `/workshops/:id` | Eliminar taller (sin asistencias) | ADMIN, TALLERISTA |  |  |
+| `GET` | `/workshops/:id/skills` | Habilidades del taller | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
+| `PUT` | `/workshops/:id/skills/:skillId` | Asociar habilidad (o restaurarla) | ADMIN, TALLERISTA |  |  |
+| `DELETE` | `/workshops/:id/skills/:skillId` | Quitar habilidad (recalcula) | ADMIN, TALLERISTA |  |  |
+| `GET` | `/workshops/:id/attendances` | Asistencias del taller | ADMIN, TALLERISTA |  |  |
 
 ### Asistencias
 
-| Método | Ruta | Descripción | Consulta | Cuerpo |
-|---|---|---|---|---|
-| `GET` | `/students/:studentId/attendances` | Asistencias del estudiante |  |  |
-| `POST` | `/attendances` | Registrar asistencia |  | [`attendance.register`](#attendanceregister) |
-| `GET` | `/attendances/:id` | Asistencia |  |  |
-| `PATCH` | `/attendances/:id` | Actualizar asistencia |  | [`attendance.update`](#attendanceupdate) |
-| `DELETE` | `/attendances/:id` | Eliminar asistencia (recalcula) |  |  |
+| Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
+|---|---|---|---|---|---|
+| `GET` | `/students/:studentId/attendances` | Asistencias del estudiante | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
+| `POST` | `/attendances` | Registrar asistencia | ADMIN, TALLERISTA |  | [`attendance.register`](#attendanceregister) |
+| `GET` | `/attendances/:id` | Asistencia | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
+| `PATCH` | `/attendances/:id` | Actualizar asistencia | ADMIN, TALLERISTA |  | [`attendance.update`](#attendanceupdate) |
+| `DELETE` | `/attendances/:id` | Eliminar asistencia (recalcula) | ADMIN, TALLERISTA |  |  |
 
 ### Evaluaciones y calificaciones
 
-| Método | Ruta | Descripción | Consulta | Cuerpo |
-|---|---|---|---|---|
-| `GET` | `/students/:studentId/skills` | Calificaciones del estudiante (calculadas) |  |  |
-| `GET` | `/students/:studentId/category-averages` | Promedio por categoría del estudiante |  |  |
-| `POST` | `/evaluations` | Evaluar una habilidad en una asistencia (recalcula la calificación) |  | [`evaluations.evaluate`](#evaluationsevaluate) |
-| `GET` | `/attendances/:attendanceId/evaluations` | Evaluaciones de la asistencia |  |  |
-| `DELETE` | `/attendances/:attendanceId/evaluations/:workshopSkillId` | Eliminar evaluación (recalcula) |  |  |
-| `POST` | `/students/:studentId/skills/:skillId/recalculate` | Recalcular a mano una calificación |  |  |
+| Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
+|---|---|---|---|---|---|
+| `GET` | `/students/:studentId/skills` | Calificaciones del estudiante (calculadas) | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
+| `GET` | `/students/:studentId/category-averages` | Promedio por categoría del estudiante | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
+| `POST` | `/evaluations` | Evaluar una habilidad en una asistencia (recalcula la calificación) | ADMIN, TALLERISTA |  | [`evaluations.evaluate`](#evaluationsevaluate) |
+| `GET` | `/attendances/:attendanceId/evaluations` | Evaluaciones de la asistencia | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
+| `DELETE` | `/attendances/:attendanceId/evaluations/:workshopSkillId` | Eliminar evaluación (recalcula) | ADMIN, TALLERISTA |  |  |
+| `POST` | `/students/:studentId/skills/:skillId/recalculate` | Recalcular a mano una calificación | ADMIN |  |  |
 
 ### Evidencias
 
-| Método | Ruta | Descripción | Consulta | Cuerpo |
-|---|---|---|---|---|
-| `POST` | `/evidences` | Subir evidencia |  | [`evidences.upload`](#evidencesupload) |
-| `GET` | `/evidences/:id` | Evidencia |  |  |
-| `PATCH` | `/evidences/:id` | Actualizar evidencia |  | [`evidences.update`](#evidencesupdate) |
-| `DELETE` | `/evidences/:id` | Eliminar evidencia (y sus relaciones) |  |  |
-| `GET` | `/evidences/:id/students` | Estudiantes de la evidencia |  |  |
-| `PUT` | `/evidences/:id/students/:studentId` | Relacionar estudiante (o restaurarlo) |  |  |
-| `DELETE` | `/evidences/:id/students/:studentId` | Quitar estudiante (no el último) |  |  |
-| `GET` | `/students/:studentId/evidences` | Evidencias del estudiante |  |  |
+| Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
+|---|---|---|---|---|---|
+| `POST` | `/evidences` | Subir evidencia | ADMIN, TALLERISTA |  | [`evidences.upload`](#evidencesupload) |
+| `GET` | `/evidences/:id` | Evidencia | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
+| `PATCH` | `/evidences/:id` | Actualizar evidencia | ADMIN, TALLERISTA |  | [`evidences.update`](#evidencesupdate) |
+| `DELETE` | `/evidences/:id` | Eliminar evidencia (y sus relaciones) | ADMIN, TALLERISTA |  |  |
+| `GET` | `/evidences/:id/students` | Estudiantes de la evidencia | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
+| `PUT` | `/evidences/:id/students/:studentId` | Relacionar estudiante (o restaurarlo) | ADMIN, TALLERISTA |  |  |
+| `DELETE` | `/evidences/:id/students/:studentId` | Quitar estudiante (no el último) | ADMIN, TALLERISTA |  |  |
+| `GET` | `/students/:studentId/evidences` | Evidencias del estudiante | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
 
 ### Credenciales
 
-| Método | Ruta | Descripción | Consulta | Cuerpo |
-|---|---|---|---|---|
-| `POST` | `/credentials` | Registrar credencial (nace `pending`) |  | [`credentials.register`](#credentialsregister) |
-| `GET` | `/credentials/:id` | Credencial |  |  |
-| `PATCH` | `/credentials/:id` | Editar (solo `pending`) o cambiar estado |  | [`credentials.update`](#credentialsupdate) |
-| `DELETE` | `/credentials/:id` | Eliminar credencial (solo `pending`) |  |  |
-| `GET` | `/students/:studentId/credentials` | Credenciales del estudiante |  |  |
+| Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
+|---|---|---|---|---|---|
+| `POST` | `/credentials` | Registrar credencial (nace `pending`) | ADMIN, TALLERISTA |  | [`credentials.register`](#credentialsregister) |
+| `GET` | `/credentials/:id` | Credencial | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
+| `PATCH` | `/credentials/:id` | Editar (solo `pending`) o cambiar estado | ADMIN, TALLERISTA |  | [`credentials.update`](#credentialsupdate) |
+| `DELETE` | `/credentials/:id` | Eliminar credencial (solo `pending`) | ADMIN, TALLERISTA |  |  |
+| `GET` | `/students/:studentId/credentials` | Credenciales del estudiante | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
 
 
 ---
@@ -929,8 +930,8 @@
 
 1. En Postman: *Import → File* y elige `docs/api/postman-coleccion.json`.
 2. En la pestaña *Variables* de la colección llena:
-   - `actorId`: UUID de un perfil activo (p. ej. el de `DB_CHECK_ACTOR`), **o**
-   - `token`: `access_token` de una sesión de Supabase. Si hay `token`, se usa en lugar de `actorId`.
+   - `token`: el token del login (es el de Saga), **o**, solo fuera de producción,
+   - `actorId` (id del usuario que queda en la auditoría) y `actorRoles` (p. ej. `ADMIN` o `TALLERISTA`); para probar "lo suyo", `actorProfessionalId`, `actorChildId` o `actorGuardianId`. Si hay `token`, se usa en lugar de ellos.
 3. Arranca la API con `npm run dev`.
 4. Ejecuta la colección completa (*Run collection*), una carpeta o cada petición.
 

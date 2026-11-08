@@ -7,18 +7,22 @@ import type { ChildGuardianReader } from "../../domain/child-guardian.reader.js"
 import type { SagaChildReader } from "./saga-child.reader.js";
 import type { SagaGuardianReader } from "./saga-guardian.reader.js";
 import type { SagaHttpClient } from "./saga-http.client.js";
-import { asRecord, sagaDate, sagaId, sagaText } from "./saga-values.js";
+import { asRecord, sagaDate, sagaId, sagaOptionalId, sagaText } from "./saga-values.js";
 
 // Vínculos joven–acudiente desde la API de Saga (`/children-guardians`), en solo
 // lectura (ADR-007). Saga no los devuelve con los datos de la otra parte: se
 // unen aquí con las listas de jóvenes o de acudientes.
 
-const toChildGuardian = (raw: unknown): ChildGuardian => {
+/** `null` si el vínculo no tiene joven o acudiente: Saga lo permite y no se puede unir. */
+const toChildGuardian = (raw: unknown): ChildGuardian | null => {
   const row = asRecord(raw, "vínculo joven–acudiente");
+  const childId = sagaOptionalId(row["child_id"]);
+  const guardianId = sagaOptionalId(row["guardian_id"]);
+  if (childId === null || guardianId === null) return null;
   return {
     id: sagaId(row["child_guardian_id"], "child_guardian_id"),
-    childId: sagaId(row["child_id"], "child_id"),
-    guardianId: sagaId(row["guardian_id"], "guardian_id"),
+    childId,
+    guardianId,
     guardianshipTypeId: sagaText(row["guardianship_type_id"]),
     startDate: sagaDate(row["start_date"]),
     endDate: sagaDate(row["end_date"]),
@@ -57,7 +61,7 @@ export class SagaChildGuardianReader implements ChildGuardianReader {
   private async links(match: (link: ChildGuardian) => boolean, activeOnly: boolean): Promise<ChildGuardian[]> {
     return (await this.saga.list("/children-guardians"))
       .map(toChildGuardian)
-      .filter((link) => match(link) && (!activeOnly || link.endDate === null))
+      .filter((link): link is ChildGuardian => link !== null && match(link) && (!activeOnly || link.endDate === null))
       .sort(byStartDateDesc);
   }
 }

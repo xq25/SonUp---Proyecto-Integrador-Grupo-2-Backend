@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { z } from "zod";
+import { uuidSchema } from "../../shared/application/schemas.js";
+import { NotFoundError } from "../../shared/domain/errors.js";
 import { actorOf, booleanQuery, readParams, readQuery, searchQuery, uuidParams } from "../../shared/http/request.js";
 import type { ProfilesService } from "../application/profiles.service.js";
 import { PROFILE_STATUSES } from "../domain/profile.entity.js";
@@ -20,7 +22,10 @@ export function createProfilesRouter({ profiles }: { profiles: ProfilesService }
   });
   /** Perfil del usuario autenticado. */
   router.get("/profiles/me", async (_req, res) => {
-    res.json(await profiles.get(actorOf(res)));
+    // Con los tokens del servicio de seguridad el actor es su `sub`, no un perfil (UUID).
+    const actor = actorOf(res);
+    if (!uuidSchema.safeParse(actor).success) throw new NotFoundError("Perfil del usuario autenticado");
+    res.json(await profiles.get(actor));
   });
   router.get("/profiles/:id", async (req, res) => {
     res.json(await profiles.get(readParams(uuidParams, req).id));

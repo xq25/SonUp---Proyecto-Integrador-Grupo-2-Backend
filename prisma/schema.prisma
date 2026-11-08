@@ -31,11 +31,11 @@ model App {
   code      String    @id @map("codigo")
   name      String    @map("nombre")
   createdAt DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
-  createdBy String?   @map("creado_por") @db.Uuid
+  createdBy String?   @map("creado_por")
   updatedAt DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
-  updatedBy String?   @map("actualizado_por") @db.Uuid
+  updatedBy String?   @map("actualizado_por")
   deletedAt DateTime? @map("eliminado_en") @db.Timestamptz(6)
-  deletedBy String?   @map("eliminado_por") @db.Uuid
+  deletedBy String?   @map("eliminado_por")
 
   userRoles UserRole[]
 
@@ -47,11 +47,11 @@ model Role {
   code      String    @id @map("codigo")
   name      String    @map("nombre")
   createdAt DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
-  createdBy String?   @map("creado_por") @db.Uuid
+  createdBy String?   @map("creado_por")
   updatedAt DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
-  updatedBy String?   @map("actualizado_por") @db.Uuid
+  updatedBy String?   @map("actualizado_por")
   deletedAt DateTime? @map("eliminado_en") @db.Timestamptz(6)
-  deletedBy String?   @map("eliminado_por") @db.Uuid
+  deletedBy String?   @map("eliminado_por")
 
   userRoles UserRole[]
 
@@ -70,11 +70,11 @@ model Profile {
   status                   String    @default("activo") @map("estado") // check: activo | inactivo | bloqueado
   dataProcessingAcceptedAt DateTime? @map("acepto_tratamiento_datos_en") @db.Timestamptz(6)
   createdAt                DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
-  createdBy                String?   @map("creado_por") @db.Uuid
+  createdBy                String?   @map("creado_por")
   updatedAt                DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
-  updatedBy                String?   @map("actualizado_por") @db.Uuid
+  updatedBy                String?   @map("actualizado_por")
   deletedAt                DateTime? @map("eliminado_en") @db.Timestamptz(6)
-  deletedBy                String?   @map("eliminado_por") @db.Uuid
+  deletedBy                String?   @map("eliminado_por")
 
   roles         UserRole[] @relation("UserRoles")
   assignedRoles UserRole[] @relation("AssignedRoles")
@@ -90,11 +90,11 @@ model UserRole {
   app        String?   @map("aplicacion") // null = rol global
   assignedBy String?   @map("asignado_por") @db.Uuid
   createdAt  DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
-  createdBy  String?   @map("creado_por") @db.Uuid
+  createdBy  String?   @map("creado_por")
   updatedAt  DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
-  updatedBy  String?   @map("actualizado_por") @db.Uuid
+  updatedBy  String?   @map("actualizado_por")
   deletedAt  DateTime? @map("eliminado_en") @db.Timestamptz(6)
-  deletedBy  String?   @map("eliminado_por") @db.Uuid
+  deletedBy  String?   @map("eliminado_por")
 
   user              Profile  @relation("UserRoles", fields: [userId], references: [id], onDelete: Restrict)
   roleRef           Role     @relation(fields: [role], references: [code], onDelete: Restrict)
@@ -114,11 +114,11 @@ model SkillCategory {
   name        String // único sin distinguir mayúsculas: índice sobre lower(name), solo en SQL
   description String? // check: 1–500
   createdAt   DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
-  createdBy   String?   @map("creado_por") @db.Uuid
+  createdBy   String?   @map("creado_por")
   updatedAt   DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
-  updatedBy   String?   @map("actualizado_por") @db.Uuid
+  updatedBy   String?   @map("actualizado_por")
   deletedAt   DateTime? @map("eliminado_en") @db.Timestamptz(6)
-  deletedBy   String?   @map("eliminado_por") @db.Uuid
+  deletedBy   String?   @map("eliminado_por")
 
   skills Skill[]
 
@@ -132,11 +132,11 @@ model Skill {
   skillCategoryId BigInt    @map("skill_category_id")
   status          String    @default("active") // check: active | inactive
   createdAt       DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
-  createdBy       String?   @map("creado_por") @db.Uuid
+  createdBy       String?   @map("creado_por")
   updatedAt       DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
-  updatedBy       String?   @map("actualizado_por") @db.Uuid
+  updatedBy       String?   @map("actualizado_por")
   deletedAt       DateTime? @map("eliminado_en") @db.Timestamptz(6)
-  deletedBy       String?   @map("eliminado_por") @db.Uuid
+  deletedBy       String?   @map("eliminado_por")
 
   category       SkillCategory   @relation(fields: [skillCategoryId], references: [id], onDelete: Restrict)
   studentSkills  StudentSkill[]
@@ -156,11 +156,11 @@ model EvaluationScale {
   maxValue    Decimal   @map("max_value") @db.Decimal(5, 2)
   isActive    Boolean   @default(true) @map("is_active")
   createdAt   DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
-  createdBy   String?   @map("creado_por") @db.Uuid
+  createdBy   String?   @map("creado_por")
   updatedAt   DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
-  updatedBy   String?   @map("actualizado_por") @db.Uuid
+  updatedBy   String?   @map("actualizado_por")
   deletedAt   DateTime? @map("eliminado_en") @db.Timestamptz(6)
-  deletedBy   String?   @map("eliminado_por") @db.Uuid
+  deletedBy   String?   @map("eliminado_por")
 
   evaluations   EvaluationSkill[]
   studentSkills StudentSkill[]
@@ -176,11 +176,11 @@ model StudentSkill {
   skillId           BigInt    @map("skill_id")
   evaluationScaleId BigInt    @map("evaluation_scale_id")
   createdAt         DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
-  createdBy         String?   @map("creado_por") @db.Uuid
+  createdBy         String?   @map("creado_por")
   updatedAt         DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
-  updatedBy         String?   @map("actualizado_por") @db.Uuid
+  updatedBy         String?   @map("actualizado_por")
   deletedAt         DateTime? @map("eliminado_en") @db.Timestamptz(6)
-  deletedBy         String?   @map("eliminado_por") @db.Uuid
+  deletedBy         String?   @map("eliminado_por")
 
   skill Skill           @relation(fields: [skillId], references: [id], onDelete: Restrict)
   scale EvaluationScale @relation(fields: [evaluationScaleId], references: [id], onDelete: Restrict)
@@ -200,11 +200,11 @@ model Workshop {
   endsAt      DateTime? @map("ends_at") @db.Timestamptz(6)
   status      String    @default("planned") // check: planned | active | finished | cancelled
   createdAt   DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
-  createdBy   String?   @map("creado_por") @db.Uuid
+  createdBy   String?   @map("creado_por")
   updatedAt   DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
-  updatedBy   String?   @map("actualizado_por") @db.Uuid
+  updatedBy   String?   @map("actualizado_por")
   deletedAt   DateTime? @map("eliminado_en") @db.Timestamptz(6)
-  deletedBy   String?   @map("eliminado_por") @db.Uuid
+  deletedBy   String?   @map("eliminado_por")
 
   skills      WorkshopSkill[]
   attendances WorkshopAttendance[]
@@ -219,11 +219,11 @@ model WorkshopSkill {
   workshopId BigInt    @map("workshop_id")
   skillId    BigInt    @map("skill_id")
   createdAt  DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
-  createdBy  String?   @map("creado_por") @db.Uuid
+  createdBy  String?   @map("creado_por")
   updatedAt  DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
-  updatedBy  String?   @map("actualizado_por") @db.Uuid
+  updatedBy  String?   @map("actualizado_por")
   deletedAt  DateTime? @map("eliminado_en") @db.Timestamptz(6)
-  deletedBy  String?   @map("eliminado_por") @db.Uuid
+  deletedBy  String?   @map("eliminado_por")
 
   workshop    Workshop          @relation(fields: [workshopId], references: [id], onDelete: Restrict)
   skill       Skill             @relation(fields: [skillId], references: [id], onDelete: Restrict)
@@ -241,11 +241,11 @@ model WorkshopAttendance {
   attendedAt  DateTime  @default(now()) @map("attended_at") @db.Timestamptz(6)
   observation String?
   createdAt   DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
-  createdBy   String?   @map("creado_por") @db.Uuid
+  createdBy   String?   @map("creado_por")
   updatedAt   DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
-  updatedBy   String?   @map("actualizado_por") @db.Uuid
+  updatedBy   String?   @map("actualizado_por")
   deletedAt   DateTime? @map("eliminado_en") @db.Timestamptz(6)
-  deletedBy   String?   @map("eliminado_por") @db.Uuid
+  deletedBy   String?   @map("eliminado_por")
 
   workshop    Workshop          @relation(fields: [workshopId], references: [id], onDelete: Restrict)
   evaluations EvaluationSkill[]
@@ -262,11 +262,11 @@ model EvaluationSkill {
   workshopSkillId      BigInt    @map("workshop_skill_id")
   evaluationScaleId    BigInt    @map("evaluation_scale_id")
   createdAt            DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
-  createdBy            String?   @map("creado_por") @db.Uuid
+  createdBy            String?   @map("creado_por")
   updatedAt            DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
-  updatedBy            String?   @map("actualizado_por") @db.Uuid
+  updatedBy            String?   @map("actualizado_por")
   deletedAt            DateTime? @map("eliminado_en") @db.Timestamptz(6)
-  deletedBy            String?   @map("eliminado_por") @db.Uuid
+  deletedBy            String?   @map("eliminado_por")
 
   attendance    WorkshopAttendance @relation(fields: [workshopAttendanceId], references: [id], onDelete: Restrict)
   workshopSkill WorkshopSkill      @relation(fields: [workshopSkillId], references: [id], onDelete: Restrict)
@@ -285,11 +285,11 @@ model Evidence {
   url       String // check: https, máx. 2048
   title     String // check: 2–150
   createdAt DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
-  createdBy String?   @map("creado_por") @db.Uuid
+  createdBy String?   @map("creado_por")
   updatedAt DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
-  updatedBy String?   @map("actualizado_por") @db.Uuid
+  updatedBy String?   @map("actualizado_por")
   deletedAt DateTime? @map("eliminado_en") @db.Timestamptz(6)
-  deletedBy String?   @map("eliminado_por") @db.Uuid
+  deletedBy String?   @map("eliminado_por")
 
   students StudentEvidence[]
 
@@ -302,11 +302,11 @@ model StudentEvidence {
   studentId  BigInt    @map("student_id") // administrativo.children
   evidenceId BigInt    @map("evidence_id")
   createdAt  DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
-  createdBy  String?   @map("creado_por") @db.Uuid
+  createdBy  String?   @map("creado_por")
   updatedAt  DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
-  updatedBy  String?   @map("actualizado_por") @db.Uuid
+  updatedBy  String?   @map("actualizado_por")
   deletedAt  DateTime? @map("eliminado_en") @db.Timestamptz(6)
-  deletedBy  String?   @map("eliminado_por") @db.Uuid
+  deletedBy  String?   @map("eliminado_por")
 
   evidence Evidence @relation(fields: [evidenceId], references: [id], onDelete: Restrict)
 
@@ -324,11 +324,11 @@ model Credential {
   url              String // check: https, máx. 2048
   status           String    @default("pending") // check: pending | valid | revoked
   createdAt        DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
-  createdBy        String?   @map("creado_por") @db.Uuid
+  createdBy        String?   @map("creado_por")
   updatedAt        DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
-  updatedBy        String?   @map("actualizado_por") @db.Uuid
+  updatedBy        String?   @map("actualizado_por")
   deletedAt        DateTime? @map("eliminado_en") @db.Timestamptz(6)
-  deletedBy        String?   @map("eliminado_por") @db.Uuid
+  deletedBy        String?   @map("eliminado_por")
 
   workshop Workshop? @relation(fields: [workshopId], references: [id], onDelete: Restrict)
 

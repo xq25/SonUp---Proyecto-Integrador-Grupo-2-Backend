@@ -9,6 +9,8 @@ import { createProfilesCatalog } from "../../profiles/http/profiles.catalog.js";
 import { createSkillsCatalog } from "../../skills/http/skills.catalog.js";
 import { createWorkshopsCatalog } from "../../workshops/http/workshops.catalog.js";
 import { type AuthOptions, authenticate } from "./authenticate.js";
+import { authorize } from "./authorize.js";
+import { ROUTE_PERMISSIONS } from "./route-permissions.js";
 
 // Directorio general de la API: reúne el catálogo de rutas de cada módulo.
 
@@ -31,7 +33,9 @@ export function createApiRouter(container: Container, auth: AuthOptions): Router
   });
   api.use(createAuthCatalog(container));
 
-  api.use(authenticate(container.profiles, auth));
+  // Protegidas: token del servicio de seguridad y permisos por rol (ADR-008).
+  api.use(authenticate(container.tokenVerifier, auth));
+  api.use(authorize(ROUTE_PERMISSIONS));
   api.use(createAdministrativeCatalog(container));
   api.use(createProfilesCatalog(container));
   api.use(createAccessCatalog(container));

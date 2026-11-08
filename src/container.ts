@@ -26,9 +26,14 @@ import { SagaGuardianReader } from "./administrative/infrastructure/saga/saga-gu
 import { SagaHttpClient, sagaConfigFromEnv } from "./administrative/infrastructure/saga/saga-http.client.js";
 import { SagaProfessionalReader } from "./administrative/infrastructure/saga/saga-professional.reader.js";
 import { SagaStaffReader } from "./administrative/infrastructure/saga/saga-staff.reader.js";
+import { RequestSagaTokenSource } from "./administrative/infrastructure/saga/saga-token.source.js";
+import { AccessPolicy } from "./auth/application/access-policy.js";
 import { AuthService } from "./auth/application/auth.service.js";
 import { ServiceSession } from "./auth/application/service-session.js";
 import type { AuthGateway } from "./auth/domain/auth.gateway.js";
+import type { TokenVerifier } from "./auth/domain/token-verifier.js";
+import { JwtTokenVerifier, jwtVerifierConfigFromEnv } from "./auth/infrastructure/jwt-token.verifier.js";
+import { profileCacheSecondsFromEnv, RemoteTokenVerifier } from "./auth/infrastructure/remote-token.verifier.js";
 import {
   administrativeAuthConfigFromEnv,
   HttpAdministrativeAuthGateway,
@@ -76,7 +81,9 @@ function createAdministrativeReaders(prisma: PrismaClient, authGateway: AuthGate
       staff: new PrismaStaffReader(prisma),
     };
   }
-  const client = new SagaHttpClient(saga, new ServiceSession(authGateway, saga.credentials));
+  // Con cada petición viaja el token del usuario; el de servicio queda para scripts y desarrollo.
+  const tokens = new RequestSagaTokenSource(new ServiceSession(authGateway, saga.credentials, saga.token));
+  const client = new SagaHttpClient(saga, tokens);
   const children = new SagaChildReader(client);
   const guardians = new SagaGuardianReader(client);
   return {
@@ -89,11 +96,23 @@ function createAdministrativeReaders(prisma: PrismaClient, authGateway: AuthGate
   };
 }
 
+/**
+ * Verificación del token del servicio de seguridad (ADR-008): con `AUTH_JWT_SECRET`
+ * se verifica el JWT localmente; sin él, se consulta el endpoint de perfil.
+ */
+function createTokenVerifier(authGateway: AuthGateway): { mode: "jwt" | "endpoint"; verifier: TokenVerifier } {
+  const jwt = jwtVerifierConfigFromEnv();
+  if (jwt) return { mode: "jwt", verifier: new JwtTokenVerifier(jwt) };
+  return { mode: "endpoint", verifier: new RemoteTokenVerifier(authGateway, profileCacheSecondsFromEnv()) };
+}
+
 export function createContainer(prisma: PrismaClient = createPrismaClient()) {
   // Login del módulo administrativo: lo usan el front (AuthService) y este backend (sesión de servicio).
   const authGateway = new HttpAdministrativeAuthGateway(administrativeAuthConfigFromEnv());
   // Lectores del módulo administrativo (solo lectura).
   const administrative = createAdministrativeReaders(prisma, authGateway);
+  // Quién hace cada petición y con qué roles.
+  const tokens = createTokenVerifier(authGateway);
   const childReader = administrative.children;
   const childGuardianReader = administrative.childGuardians;
   const professionalReader = administrative.professionals;
@@ -111,6 +130,8 @@ export function createContainer(prisma: PrismaClient = createPrismaClient()) {
   const workshopSkillRepository = new PrismaWorkshopSkillRepository(prisma);
   const attendanceRepository = new PrismaWorkshopAttendanceRepository(prisma);
   const evidenceRepository = new PrismaEvidenceRepository(prisma);
+  const studentEvidenceRepository = new PrismaStudentEvidenceRepository(prisma);
+  const credentialRepository = new PrismaCredentialRepository(prisma);
 
   // Recálculo de calificaciones: lo usan evaluaciones, asistencias y habilidades de talleres.
   const grading = new GradingService(evaluationSkillRepository, scaleRepository, studentSkillRepository);
@@ -119,6 +140,17 @@ export function createContainer(prisma: PrismaClient = createPrismaClient()) {
     prisma,
     /** De dónde se leen los datos del módulo administrativo: `saga` o `bd-simulada`. */
     administrativeSource: administrative.source,
+    /** Cómo se verifican los tokens: `jwt` (secreto) o `endpoint` (perfil del servicio de seguridad). */
+    authMode: tokens.mode,
+    tokenVerifier: tokens.verifier,
+    /** A qué registros accede cada usuario dentro de las rutas que su rol permite (ADR-008). */
+    access: new AccessPolicy(
+      workshopRepository,
+      attendanceRepository,
+      childGuardianReader,
+      credentialRepository,
+      studentEvidenceRepository,
+    ),
     // Autenticación delegada al módulo administrativo (ADR-003)
     auth: new AuthService(authGateway),
     // Acceso
@@ -158,12 +190,12 @@ export function createContainer(prisma: PrismaClient = createPrismaClient()) {
     // Evidencias
     evidences: new EvidencesService(evidenceRepository, childReader),
     studentEvidences: new StudentEvidencesService(
-      new PrismaStudentEvidenceRepository(prisma),
+      studentEvidenceRepository,
       evidenceRepository,
       childReader,
     ),
     credentials: new CredentialsService(
-      new PrismaCredentialRepository(prisma),
+      credentialRepository,
       workshopRepository,
       attendanceRepository,
       childReader,

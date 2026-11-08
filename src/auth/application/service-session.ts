@@ -21,10 +21,18 @@ export class ServiceSession {
   private expiresAt: number | null = null;
   private pending: Promise<string> | null = null;
 
+  /**
+   * `initialToken` (opcional): token ya emitido para usarlo mientras sea válido
+   * (p. ej. `SAGA_SERVICE_TOKEN` en pruebas). Si el otro módulo lo rechaza y hay
+   * credenciales, se inicia sesión con ellas.
+   */
   constructor(
     private readonly gateway: AuthGateway,
     private readonly credentials: ServiceCredentials | undefined,
-  ) {}
+    initialToken?: string,
+  ) {
+    this.token = initialToken ?? null;
+  }
 
   async getToken(forceRefresh = false): Promise<string> {
     const valid = this.token !== null && (this.expiresAt === null || Date.now() < this.expiresAt);
@@ -39,7 +47,9 @@ export class ServiceSession {
   private async login(): Promise<string> {
     if (!this.credentials) {
       throw new ExternalServiceError(
-        "Falta el usuario de servicio para consultar el módulo administrativo (SAGA_SERVICE_EMAIL y SAGA_SERVICE_PASSWORD)",
+        this.token === null
+          ? "Falta el usuario de servicio para consultar el módulo administrativo (SAGA_SERVICE_EMAIL y SAGA_SERVICE_PASSWORD)"
+          : "El token de servicio (SAGA_SERVICE_TOKEN) fue rechazado o venció, y no hay usuario de servicio para renovarlo",
         "not_configured",
       );
     }

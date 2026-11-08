@@ -17,6 +17,7 @@ import type { Container } from "../src/container.js";
 import { z } from "zod";
 import { API_PREFIX } from "../src/shared/http/api.routes.js";
 import { createApp } from "../src/shared/http/app.js";
+import { ROUTE_PERMISSIONS } from "../src/shared/http/route-permissions.js";
 import { parseInput } from "../src/shared/application/validation.js";
 import { ValidationError } from "../src/shared/domain/errors.js";
 import { type Operation, operations, type RouteDoc, routes } from "./request-catalog.js";
@@ -85,6 +86,19 @@ for (const r of routes) {
   if (r.method === "PATCH" && !opByRoute.has(key(r.method, r.path))) problems.push(`PATCH ${r.path} sin cuerpos en el catálogo`);
 }
 
+// ── 1b'. Matriz de roles (ADR-008): toda ruta protegida debe estar, y nada más ──
+
+const isPublic = (path: string) => path === "/health" || path.startsWith("/auth/");
+const rolesOf = (route: RouteDoc) => ROUTE_PERMISSIONS[key(route.method, route.path)];
+for (const r of routes) {
+  if (!isPublic(r.path) && !rolesOf(r)) problems.push(`Ruta protegida sin roles en src/shared/http/route-permissions.ts: ${r.method} ${r.path}`);
+}
+for (const permission of Object.keys(ROUTE_PERMISSIONS)) {
+  if (!routes.some((r) => key(r.method, r.path) === permission)) problems.push(`Permiso para una ruta que no existe: ${permission}`);
+}
+/** Roles de una ruta para mostrar en la documentación. */
+const rolesText = (route: RouteDoc) => (isPublic(route.path) ? "Pública" : (rolesOf(route) ?? []).join(", "));
+
 // ── 1c. Entidad de cada ruta (carpetas de Postman) ──
 
 /** Carpetas en orden de ejecución: primero lo que otras entidades usan. La primera regla que coincide gana. */
@@ -119,7 +133,15 @@ if (problems.length > 0) {
 /** Valores por defecto: ids de la BD de pruebas (`npm run db:seed:dev` y el simulado administrativo). */
 const variables: Record<string, string> = {
   baseUrl: `http://localhost:3000${API_PREFIX}`,
+  /** Solo fuera de producción: id del usuario (p. ej. "20") que queda como actor en la auditoría. */
   actorId: "",
+  /** Solo fuera de producción: roles con que se prueba (separados por comas). */
+  actorRoles: "ADMIN",
+  /** Token del servicio de seguridad (el de Saga). Si se llena, se usa en lugar de actorId/actorRoles. */
+  /** Solo fuera de producción: a quién de Saga corresponde el usuario (para "lo suyo"; opcionales). */
+  actorProfessionalId: "",
+  actorChildId: "",
+  actorGuardianId: "",
   token: "",
   /** Token del login del módulo administrativo (lo llena "Iniciar sesión"); lo usa GET /auth/profile. */
   authToken: "",
@@ -212,13 +234,18 @@ function request(method: string, url: string, body?: unknown, query = "") {
   };
 }
 
-/** Autenticación de cada petición: token de Supabase si hay `token`; si no, `X-Actor-Id` (solo desarrollo). */
+/** Autenticación de cada petición: el token del login si hay `token`; si no, `X-Actor-*` (solo desarrollo). */
 const authScript = [
   "const token = pm.variables.get('token');",
   "if (token) {",
   "  pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });",
   "} else {",
   "  pm.request.headers.upsert({ key: 'X-Actor-Id', value: pm.variables.get('actorId') });",
+  "  pm.request.headers.upsert({ key: 'X-Actor-Roles', value: pm.variables.get('actorRoles') || 'ADMIN' });",
+  "  for (const [variable, header] of [['actorProfessionalId', 'X-Actor-Professional-Id'], ['actorChildId', 'X-Actor-Child-Id'], ['actorGuardianId', 'X-Actor-Guardian-Id']]) {",
+  "    const value = pm.variables.get(variable);",
+  "    if (value) pm.request.headers.upsert({ key: header, value });",
+  "  }",
   "}",
 ];
 
@@ -427,7 +454,7 @@ const collection = {
       "",
       "Una carpeta por entidad, con todas sus rutas: crear (válido e inválidos) → consultar → actualizar → acciones → eliminar → restaurar.",
       "",
-      "Antes de ejecutar: llena `actorId` (UUID de un perfil activo) o `token` (access_token de Supabase).",
+      "Antes de ejecutar: llena `token` (el del login; es el de Saga) o, fuera de producción, `actorId` y `actorRoles` (p. ej. `ADMIN`).",
       "Con `token` se envía `Authorization: Bearer`; sin él, `X-Actor-Id` (solo funciona fuera de producción).",
       "",
       "Las escrituras sobre registros existentes solo corren sobre lo que la colección creó en esta sesión (si no, se omiten),",
@@ -492,7 +519,7 @@ const freeCollection = {
       "Cada petición se envía siempre: cambia los ids en las variables o directamente en la URL, y el cuerpo a tu gusto.",
       "Crear y asociar guardan el id nuevo en su variable; el login guarda el token en `authToken`.",
       "",
-      "Antes de usarla: llena `actorId` (UUID de un perfil activo) o `token` (access_token de Supabase), y `baseUrl`.",
+      "Antes de usarla: llena `baseUrl` y `token` (el del login; es el de Saga) o, fuera de producción, `actorId` y `actorRoles` (p. ej. `ADMIN`).",
       "OJO: todo se ejecuta de verdad sobre la BD de `baseUrl` (crear, actualizar, eliminar). Úsala solo con la BD de pruebas.",
       "Los perfiles se modifican con `profileId`: nunca pongas el propio (perderías el acceso).",
     ].join("\n"),
@@ -523,7 +550,8 @@ md.push(`# API: rutas y cuerpos de petición
 | Tema | Regla |
 |---|---|
 | Base | \`http://localhost:3000${API_PREFIX}\` (\`npm run dev\`; puerto con \`PORT\`) |
-| Autenticación | \`Authorization: Bearer <access_token de Supabase>\`. Solo fuera de producción: \`X-Actor-Id: <uuid de un perfil>\`. El perfil debe existir y estar \`activo\`. Públicas: \`/health\` y \`/auth/register\`, \`/auth/login\`, \`/auth/profile\` (remiten al módulo administrativo, [ADR-003](../decisiones/ADR-003-autenticacion-modulo-administrativo.md)) |
+| Autenticación | \`Authorization: Bearer <token del login>\` (el mismo token de Saga). Solo fuera de producción: \`X-Actor-Id: <id del usuario>\` y \`X-Actor-Roles: TALLERISTA\` (sin roles se asume \`ADMIN\`) y, para "lo suyo", \`X-Actor-Professional-Id\`, \`X-Actor-Child-Id\` o \`X-Actor-Guardian-Id\`. [ADR-008](../decisiones/ADR-008-seguridad-por-roles.md) |
+| Permisos | Roles válidos: \`ADMIN\` (todo), \`TALLERISTA\`, \`ESTUDIANTE\`, \`ACUDIENTE\` y \`DONANTE\` (aún sin acceso). Cada ruta admite ciertos roles (columna **Roles**); sin el rol: **403**. Dentro de la ruta, el tallerista solo gestiona **sus** talleres y el joven o acudiente solo ve **lo suyo** (si no, **403**). Matriz en \`src/shared/http/route-permissions.ts\`; "lo suyo" en \`src/auth/application/access-policy.ts\`. Públicas: \`/health\` y \`/auth/register\`, \`/auth/login\`, \`/auth/profile\` (remiten al módulo administrativo, [ADR-003](../decisiones/ADR-003-autenticacion-modulo-administrativo.md)) |
 | Formato | Cuerpo JSON (\`Content-Type: application/json\`) |
 | Ids | En la entrada, número o texto con un entero positivo (\`12\` o \`"12"\`). En las respuestas, **texto** (\`"12"\`) |
 | Fechas | Texto ISO 8601 con zona: \`"2026-10-20T15:00:00Z"\`. Las fechas de negocio se interpretan en hora de Bogotá |
@@ -550,8 +578,8 @@ md.push(`# API: rutas y cuerpos de petición
 |---|---|---|
 | Error de forma (esquema) o regla de negocio que invalida la entrada | 400 | \`VALIDATION\` |
 | JSON mal formado | 400 | \`BAD_REQUEST\` |
-| Sin autenticación, token inválido o perfil inexistente | 401 | \`UNAUTHORIZED\` |
-| Perfil \`inactivo\` o \`bloqueado\` | 403 | \`FORBIDDEN\` |
+| Sin autenticación, o token inválido o vencido | 401 | \`UNAUTHORIZED\` |
+| El rol del usuario no tiene permiso para la ruta | 403 | \`FORBIDDEN\` |
 | No existe (registro o ruta) | 404 | \`NOT_FOUND\` |
 | Conflicto (duplicado, estado que no lo permite) | 409 | \`CONFLICT\` |
 | Demasiados intentos (lo informa el módulo administrativo) | 429 | \`EXTERNAL_SERVICE\` |
@@ -567,13 +595,13 @@ for (const entity of entities) {
   const entityRoutes = routes.filter((r) => entityOf(r.path) === entity.name);
   md.push(`### ${entity.name}
 
-| Método | Ruta | Descripción | Consulta | Cuerpo |
-|---|---|---|---|---|
+| Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
+|---|---|---|---|---|---|
 ${entityRoutes
   .map((r) => {
     const op = opByRoute.get(key(r.method, r.path));
     const body = op ? `[\`${op.id}\`](#${op.id.replace(/\./g, "").toLowerCase()})` : "";
-    return `| \`${r.method}\` | \`${r.path}\` | ${cell(r.description)} | ${r.query ?? ""} | ${body} |`;
+    return `| \`${r.method}\` | \`${r.path}\` | ${cell(r.description)} | ${rolesText(r)} | ${r.query ?? ""} | ${body} |`;
   })
   .join("\n")}
 `);
@@ -621,8 +649,8 @@ md.push(`
 
 1. En Postman: *Import → File* y elige \`docs/api/postman-coleccion.json\`.
 2. En la pestaña *Variables* de la colección llena:
-   - \`actorId\`: UUID de un perfil activo (p. ej. el de \`DB_CHECK_ACTOR\`), **o**
-   - \`token\`: \`access_token\` de una sesión de Supabase. Si hay \`token\`, se usa en lugar de \`actorId\`.
+   - \`token\`: el token del login (es el de Saga), **o**, solo fuera de producción,
+   - \`actorId\` (id del usuario que queda en la auditoría) y \`actorRoles\` (p. ej. \`ADMIN\` o \`TALLERISTA\`); para probar "lo suyo", \`actorProfessionalId\`, \`actorChildId\` o \`actorGuardianId\`. Si hay \`token\`, se usa en lugar de ellos.
 3. Arranca la API con \`npm run dev\`.
 4. Ejecuta la colección completa (*Run collection*), una carpeta o cada petición.
 
@@ -669,7 +697,6 @@ const cases = operations.flatMap((op) => {
 
 // ── OpenAPI para Swagger UI ──
 
-const isPublic = (path: string) => path === "/health" || path.startsWith("/auth/");
 const errorRef = (description: string) => ({
   description,
   content: { "application/json": { schema: { $ref: "#/components/schemas/ApiError" } } },
@@ -677,7 +704,7 @@ const errorRef = (description: string) => ({
 const errorDescriptions: Record<number, string> = {
   400: "Datos inválidos",
   401: "Sin autenticación válida",
-  403: "Perfil inactivo o bloqueado",
+  403: "El rol del usuario no tiene permiso (o el servicio de seguridad lo rechaza)",
   404: "No existe",
   409: "Conflicto con el estado actual",
   429: "Demasiados intentos",
@@ -732,7 +759,7 @@ for (const route of routes) {
   apiPaths[openApiPath][route.method.toLowerCase()] = {
     tags: [entityOf(route.path)],
     summary: route.description,
-    ...(route.query ? { description: `Consulta: ${route.query}` } : {}),
+    description: [`**Roles:** ${rolesText(route)}`, ...(route.query ? [`Consulta: ${route.query}`] : [])].join("\n\n"),
     // Pública: sin autenticación. El perfil usa el token del login administrativo.
     security:
       route.path === "/auth/profile"
@@ -757,8 +784,8 @@ const apiDocs = {
   tags: entities.map((entity) => ({ name: entity.name })),
   components: {
     securitySchemes: {
-      bearerAuth: { type: "http", scheme: "bearer", description: "JWT de Supabase o, en /auth/profile, el token del login" },
-      actorId: { type: "apiKey", in: "header", name: "X-Actor-Id", description: "UUID de un perfil activo (solo fuera de producción)" },
+      bearerAuth: { type: "http", scheme: "bearer", description: "Token del login (el de Saga): trae el usuario y sus roles" },
+      actorId: { type: "apiKey", in: "header", name: "X-Actor-Id", description: "Solo fuera de producción: id del usuario. Roles con X-Actor-Roles (sin ella, ADMIN)" },
     },
     schemas: {
       ApiError: {

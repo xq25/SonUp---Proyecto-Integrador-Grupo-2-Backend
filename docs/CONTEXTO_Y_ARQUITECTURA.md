@@ -72,16 +72,18 @@
 | `DIRECT_URL` | CLI de Prisma (`db pull`). En Supabase: **Session pooler** (puerto 5432); la conexión "Direct" de Supabase solo funciona por IPv6. Si falta, se usa `DATABASE_URL` |
 | `DB_CHECK_ACTOR` | Opcional: UUID de un usuario de Supabase Auth que `db:check` verifica (el `actor` de las pruebas) |
 | `PORT` | Puerto de la API (por defecto 3000) |
-| `NODE_ENV` | `production` desactiva la cabecera `X-Actor-Id`. **Obligatorio al desplegar** |
-| `SUPABASE_URL` | `https://<ref>.supabase.co`: emisor del JWT y su JWKS. Sin ella solo funciona `X-Actor-Id` |
-| `SUPABASE_JWT_SECRET` | Opcional: secreto HS256 si el proyecto usa las claves JWT antiguas |
+| `NODE_ENV` | `production` desactiva las cabeceras `X-Actor-Id`/`X-Actor-Roles`. **Obligatorio al desplegar** |
+| `AUTH_JWT_SECRET` | Secreto HS256 del servicio de seguridad ([ADR-008](decisiones/ADR-008-seguridad-por-roles.md)): con él se verifica el JWT localmente. **Sin él** se verifica con su endpoint de perfil (`RENDER_PROFILE_PATH`) |
+| `AUTH_JWT_ISSUER` / `AUTH_JWT_AUDIENCE` | Opcionales: emisor y audiencia esperados del JWT |
+| `AUTH_PROFILE_CACHE_SECONDS` | Segundos que se reutiliza la respuesta del endpoint de perfil (por defecto 60) |
 | `CORS_ORIGIN` | Opcional: orígenes permitidos separados por comas (sin ella, cualquiera) |
 | `PUBLIC_URL` | Opcional: URL pública del despliegue, sin el prefijo. Agrega ese servidor en Swagger |
 | `RENDER_API_URL` | URL base del servicio de autenticación del módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)). Sin ella, `/auth/*` responde 503 |
 | `RENDER_REGISTER_PATH` / `RENDER_LOGIN_PATH` / `RENDER_PROFILE_PATH` | Rutas de registro, login y perfil allá (por defecto `/auth/registro`, `/auth/login`, `/auth/perfil`) |
 | `RENDER_HTTP_TIMEOUT_MS` | Tiempo límite de cada llamada (por defecto 10000). Render gratuito tarda ~30 s en despertar |
 | `SAGA_API_URL` | URL de la API de Saga (módulo administrativo, [ADR-007](decisiones/ADR-007-saga-por-api.md)). **Sin ella** se leen las tablas simuladas del esquema `administrativo` (solo desarrollo y pruebas) |
-| `SAGA_SERVICE_EMAIL` / `SAGA_SERVICE_PASSWORD` | Usuario de servicio de este módulo en el login; su token se envía a Saga. Lo entrega el equipo de seguridad |
+| `SAGA_SERVICE_EMAIL` / `SAGA_SERVICE_PASSWORD` | Usuario de servicio para consultar Saga **fuera de una petición** (scripts) o en desarrollo con `X-Actor-Id`. En las peticiones se reenvía el token del usuario ([ADR-008](decisiones/ADR-008-seguridad-por-roles.md)) |
+| `SAGA_SERVICE_TOKEN` | Solo pruebas: token ya emitido que se usa en lugar del usuario de servicio mientras Saga lo acepte |
 | `SAGA_HTTP_TIMEOUT_MS` | Tiempo límite de cada llamada a Saga (por defecto 10000) |
 
 ### 2.1 BD de pruebas del módulo
@@ -290,7 +292,9 @@ src/
 │   │   ├── app.ts               # createApp(container): middlewares, API bajo /api, errores
 │   │   ├── api.routes.ts        # Directorio general: reúne los catálogos de los módulos; API_DOC_FILES para Swagger
 │   │   ├── swagger.ts           # Especificación OpenAPI para Swagger UI en /api-docs (ADR-005)
-│   │   ├── authenticate.ts      # actor: JWT de Supabase (jose) o X-Actor-Id solo en desarrollo
+│   │   ├── authenticate.ts      # actor y roles: token del servicio de seguridad (TokenVerifier) o X-Actor-Id/X-Actor-Roles en desarrollo
+│   │   ├── authorize.ts         # 403 si el rol no está permitido para la ruta (ADR-008)
+│   │   ├── route-permissions.ts # Matriz ruta → roles: único lugar de los permisos
 │   │   ├── error-handler.ts     # Errores de dominio → HTTP; formato { error: { code, message, details? } }
 │   │   └── request.ts           # readParams/readQuery (Zod), actorOf(res), esquemas de parámetros
 │   └── infrastructure/prisma/
@@ -428,8 +432,9 @@ await app.evaluations.evaluate(
 - [ ] Ligar el `actor` (cuenta) con su tallerista para que solo el tallerista del taller pueda evaluar (§3.9 de VALIDACIONES.md).
 - [x] Capa de entrada HTTP: Express 5 bajo `/api`, actor del JWT de Supabase ([ADR-002](decisiones/ADR-002-capa-http-express.md)).
 - [x] Autenticación del front a través de nuestra API: `/auth/register`, `/auth/login`, `/auth/profile` remiten al módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)).
-- [ ] **En pausa** hasta que el módulo administrativo defina la tecnología del token. Luego: validar en `authenticate` el token del login administrativo (con `AuthGateway.getProfile`) y definir cómo su id de usuario llega al `actor` de la auditoría.
+- [x] Seguridad de nuestras rutas con el token y los roles del servicio de seguridad ([ADR-008](decisiones/ADR-008-seguridad-por-roles.md)): verificación JWT/endpoint, matriz de roles, token reenviado a Saga, actor = `sub` (texto).
+- [ ] Confirmar con el servicio de seguridad: secreto del JWT o endpoint, y que el token incluya el id en Saga del usuario (`professionalId`, `childId`, `guardianId`) para "lo suyo".
+- [ ] BD de pruebas: ejecutar `database/migraciones/2026-11-08-auditoria-actor-texto.sql`.
+- [ ] Revisar con el equipo la matriz de `src/shared/http/route-permissions.ts`.
 - [ ] Pedir al módulo administrativo ejemplos de respuesta exitosa (registro, login, perfil) y una excepción del límite de intentos para nuestra IP.
-- [ ] Configurar `SUPABASE_URL` y probar la API con un `access_token` real de Supabase.
-- [ ] Autorización por rol: la gestiona el **equipo de seguridad e información personal** (login, cuentas y permisos de todos los actores). Nosotros les entregaremos la matriz ruta → roles permitidos (base: `routes` en `scripts/request-catalog.ts`). Hoy cualquier perfil activo puede llamar a todas las rutas. Falta definir con ellos el mecanismo (gateway, roles en el token o consulta a sus tablas).
 - [ ] Acordar con el equipo de seguridad la propiedad de `perfiles`, `roles`, `usuario_roles`, `aplicaciones`, `crear_perfil` y `tiene_rol()`: si son suyas, salen de nuestro SQL y las features `profiles`/`access` pasan a solo lectura (o se retiran).

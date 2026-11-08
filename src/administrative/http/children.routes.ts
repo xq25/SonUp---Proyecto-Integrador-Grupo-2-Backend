@@ -1,7 +1,8 @@
 import { Router } from "express";
+import type { AccessPolicy } from "../../auth/application/access-policy.js";
 import { z } from "zod";
 import { NotFoundError } from "../../shared/domain/errors.js";
-import { activeOnlyQuery, idParams, readParams, readQuery, searchQuery } from "../../shared/http/request.js";
+import { activeOnlyQuery, idParams, principalOf, readParams, readQuery, searchQuery } from "../../shared/http/request.js";
 import type { ChildrenService } from "../application/children.service.js";
 
 // Estudiantes del módulo administrativo (solo lectura).
@@ -13,7 +14,7 @@ const childrenQuery = z.strictObject({
 });
 const documentParams = z.object({ documentNumber: z.string().trim().min(1).max(30) });
 
-export function createChildrenRouter({ children }: { children: ChildrenService }): Router {
+export function createChildrenRouter({ children, access }: { children: ChildrenService; access: AccessPolicy }): Router {
   const router = Router();
 
   router.get("/children", async (req, res) => {
@@ -26,11 +27,15 @@ export function createChildrenRouter({ children }: { children: ChildrenService }
     res.json(child);
   });
   router.get("/children/:id", async (req, res) => {
-    res.json(await children.get(readParams(idParams, req).id));
+    const { id } = readParams(idParams, req);
+    await access.assertCanReadStudent(principalOf(res), id);
+    res.json(await children.get(id));
   });
   router.get("/children/:id/guardians", async (req, res) => {
     const { activeOnly } = readQuery(activeOnlyQuery, req);
-    res.json(await children.getGuardians(readParams(idParams, req).id, activeOnly ?? true));
+    const { id } = readParams(idParams, req);
+    await access.assertCanReadStudent(principalOf(res), id);
+    res.json(await children.getGuardians(id, activeOnly ?? true));
   });
 
   return router;

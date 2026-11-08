@@ -1,89 +1,72 @@
 import type { RequestHandler } from "express";
-import { createRemoteJWKSet, type JWTVerifyGetKey, jwtVerify } from "jose";
-import type { ProfilesService } from "../../profiles/application/profiles.service.js";
-import { uuidSchema } from "../application/schemas.js";
-import { ForbiddenError, NotFoundError, UnauthorizedError } from "../domain/errors.js";
+import { linksFromClaims } from "../../auth/domain/actor-links.js";
+import type { Principal } from "../../auth/domain/principal.entity.js";
+import type { TokenVerifier } from "../../auth/domain/token-verifier.js";
+import { UnauthorizedError } from "../domain/errors.js";
+import { runWithRequestContext } from "../infrastructure/request-context.js";
 
-// Obtiene el `actor` de cada petición (ADR-002 §2.2):
-// - `Authorization: Bearer <JWT de Supabase>`: siempre; el actor es el claim `sub`.
-// - `X-Actor-Id: <uuid>`: solo fuera de producción, para pruebas manuales en Postman.
-// En ambos casos el perfil debe existir, no estar eliminado y estar `activo`.
+// Obtiene quién hace cada petición (ADR-008):
+// - `Authorization: Bearer <token del servicio de seguridad>`: siempre. Se
+//   verifica con el `TokenVerifier` (JWT local o endpoint de perfil); el actor
+//   es su `sub` y sus roles deciden el acceso (`authorize`). El token queda en
+//   el contexto de la petición para reenviarlo a Saga.
+// - `X-Actor-Id` (+ `X-Actor-Roles`): solo fuera de producción, para pruebas
+//   manuales. Sin `X-Actor-Roles` se asume `ADMIN`. A quién de Saga corresponde
+//   (para "lo suyo"): `X-Actor-Professional-Id`, `X-Actor-Child-Id`, `X-Actor-Guardian-Id`.
 
 export interface AuthOptions {
-  /** URL del proyecto de Supabase (`https://<ref>.supabase.co`): emisor y JWKS. */
-  supabaseUrl?: string;
-  /** Secreto compartido (HS256) para proyectos con las claves JWT antiguas. */
-  jwtSecret?: string;
-  /** Permite la cabecera `X-Actor-Id`. Nunca en producción. */
+  /** Permite las cabeceras `X-Actor-Id`/`X-Actor-Roles`. Nunca en producción. */
   allowDevHeader: boolean;
 }
 
 export function authOptionsFromEnv(env: NodeJS.ProcessEnv = process.env): AuthOptions {
-  const supabaseUrl = env["SUPABASE_URL"]?.replace(/\/+$/, "");
-  const jwtSecret = env["SUPABASE_JWT_SECRET"];
-  return {
-    ...(supabaseUrl ? { supabaseUrl } : {}),
-    ...(jwtSecret ? { jwtSecret } : {}),
-    allowDevHeader: env["NODE_ENV"] !== "production",
-  };
+  return { allowDevHeader: env["NODE_ENV"] !== "production" };
 }
 
-/** Verifica un JWT de Supabase y devuelve su `sub` (id del perfil). */
-type TokenVerifier = (token: string) => Promise<string>;
+/** Rol que se asume en desarrollo si `X-Actor-Roles` no viene. */
+const DEV_DEFAULT_ROLES = ["ADMIN"];
 
-function createTokenVerifier(options: AuthOptions): TokenVerifier | null {
-  if (!options.supabaseUrl) return null;
-  const issuer = `${options.supabaseUrl}/auth/v1`;
-  const secret = options.jwtSecret ? new TextEncoder().encode(options.jwtSecret) : null;
-  const jwks: JWTVerifyGetKey | null = secret ? null : createRemoteJWKSet(new URL(`${issuer}/.well-known/jwks.json`));
-
-  return async (token) => {
-    try {
-      const verifyOptions = { issuer, audience: "authenticated" };
-      const { payload } = secret
-        ? await jwtVerify(token, secret, verifyOptions)
-        : await jwtVerify(token, jwks!, verifyOptions);
-      if (!payload.sub) throw new Error("El token no trae sub");
-      return payload.sub;
-    } catch {
-      throw new UnauthorizedError("Token inválido o vencido");
-    }
-  };
+function devPrincipal(actorHeader: string, rolesHeader: string | undefined, linkHeaders: Record<string, unknown>): Principal {
+  const userId = actorHeader.trim();
+  if (!/^[\w-]{1,64}$/.test(userId)) {
+    throw new UnauthorizedError("X-Actor-Id debe ser el id del usuario (letras, números, _ o -, máx. 64)");
+  }
+  const roles =
+    rolesHeader === undefined
+      ? DEV_DEFAULT_ROLES
+      : [...new Set(rolesHeader.split(",").map((role) => role.trim().toUpperCase()).filter(Boolean))];
+  return { userId, roles, links: linksFromClaims(linkHeaders) };
 }
 
-export function authenticate(profiles: ProfilesService, options: AuthOptions): RequestHandler {
-  const verifyToken = createTokenVerifier(options);
-
+export function authenticate(verifier: TokenVerifier, options: AuthOptions): RequestHandler {
   return async (req, res, next) => {
     const authorization = req.get("authorization");
     const devActor = req.get("x-actor-id");
-    let actor: string;
+    let principal: Principal;
+    let token: string | undefined;
 
     if (authorization) {
-      const [scheme, token] = authorization.split(" ");
-      if (scheme?.toLowerCase() !== "bearer" || !token) {
+      const [scheme, value] = authorization.split(" ");
+      if (scheme?.toLowerCase() !== "bearer" || !value) {
         throw new UnauthorizedError("La cabecera Authorization debe ser 'Bearer <token>'");
       }
-      if (!verifyToken) throw new UnauthorizedError("La autenticación por token no está configurada (SUPABASE_URL)");
-      actor = await verifyToken(token);
+      token = value;
+      principal = await verifier.verify(token);
     } else if (devActor !== undefined) {
       if (!options.allowDevHeader) throw new UnauthorizedError("La cabecera X-Actor-Id no se acepta en producción");
-      const parsed = uuidSchema.safeParse(devActor);
-      if (!parsed.success) throw new UnauthorizedError("X-Actor-Id debe ser el UUID de un perfil");
-      actor = parsed.data;
+      principal = devPrincipal(devActor, req.get("x-actor-roles"), {
+        professionalId: req.get("x-actor-professional-id"),
+        childId: req.get("x-actor-child-id"),
+        guardianId: req.get("x-actor-guardian-id"),
+      });
     } else {
       throw new UnauthorizedError("Falta autenticación: envía 'Authorization: Bearer <token>'");
     }
 
-    try {
-      const profile = await profiles.get(actor);
-      if (profile.status !== "activo") throw new ForbiddenError(`El perfil está ${profile.status}`);
-    } catch (error) {
-      if (error instanceof NotFoundError) throw new UnauthorizedError("El usuario autenticado no tiene perfil");
-      throw error;
-    }
-
-    res.locals["actor"] = actor;
-    next();
+    res.locals["actor"] = principal.userId;
+    res.locals["roles"] = principal.roles;
+    res.locals["principal"] = principal;
+    // El resto de la petición (rutas, servicios y lectores) corre dentro de este contexto.
+    runWithRequestContext({ token }, () => next());
   };
 }
