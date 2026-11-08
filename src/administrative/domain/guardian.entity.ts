@@ -11,6 +11,8 @@ export interface Guardian {
   address: string | null;
   legalStatusId: string | null;
   legalStatusName: string | null;
+  /** `sub` de la cuenta del servicio de seguridad enlazada (Saga `security_user_id`); null si no tiene cuenta. */
+  securityUserId: string | null;
 }
 
 export interface GuardianFilter {

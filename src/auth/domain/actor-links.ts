@@ -1,7 +1,8 @@
 import type { ActorLinks } from "./principal.entity.js";
 
-// Lectura de los ids de Saga que identifican al usuario (ADR-008). Se aceptan
-// varios nombres porque el servicio de seguridad aún no confirma el suyo.
+// Ids de Saga que llegan en las cabeceras de desarrollo (X-Actor-Professional-Id,
+// X-Actor-Child-Id, X-Actor-Guardian-Id). En producción el enlace no viene en el
+// token: lo resuelve ActorLinksService con `security_user_id` de Saga (ADR-008).
 
 const CLAIMS: Record<keyof ActorLinks, readonly string[]> = {
   professionalId: ["professionalId", "professional_id", "talleristaId", "tallerista_id"],

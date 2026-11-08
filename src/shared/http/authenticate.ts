@@ -7,7 +7,7 @@ import { runWithRequestContext } from "../infrastructure/request-context.js";
 
 // Obtiene quién hace cada petición (ADR-008):
 // - `Authorization: Bearer <token del servicio de seguridad>`: siempre. Se
-//   verifica con el `TokenVerifier` (JWT local o endpoint de perfil); el actor
+//   verifica localmente con el `TokenVerifier` (`JWT_SECRET`); el actor
 //   es su `sub` y sus roles deciden el acceso (`authorize`). El token queda en
 //   el contexto de la petición para reenviarlo a Saga.
 // - `X-Actor-Id` (+ `X-Actor-Roles`): solo fuera de producción, para pruebas

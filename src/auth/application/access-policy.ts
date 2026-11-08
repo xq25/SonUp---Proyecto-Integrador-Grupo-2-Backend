@@ -5,6 +5,7 @@ import { ForbiddenError } from "../../shared/domain/errors.js";
 import type { WorkshopAttendanceRepository } from "../../workshops/domain/workshop-attendance.repository.js";
 import type { WorkshopFilter, WorkshopStatus } from "../../workshops/domain/workshop.entity.js";
 import type { WorkshopRepository } from "../../workshops/domain/workshop.repository.js";
+import type { ActorLinksResolver } from "../domain/actor-links.resolver.js";
 import type { Principal } from "../domain/principal.entity.js";
 import { ROLES } from "../domain/roles.js";
 
@@ -15,7 +16,9 @@ import { ROLES } from "../domain/roles.js";
 //   (los de su `professionalId`) y a sus asistencias y evaluaciones.
 // - ESTUDIANTE: a los talleres disponibles y a lo suyo (su `childId`).
 // - ACUDIENTE: a los talleres disponibles y a lo de sus jóvenes (vínculos vigentes de su `guardianId`).
-// Si el registro no existe, no se bloquea: el servicio responde 404 como siempre.
+// A quién de Saga corresponde el usuario lo dice `ActorLinksResolver` (Saga
+// `security_user_id` = `sub`). Si el registro no existe, no se bloquea: el
+// servicio responde 404 como siempre.
 
 /** Talleres "publicados" que jóvenes y acudientes ven: por hacerse o en curso. */
 export const AVAILABLE_WORKSHOP_STATUSES: readonly WorkshopStatus[] = ["planned", "active"];
@@ -36,16 +39,17 @@ export class AccessPolicy {
     private readonly childGuardians: ChildGuardianReader,
     private readonly credentials: CredentialRepository,
     private readonly studentEvidences: StudentEvidenceRepository,
+    private readonly links: ActorLinksResolver,
   ) {}
 
   // ── Talleres ──
 
   /** Filtro del listado de talleres según quién consulta. */
-  workshopFilter(principal: Principal, filter: WorkshopFilter): WorkshopFilter {
+  async workshopFilter(principal: Principal, filter: WorkshopFilter): Promise<WorkshopFilter> {
     if (this.isAdmin(principal)) return filter;
     const { includeDeleted: _ignored, ...visible } = filter;
     if (this.isLeader(principal)) {
-      const own = this.professionalIdOf(principal);
+      const own = await this.professionalIdOf(principal);
       if (visible.evaluatorId !== undefined && visible.evaluatorId !== own) {
         throw new ForbiddenError("Solo puedes consultar tus propios talleres");
       }
@@ -62,7 +66,7 @@ export class AccessPolicy {
     if (this.isAdmin(principal)) return;
     const workshop = await this.workshops.findById(workshopId);
     if (!workshop) return;
-    if (this.isLeader(principal)) return this.assertOwnWorkshop(principal, workshop.evaluatorId);
+    if (this.isLeader(principal)) return await this.assertOwnWorkshop(principal, workshop.evaluatorId);
     if (AVAILABLE_WORKSHOP_STATUSES.includes(workshop.status)) return;
     for (const studentId of await this.ownStudentIds(principal)) {
       if (await this.attendances.hasAttended(workshopId, studentId)) return;
@@ -75,14 +79,14 @@ export class AccessPolicy {
     if (this.isAdmin(principal)) return;
     const workshop = await this.workshops.findById(workshopId);
     if (!workshop) return;
-    this.assertOwnWorkshop(principal, workshop.evaluatorId);
+    await this.assertOwnWorkshop(principal, workshop.evaluatorId);
   }
 
   /** Crear un taller: el tallerista solo a su nombre (`evaluatorId` = su `professionalId`). */
-  assertCanCreateWorkshop(principal: Principal, body: unknown): void {
+  async assertCanCreateWorkshop(principal: Principal, body: unknown): Promise<void> {
     if (this.isAdmin(principal)) return;
     const evaluatorId = bodyId(body, "evaluatorId");
-    if (evaluatorId !== undefined) this.assertOwnWorkshop(principal, evaluatorId);
+    if (evaluatorId !== undefined) await this.assertOwnWorkshop(principal, evaluatorId);
   }
 
   /** Editar un taller: suyo, y sin pasárselo a otro tallerista. */
@@ -90,7 +94,7 @@ export class AccessPolicy {
     await this.assertCanManageWorkshop(principal, workshopId);
     if (this.isAdmin(principal)) return;
     const evaluatorId = bodyId(body, "evaluatorId");
-    if (evaluatorId !== undefined) this.assertOwnWorkshop(principal, evaluatorId);
+    if (evaluatorId !== undefined) await this.assertOwnWorkshop(principal, evaluatorId);
   }
 
   // ── Asistencias y evaluaciones ──
@@ -122,9 +126,9 @@ export class AccessPolicy {
   }
 
   /** Datos de un acudiente: ADMIN, o el mismo acudiente. */
-  assertCanReadGuardian(principal: Principal, guardianId: bigint): void {
+  async assertCanReadGuardian(principal: Principal, guardianId: bigint): Promise<void> {
     if (this.isAdmin(principal)) return;
-    if (this.has(principal, ROLES.guardian) && principal.links.guardianId === guardianId) return;
+    if (this.has(principal, ROLES.guardian) && (await this.links.resolve(principal)).guardianId === guardianId) return;
     throw new ForbiddenError("Solo puedes consultar tu propia información de acudiente");
   }
 
@@ -159,16 +163,18 @@ export class AccessPolicy {
     return this.has(principal, ROLES.workshopLeader);
   }
 
-  private professionalIdOf(principal: Principal): bigint {
-    const id = principal.links.professionalId;
+  private async professionalIdOf(principal: Principal): Promise<bigint> {
+    const id = (await this.links.resolve(principal)).professionalId;
     if (id === undefined) {
-      throw new ForbiddenError("Tu usuario no está enlazado con un tallerista del módulo administrativo (falta professionalId en el token)");
+      throw new ForbiddenError(
+        "Tu cuenta no está enlazada con un tallerista en el módulo administrativo: regístrate o enlázate primero (POST /staff/register de Saga)",
+      );
     }
     return id;
   }
 
-  private assertOwnWorkshop(principal: Principal, evaluatorId: bigint): void {
-    if (this.professionalIdOf(principal) !== evaluatorId) {
+  private async assertOwnWorkshop(principal: Principal, evaluatorId: bigint): Promise<void> {
+    if ((await this.professionalIdOf(principal)) !== evaluatorId) {
       throw new ForbiddenError("Solo puedes gestionar tus propios talleres");
     }
   }
@@ -177,7 +183,7 @@ export class AccessPolicy {
   private async ownStudentIds(principal: Principal): Promise<bigint[]> {
     const ids: bigint[] = [];
     let linked = false;
-    const { childId, guardianId } = principal.links;
+    const { childId, guardianId } = await this.links.resolve(principal);
     if (this.has(principal, ROLES.student) && childId !== undefined) {
       linked = true;
       ids.push(childId);
@@ -187,7 +193,9 @@ export class AccessPolicy {
       for (const link of await this.childGuardians.findByGuardian(guardianId, true)) ids.push(link.childId);
     }
     if (!linked) {
-      throw new ForbiddenError("Tu usuario no está enlazado con un joven o acudiente del módulo administrativo (falta childId o guardianId en el token)");
+      throw new ForbiddenError(
+        "Tu cuenta no está enlazada con un joven o acudiente en el módulo administrativo: regístrate o enlázate primero (POST /children/register o /guardians/register de Saga)",
+      );
     }
     return ids;
   }

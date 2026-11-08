@@ -96,10 +96,10 @@ Todo cambio de datos propios empieza en el SQL y baja en ese orden. Las tablas d
 - **Esquemas de entrada (nivel 1): Zod** en todas las features ([ADR-001](docs/decisiones/ADR-001-zod-esquemas-de-entrada.md)). No escribir validaciones de forma a mano en los servicios: van en los esquemas.
 - **`profiles` y `access`** usan la propuesta de VALIDACIONES.md §4 (tablas del script de login). Está pendiente revisarla con el usuario.
 - **Seguridad ([ADR-008](docs/decisiones/ADR-008-seguridad-por-roles.md)):** el servicio de seguridad emite el login, las sesiones y los roles (JWT con `sub` y `roles`, el mismo token de Saga). **Nosotros protegemos nuestras rutas por rol:**
-  - Verificación con el puerto `TokenVerifier`: JWT local con `AUTH_JWT_SECRET`, o su endpoint de perfil si no está.
+  - Verificación **local** del JWT (HS256) con el secreto compartido `JWT_SECRET`, por el puerto `TokenVerifier`. Es el contrato común de todos los backends: no se consulta el servidor de seguridad en cada petición. Sin el secreto la API no arranca en producción.
   - Roles válidos: `ADMIN` (todo), `TALLERISTA`, `ESTUDIANTE`, `ACUDIENTE`, `DONANTE` (`src/auth/domain/roles.ts`).
   - Qué rol entra a cada ruta: **solo** en `src/shared/http/route-permissions.ts` (matriz, middleware `authorize`). Toda ruta protegida nueva va ahí; `docs:requests` falla si falta.
-  - A qué registros ("lo suyo": sus talleres, su joven): `AccessPolicy` (`src/auth/application/access-policy.ts`), que las rutas llaman antes del servicio. Usa los ids de Saga del token (`professionalId`, `childId`, `guardianId`; formato por confirmar con seguridad).
+  - A qué registros ("lo suyo": sus talleres, su joven): `AccessPolicy` (`src/auth/application/access-policy.ts`), que las rutas llaman antes del servicio. Sabe a quién de Saga corresponde el usuario con `ActorLinksService`: Saga guarda el `sub` en `security_user_id` de `staff`, `children` y `guardians` cuando el usuario se registra o enlaza (`POST /staff|children|guardians/register` de Saga).
   - El token del usuario se reenvía a Saga (contexto de la petición).
   - La propiedad de `perfiles`/`roles`/`usuario_roles` sigue por acordar; hoy no participan en la autenticación.
 - **Provisional, pendiente de confirmar:**

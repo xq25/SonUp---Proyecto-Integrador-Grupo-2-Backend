@@ -18,6 +18,7 @@ export const childSelect = {
   exitDate: true,
   statusId: true,
   notes: true,
+  securityUserId: true,
 } satisfies Prisma.ChildSelect;
 
 type ChildRow = Prisma.ChildGetPayload<{ select: typeof childSelect }>;
@@ -40,6 +41,7 @@ export const toChild = (row: ChildRow): Child => ({
   statusId: code(row.statusId),
   statusName: null,
   notes: row.notes,
+  securityUserId: row.securityUserId,
 });
 
 export class PrismaChildReader implements ChildReader {
@@ -53,6 +55,11 @@ export class PrismaChildReader implements ChildReader {
   async findByDocumentNumber(documentNumber: string): Promise<Child | null> {
     // findFirst: el diagrama no marca el documento como único.
     const row = await this.prisma.child.findFirst({ where: { documentNumber }, select: childSelect });
+    return row && toChild(row);
+  }
+
+  async findBySecurityUserId(securityUserId: string): Promise<Child | null> {
+    const row = await this.prisma.child.findFirst({ where: { securityUserId }, select: childSelect });
     return row && toChild(row);
   }
 

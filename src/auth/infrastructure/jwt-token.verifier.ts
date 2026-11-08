@@ -1,59 +1,57 @@
 import { jwtVerify } from "jose";
-import { UnauthorizedError } from "../../shared/domain/errors.js";
-import { linksFromClaims } from "../domain/actor-links.js";
+import { ExternalServiceError, UnauthorizedError } from "../../shared/domain/errors.js";
 import type { Principal } from "../domain/principal.entity.js";
 import type { TokenVerifier } from "../domain/token-verifier.js";
 
-// Verificación local del JWT del servicio de seguridad (ADR-008): firma HS256
-// con el secreto compartido, vencimiento y, si se configuran, emisor y audiencia.
-// Formato observado: { "roles": ["ADMIN"], "sub": "20", "iat": …, "exp": … }.
-// Si trae el id del usuario en Saga (professionalId, childId, guardianId), se usa para "lo suyo".
+// Verificación local del JWT del servicio de seguridad (ADR-008), según su
+// contrato común a todos los backends del proyecto:
+// - HS256 con el secreto compartido `JWT_SECRET` (el mismo en el emisor y en
+//   cada backend consumidor). Nunca se registra en logs.
+// - Se verifica la firma (no solo se decodifica), `exp` y, si viene, `nbf`.
+// - `sub` (texto, id estable del usuario) y `roles` (lista de textos) deben
+//   tener esos tipos; si no, el token se rechaza (401).
+// No se consulta el servidor de seguridad en cada petición.
 
-export interface JwtVerifierConfig {
-  secret: string;
-  issuer: string | undefined;
-  audience: string | undefined;
+/** Secreto compartido (`JWT_SECRET`), o null si no está configurado. */
+export function jwtSecretFromEnv(env: NodeJS.ProcessEnv = process.env): string | null {
+  const secret = env["JWT_SECRET"];
+  return secret && secret.trim() !== "" ? secret : null;
 }
 
-/** `null` si no hay `AUTH_JWT_SECRET`: entonces se usa el endpoint de perfil. */
-export function jwtVerifierConfigFromEnv(env: NodeJS.ProcessEnv = process.env): JwtVerifierConfig | null {
-  const secret = env["AUTH_JWT_SECRET"];
-  if (!secret) return null;
-  return {
-    secret,
-    issuer: env["AUTH_JWT_ISSUER"]?.trim() || undefined,
-    audience: env["AUTH_JWT_AUDIENCE"]?.trim() || undefined,
-  };
-}
-
-/** Roles del token: `roles` (lista) o `role`/`rol` (texto), en mayúsculas y sin repetir. */
-export const rolesFromClaims = (claims: Record<string, unknown>): string[] => {
-  const value = claims["roles"] ?? claims["role"] ?? claims["rol"];
-  const list = Array.isArray(value) ? value : value === undefined || value === null ? [] : [value];
-  return [...new Set(list.filter((role): role is string => typeof role === "string" && role.trim() !== "").map((role) => role.trim().toUpperCase()))];
-};
+const invalid = () => new UnauthorizedError("Token inválido o vencido: inicia sesión de nuevo");
 
 export class JwtTokenVerifier implements TokenVerifier {
   private readonly key: Uint8Array;
 
-  constructor(private readonly config: JwtVerifierConfig) {
-    this.key = new TextEncoder().encode(config.secret);
+  constructor(secret: string) {
+    this.key = new TextEncoder().encode(secret);
   }
 
   async verify(token: string): Promise<Principal> {
     let payload: Record<string, unknown>;
     try {
-      ({ payload } = await jwtVerify(token, this.key, {
-        algorithms: ["HS256"],
-        ...(this.config.issuer ? { issuer: this.config.issuer } : {}),
-        ...(this.config.audience ? { audience: this.config.audience } : {}),
-      }));
+      ({ payload } = await jwtVerify(token, this.key, { algorithms: ["HS256"] }));
     } catch {
-      throw new UnauthorizedError("Token inválido o vencido: inicia sesión de nuevo");
+      throw invalid();
     }
-    const sub = payload["sub"];
-    const userId = typeof sub === "string" || typeof sub === "number" ? String(sub) : "";
-    if (userId === "") throw new UnauthorizedError("El token no identifica al usuario (sub)");
-    return { userId, roles: rolesFromClaims(payload), links: linksFromClaims(payload) };
+    const { sub, roles } = payload;
+    if (typeof sub !== "string" || sub.trim() === "") throw invalid();
+    if (!Array.isArray(roles) || !roles.every((role) => typeof role === "string")) throw invalid();
+    return {
+      userId: sub.trim(),
+      roles: [...new Set(roles.map((role) => role.trim().toUpperCase()).filter(Boolean))],
+      links: {},
+    };
+  }
+}
+
+/**
+ * Sin `JWT_SECRET` (solo fuera de producción): la API arranca para probar con
+ * las cabeceras de desarrollo, pero todo token se rechaza con un error de
+ * configuración (503), nunca se acepta sin verificar.
+ */
+export class UnconfiguredTokenVerifier implements TokenVerifier {
+  async verify(): Promise<Principal> {
+    throw new ExternalServiceError("La verificación de tokens no está configurada (falta JWT_SECRET)", "not_configured");
   }
 }

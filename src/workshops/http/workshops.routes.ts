@@ -19,7 +19,7 @@ export function createWorkshopsRouter({ workshops, access }: { workshops: Worksh
   const router = Router();
 
   router.get("/workshops", async (req, res) => {
-    res.json(await workshops.list(access.workshopFilter(principalOf(res), readQuery(listQuery, req))));
+    res.json(await workshops.list(await access.workshopFilter(principalOf(res), readQuery(listQuery, req))));
   });
   router.get("/workshops/:id", async (req, res) => {
     const { id } = readParams(idParams, req);
@@ -27,7 +27,7 @@ export function createWorkshopsRouter({ workshops, access }: { workshops: Worksh
     res.json(await workshops.get(id));
   });
   router.post("/workshops", async (req, res) => {
-    access.assertCanCreateWorkshop(principalOf(res), req.body);
+    await access.assertCanCreateWorkshop(principalOf(res), req.body);
     res.status(201).json(await workshops.create(req.body, actorOf(res)));
   });
   /** Edita datos (solo `planned`) o cambia el estado (ciclo de vida). */

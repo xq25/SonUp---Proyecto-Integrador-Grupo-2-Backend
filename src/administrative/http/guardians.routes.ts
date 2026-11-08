@@ -16,13 +16,13 @@ export function createGuardiansRouter({ guardians, access }: { guardians: Guardi
   });
   router.get("/guardians/:id", async (req, res) => {
     const { id } = readParams(idParams, req);
-    access.assertCanReadGuardian(principalOf(res), id);
+    await access.assertCanReadGuardian(principalOf(res), id);
     res.json(await guardians.get(id));
   });
   router.get("/guardians/:id/children", async (req, res) => {
     const { activeOnly } = readQuery(activeOnlyQuery, req);
     const { id } = readParams(idParams, req);
-    access.assertCanReadGuardian(principalOf(res), id);
+    await access.assertCanReadGuardian(principalOf(res), id);
     res.json(await guardians.getChildren(id, activeOnly ?? true));
   });
 

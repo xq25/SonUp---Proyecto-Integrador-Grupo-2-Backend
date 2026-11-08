@@ -17,6 +17,8 @@ export interface Staff {
   statusId: string | null;
   phone: string | null;
   email: string | null;
+  /** `sub` de la cuenta del servicio de seguridad enlazada (Saga `security_user_id`); null si no tiene cuenta. */
+  securityUserId: string | null;
 }
 
 export interface StaffFilter {

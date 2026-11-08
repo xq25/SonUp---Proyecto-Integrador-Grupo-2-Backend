@@ -25,6 +25,8 @@ export interface Child {
    * módulo administrativo). Dato sensible: mostrarlo solo a quien corresponda.
    */
   notes: string | null;
+  /** `sub` de la cuenta del servicio de seguridad enlazada (Saga `security_user_id`); null si no tiene cuenta. */
+  securityUserId: string | null;
 }
 
 export interface ChildFilter {

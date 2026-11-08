@@ -73,9 +73,8 @@
 | `DB_CHECK_ACTOR` | Opcional: UUID de un usuario de Supabase Auth que `db:check` verifica (el `actor` de las pruebas) |
 | `PORT` | Puerto de la API (por defecto 3000) |
 | `NODE_ENV` | `production` desactiva las cabeceras `X-Actor-Id`/`X-Actor-Roles`. **Obligatorio al desplegar** |
-| `AUTH_JWT_SECRET` | Secreto HS256 del servicio de seguridad ([ADR-008](decisiones/ADR-008-seguridad-por-roles.md)): con él se verifica el JWT localmente. **Sin él** se verifica con su endpoint de perfil (`RENDER_PROFILE_PATH`) |
-| `AUTH_JWT_ISSUER` / `AUTH_JWT_AUDIENCE` | Opcionales: emisor y audiencia esperados del JWT |
-| `AUTH_PROFILE_CACHE_SECONDS` | Segundos que se reutiliza la respuesta del endpoint de perfil (por defecto 60) |
+| `JWT_SECRET` | Secreto HS256 compartido con el servicio de seguridad ([ADR-008](decisiones/ADR-008-seguridad-por-roles.md)): con él se verifica cada JWT localmente. **Obligatorio en producción** (sin él la API no arranca). Se pide por un canal seguro y nunca va al repositorio |
+| `AUTH_LINK_CACHE_SECONDS` | Segundos que se reutiliza el enlace usuario ↔ persona de Saga (por defecto 300) |
 | `CORS_ORIGIN` | Opcional: orígenes permitidos separados por comas (sin ella, cualquiera) |
 | `PUBLIC_URL` | Opcional: URL pública del despliegue, sin el prefijo. Agrega ese servidor en Swagger |
 | `RENDER_API_URL` | URL base del servicio de autenticación del módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)). Sin ella, `/auth/*` responde 503 |
@@ -433,7 +432,8 @@ await app.evaluations.evaluate(
 - [x] Capa de entrada HTTP: Express 5 bajo `/api`, actor del JWT de Supabase ([ADR-002](decisiones/ADR-002-capa-http-express.md)).
 - [x] Autenticación del front a través de nuestra API: `/auth/register`, `/auth/login`, `/auth/profile` remiten al módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)).
 - [x] Seguridad de nuestras rutas con el token y los roles del servicio de seguridad ([ADR-008](decisiones/ADR-008-seguridad-por-roles.md)): verificación JWT/endpoint, matriz de roles, token reenviado a Saga, actor = `sub` (texto).
-- [ ] Confirmar con el servicio de seguridad: secreto del JWT o endpoint, y que el token incluya el id en Saga del usuario (`professionalId`, `childId`, `guardianId`) para "lo suyo".
+- [x] Contrato con el servicio de seguridad (2026-11-08): JWT HS256 verificado localmente con `JWT_SECRET`; enlace usuario ↔ persona por `security_user_id` de Saga.
+- [ ] Recibir `JWT_SECRET` por un canal seguro y configurarlo en Render.
 - [ ] BD de pruebas: ejecutar `database/migraciones/2026-11-08-auditoria-actor-texto.sql`.
 - [ ] Revisar con el equipo la matriz de `src/shared/http/route-permissions.ts`.
 - [ ] Pedir al módulo administrativo ejemplos de respuesta exitosa (registro, login, perfil) y una excepción del límite de intentos para nuestra IP.

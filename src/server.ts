@@ -13,8 +13,8 @@ if (process.env["NODE_ENV"] !== "production") {
 // Verificación de tokens (ADR-008).
 console.log(
   container.authMode === "jwt"
-    ? "✔ Tokens: JWT verificado con AUTH_JWT_SECRET"
-    : "✔ Tokens: se verifican con el endpoint de perfil del servicio de seguridad (sin AUTH_JWT_SECRET)",
+    ? "✔ Tokens: JWT verificado localmente con JWT_SECRET"
+    : "⚠ Tokens: falta JWT_SECRET; solo funcionan las cabeceras de desarrollo (X-Actor-*)",
 );
 // Fuente de los datos del módulo administrativo (ADR-007).
 console.log(

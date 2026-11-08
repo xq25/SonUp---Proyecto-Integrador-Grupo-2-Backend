@@ -32,8 +32,8 @@ import { AuthService } from "./auth/application/auth.service.js";
 import { ServiceSession } from "./auth/application/service-session.js";
 import type { AuthGateway } from "./auth/domain/auth.gateway.js";
 import type { TokenVerifier } from "./auth/domain/token-verifier.js";
-import { JwtTokenVerifier, jwtVerifierConfigFromEnv } from "./auth/infrastructure/jwt-token.verifier.js";
-import { profileCacheSecondsFromEnv, RemoteTokenVerifier } from "./auth/infrastructure/remote-token.verifier.js";
+import { ActorLinksService } from "./auth/application/actor-links.service.js";
+import { JwtTokenVerifier, jwtSecretFromEnv, UnconfiguredTokenVerifier } from "./auth/infrastructure/jwt-token.verifier.js";
 import {
   administrativeAuthConfigFromEnv,
   HttpAdministrativeAuthGateway,
@@ -97,13 +97,23 @@ function createAdministrativeReaders(prisma: PrismaClient, authGateway: AuthGate
 }
 
 /**
- * Verificación del token del servicio de seguridad (ADR-008): con `AUTH_JWT_SECRET`
- * se verifica el JWT localmente; sin él, se consulta el endpoint de perfil.
+ * Verificación local del token del servicio de seguridad con `JWT_SECRET` (ADR-008).
+ * En producción el secreto es obligatorio: sin él la API no arranca.
  */
-function createTokenVerifier(authGateway: AuthGateway): { mode: "jwt" | "endpoint"; verifier: TokenVerifier } {
-  const jwt = jwtVerifierConfigFromEnv();
-  if (jwt) return { mode: "jwt", verifier: new JwtTokenVerifier(jwt) };
-  return { mode: "endpoint", verifier: new RemoteTokenVerifier(authGateway, profileCacheSecondsFromEnv()) };
+function createTokenVerifier(env: NodeJS.ProcessEnv = process.env): { mode: "jwt" | "sin-secreto"; verifier: TokenVerifier } {
+  const secret = jwtSecretFromEnv(env);
+  if (secret) return { mode: "jwt", verifier: new JwtTokenVerifier(secret) };
+  if (env["NODE_ENV"] === "production") {
+    throw new Error("Falta JWT_SECRET: es obligatorio en producción para verificar los tokens del servicio de seguridad");
+  }
+  return { mode: "sin-secreto", verifier: new UnconfiguredTokenVerifier() };
+}
+
+/** Segundos que se reutiliza el enlace usuario ↔ persona de Saga (`AUTH_LINK_CACHE_SECONDS`, por defecto 300). */
+function linkCacheSecondsFromEnv(env: NodeJS.ProcessEnv = process.env): number {
+  const raw = env["AUTH_LINK_CACHE_SECONDS"];
+  const seconds = Number(raw);
+  return raw !== undefined && raw.trim() !== "" && Number.isFinite(seconds) && seconds >= 0 ? seconds : 300;
 }
 
 export function createContainer(prisma: PrismaClient = createPrismaClient()) {
@@ -112,7 +122,7 @@ export function createContainer(prisma: PrismaClient = createPrismaClient()) {
   // Lectores del módulo administrativo (solo lectura).
   const administrative = createAdministrativeReaders(prisma, authGateway);
   // Quién hace cada petición y con qué roles.
-  const tokens = createTokenVerifier(authGateway);
+  const tokens = createTokenVerifier();
   const childReader = administrative.children;
   const childGuardianReader = administrative.childGuardians;
   const professionalReader = administrative.professionals;
@@ -140,7 +150,7 @@ export function createContainer(prisma: PrismaClient = createPrismaClient()) {
     prisma,
     /** De dónde se leen los datos del módulo administrativo: `saga` o `bd-simulada`. */
     administrativeSource: administrative.source,
-    /** Cómo se verifican los tokens: `jwt` (secreto) o `endpoint` (perfil del servicio de seguridad). */
+    /** Verificación de tokens: `jwt` (con JWT_SECRET) o `sin-secreto` (solo desarrollo: todo token se rechaza). */
     authMode: tokens.mode,
     tokenVerifier: tokens.verifier,
     /** A qué registros accede cada usuario dentro de las rutas que su rol permite (ADR-008). */
@@ -150,6 +160,14 @@ export function createContainer(prisma: PrismaClient = createPrismaClient()) {
       childGuardianReader,
       credentialRepository,
       studentEvidenceRepository,
+      // Enlace usuario ↔ persona de Saga (`security_user_id` = `sub`).
+      new ActorLinksService(
+        administrative.staff,
+        professionalReader,
+        childReader,
+        administrative.guardians,
+        linkCacheSecondsFromEnv(),
+      ),
     ),
     // Autenticación delegada al módulo administrativo (ADR-003)
     auth: new AuthService(authGateway),

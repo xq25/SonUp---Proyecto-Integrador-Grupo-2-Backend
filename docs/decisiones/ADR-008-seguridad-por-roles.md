@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Estado** | Aceptada. Pendiente: cómo llega en el token a quién de Saga corresponde el usuario (§2.6) |
+| **Estado** | Aceptada. Ajustada el 2026-11-08 al contrato común del servicio de seguridad (§2.1 y §2.6) |
 | **Fecha** | 2026-11-08 |
 | **Decidió** | Equipo del módulo, de acuerdo con el equipo de seguridad |
 | **Dependencias** | Ninguna nueva: `jose` (ya instalado) y `node:async_hooks` |
@@ -12,19 +12,24 @@
 
 - **Las sesiones son del servicio de seguridad.** El login (`/auth/login`) entrega un **JWT HS256** con el usuario y sus roles, por ejemplo `{ "roles": ["ADMIN"], "sub": "20", "exp": … }`, que dura 8 horas. **Es el mismo token que usa Saga.**
 - **Ellos entregan los roles, nosotros protegemos.** El equipo de seguridad nos da los roles de cada usuario y **este módulo protege sus propias rutas** según esos roles. Esto reemplaza lo anotado antes: «la autorización la gestiona el equipo de seguridad».
-- **Falta definir cómo verificar el token.** Puede ser con el secreto del JWT o consultando su endpoint de perfil.
+- **Contrato común del servicio de seguridad (2026-11-08)**, igual para todos los backends del proyecto:
+  - cada backend verifica el JWT **localmente** con el secreto compartido `JWT_SECRET`, sin consultar al servidor de seguridad en cada petición;
+  - el token trae `sub` (texto, id estable del usuario), `roles` (lista de textos), `iat`, `exp` y, si se usa, `nbf`;
+  - 401 ante token inválido o vencido, 403 ante rol insuficiente, y error de configuración si falta el secreto.
+- **El enlace usuario ↔ persona lo guarda Saga:** cada usuario se registra o enlaza con `POST /staff/register` (TALLERISTA), `POST /children/register` (ESTUDIANTE) o `POST /guardians/register` (ACUDIENTE), usando su propio JWT. Saga guarda el `sub` en `security_user_id` de `staff`, `children` o `guardians`.
 - **Nuestra API autenticaba con otra cosa:** JWT de Supabase o `X-Actor-Id`. El actor de la auditoría era un `uuid` de `perfiles`, que no corresponde a los usuarios del servicio de seguridad.
 
 ## 2. Decisión
 
-### 2.1 Verificación del token: puerto `TokenVerifier`, dos adaptadores
+### 2.1 Verificación del token: local, con `JWT_SECRET`
 
-| Adaptador | Cuándo | Cómo |
-|---|---|---|
-| `JwtTokenVerifier` | Con `AUTH_JWT_SECRET` | Verifica localmente la firma HS256 y el vencimiento, y el emisor y la audiencia si se configuran (`AUTH_JWT_ISSUER`, `AUTH_JWT_AUDIENCE`). Lee `sub` y `roles` |
-| `RemoteTokenVerifier` | Sin `AUTH_JWT_SECRET` | Consulta el endpoint de perfil del servicio de seguridad (`RENDER_PROFILE_PATH`) con el token, y guarda la respuesta `AUTH_PROFILE_CACHE_SECONDS` segundos (60 por defecto) |
-
-`src/container.ts` elige el adaptador, y el arranque lo indica en el log. Ambos devuelven un `Principal { userId, roles }`.
+- **`JwtTokenVerifier`** (puerto `TokenVerifier`) verifica con `jose` la firma (**solo `HS256`**), `exp` y `nbf`. No se limita a decodificar.
+- **Tipos estrictos:** `sub` debe ser texto no vacío y `roles` una lista de textos. Si no, responde 401. Los roles se normalizan a mayúsculas.
+- **Sin `JWT_SECRET`:**
+  - **En producción**, la API no arranca: falla en `createContainer`.
+  - **Fuera de producción**, arranca para probar con las cabeceras de desarrollo, pero todo token se rechaza con 503 («falta JWT_SECRET»). Nunca se acepta un token sin verificar.
+- **No se consulta `/auth/perfil` en cada petición.** Ese endpoint solo lo usa nuestra ruta pública `GET /auth/profile` (ADR-003).
+- **El secreto nunca se registra en logs** ni va al repositorio, al front o a la documentación. Si el equipo de seguridad lo rota, solo hay que actualizar la variable.
 
 ### 2.2 Autenticación (`src/shared/http/authenticate.ts`)
 
@@ -71,20 +76,27 @@
 
 ### 2.6 "Lo suyo": `AccessPolicy`
 
-- **El rol dice qué tipo de usuario es, no cuál.** Para limitar a un tallerista a sus talleres, o a un joven a lo suyo, hace falta saber a quién de Saga corresponde: su `professional_id`, `child_id` o `guardian_id`. Saga no tiene ese vínculo: `children` y `guardians` no tienen usuario ni email.
-- **Por eso el `Principal` trae `links`** (`professionalId`, `childId`, `guardianId`), leídos de claims del token. Se aceptan varios nombres mientras el servicio de seguridad confirma el suyo (`src/auth/domain/actor-links.ts`). Con el endpoint de perfil todavía no se leen.
+- **El rol dice qué tipo de usuario es, no cuál.** Para limitar a un tallerista a sus talleres, o a un joven a lo suyo, hace falta saber a quién de Saga corresponde: su `professional_id`, `child_id` o `guardian_id`.
+- **El enlace sale de Saga, no del token.** `ActorLinksService` (puerto `ActorLinksResolver`) busca el `sub` en `security_user_id`:
+  - **TALLERISTA:** `staff` → su `professional` (por `staff_id`) → `professionalId`.
+  - **ESTUDIANTE:** `children` → `childId`.
+  - **ACUDIENTE:** `guardians` → `guardianId`.
+- **Cómo se busca:** Saga no filtra por ese campo, así que se recorre el listado con el token del usuario. Los enlaces encontrados se guardan `AUTH_LINK_CACHE_SECONDS` segundos (300 por defecto). Los no encontrados no se guardan, para que un usuario recién enlazado no tenga que esperar.
+- **Solo se resuelve cuando hace falta:** en las rutas de "lo suyo" y nunca para ADMIN.
+- **En desarrollo** las cabeceras `X-Actor-Professional-Id`, `X-Actor-Child-Id` y `X-Actor-Guardian-Id` reemplazan la búsqueda (`src/auth/domain/actor-links.ts`).
 - **`AccessPolicy` (`src/auth/application/access-policy.ts`)** decide, dentro de cada ruta que el rol permite, a qué registros se accede:
   - **Tallerista:** lista solo sus talleres, crea talleres solo a su nombre (`evaluatorId`), y gestiona habilidades, asistencias y evaluaciones solo en sus talleres.
   - **Joven:** lo suyo. **Acudiente:** lo de sus jóvenes con vínculo vigente (Saga `children-guardians`).
   - Ambos listan solo talleres `planned`/`active`, y ven el detalle de un taller si está disponible o si participaron en él.
-- **Sin enlace en el token** se responde **403** («tu usuario no está enlazado…»). Si el registro no existe, se deja seguir y el servicio responde 404.
+- **Sin enlace en Saga** se responde **403** («tu cuenta no está enlazada…: regístrate o enlázate primero»). Si el registro no existe, se deja seguir y el servicio responde 404.
 - La llaman las rutas, antes del servicio. Las reglas de negocio (§3.6 de VALIDACIONES) siguen en los servicios.
 
 ## 3. Alternativas descartadas
 
 | Alternativa | Por qué no |
 |---|---|
-| Solo el secreto del JWT, o solo el endpoint | Todavía no está definido cuál entregará el equipo de seguridad. El puerto permite ambos sin rehacer nada |
+| Verificar con el endpoint de perfil del servicio de seguridad | El contrato común pide verificación local. El endpoint añadía una llamada de red, latencia y una caché que aceptaba tokens revocados. Se implementó y se retiró el 2026-11-08 |
+| Pedir el id de Saga como claim del token | El servicio de seguridad no lo emite: el enlace vive en Saga (`security_user_id`), que es dueña de las personas |
 | Decodificar el JWT sin verificar la firma | Cualquiera podría fabricarse un token con rol `ADMIN` |
 | Permisos dentro de cada router (`requireRoles` por ruta) | Quedarían repartidos en 20 archivos. Una sola matriz se revisa y se entrega más fácil, y el generador valida que esté completa |
 | Mantener el actor como `uuid` de `perfiles` | Exige enlazar cada usuario del servicio de seguridad con un perfil nuestro, y duplica cuentas |
@@ -94,9 +106,12 @@
 
 ## 4. Consecuencias y pendientes
 
-- **Pedir al servicio de seguridad** que el token incluya el id en Saga del usuario: `professionalId` (tallerista), `childId` (joven) y `guardianId` (acudiente). Sin él, talleristas, jóvenes y acudientes reciben 403 en las rutas de "lo suyo". Si usan otros nombres, se agregan en `actor-links.ts`.
-- **«Solo el tallerista del taller evalúa»** (VALIDACIONES §3.9) queda cubierto por `AccessPolicy` una vez llegue el enlace.
-- **Caché del endpoint:** un token revocado puede seguir aceptándose hasta `AUTH_PROFILE_CACHE_SECONDS`.
+- **`JWT_SECRET`:** se recibe por un canal seguro y se configura en Render. Sin él, producción no arranca.
+- **Cada usuario debe enlazarse en Saga** (`POST /…/register` con su propio JWT) antes de usar las rutas de "lo suyo". Ese paso lo hace el front contra Saga: este módulo no escribe en Saga.
+- **«Solo el tallerista del taller evalúa»** (VALIDACIONES §3.9) queda cubierto por `AccessPolicy`.
+- **Tokens revocados:** como la verificación es local, un token sigue siendo válido hasta su `exp` (8 h). Es lo que define el contrato común.
+- **Un enlace cambiado en Saga** (por ejemplo, un tallerista enlazado a otro registro) tarda hasta `AUTH_LINK_CACHE_SECONDS` en verse.
+- **Si Saga restringe en el futuro la lectura de listados por rol,** la búsqueda del enlace con el token del usuario podría fallar. En ese caso hará falta un endpoint de Saga tipo `/me`, o usar el usuario de servicio.
 - **BD de pruebas:** hay que ejecutar la migración de auditoría antes de usar tokens cuyo `sub` no es UUID.
 - **`perfiles`, `roles`, `usuario_roles` y `aplicaciones`** quedan sin uso para la autenticación y solo para `ADMIN`. Hay que decidir si se retiran.
 - **El front** debe enviar `Authorization: Bearer <token del login>` en cada petición y manejar 401 (sesión vencida) y 403 (sin permiso).

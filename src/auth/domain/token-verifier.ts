@@ -1,12 +1,9 @@
 import type { Principal } from "./principal.entity.js";
 
 /**
- * Puerto para verificar el token del servicio de seguridad y obtener el
- * usuario y sus roles (ADR-008). Dos adaptadores, elegidos por `.env` en
- * `src/container.ts`: verificación local del JWT (con el secreto) o consulta
- * al endpoint de perfil del servicio.
- *
- * Lanza UnauthorizedError si el token es inválido o venció.
+ * Puerto: verifica el token del servicio de seguridad y devuelve quién es el
+ * usuario (`sub`) y sus roles (ADR-008). La implementación verifica el JWT
+ * localmente con el secreto compartido `JWT_SECRET`.
  */
 export interface TokenVerifier {
   verify(token: string): Promise<Principal>;

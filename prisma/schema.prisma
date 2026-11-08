@@ -357,6 +357,8 @@ model Child {
   statusId       Int?      @map("status_id") @db.SmallInt
   /// Anamnesis del joven (dato sensible).
   notes          String?
+  /// `sub` del token del servicio de seguridad enlazado a este registro (ADR-008).
+  securityUserId String?   @map("security_user_id")
 
   guardians ChildGuardian[]
 
@@ -373,6 +375,8 @@ model Guardian {
   phone          String?
   address        String?
   legalStatusId  String? @map("legal_status_id")
+  /// `sub` del token del servicio de seguridad enlazado a este registro (ADR-008).
+  securityUserId String? @map("security_user_id")
 
   children ChildGuardian[]
 
@@ -424,6 +428,8 @@ model Staff {
   email          String?
   hoursWorked    Decimal?  @map("hours_worked")
   hoursPayed     Decimal?  @map("hours_payed")
+  /// `sub` del token del servicio de seguridad enlazado a este registro (ADR-008).
+  securityUserId String?   @map("security_user_id")
 
   @@map("staff")
   @@schema("administrativo")
