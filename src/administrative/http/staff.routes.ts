@@ -1,6 +1,7 @@
 import { Router } from "express";
+import type { AccessPolicy } from "../../auth/application/access-policy.js";
 import { z } from "zod";
-import { idParams, readParams, readQuery, searchQuery } from "../../shared/http/request.js";
+import { idParams, principalOf, readParams, readQuery, searchQuery } from "../../shared/http/request.js";
 import type { StaffService } from "../application/staff.service.js";
 
 // Personal del módulo administrativo (solo lectura): administrativos y talleristas.
@@ -12,14 +13,16 @@ const staffQuery = z.strictObject({
   search: searchQuery.exactOptional(),
 });
 
-export function createStaffRouter({ staff }: { staff: StaffService }): Router {
+export function createStaffRouter({ staff, access }: { staff: StaffService; access: AccessPolicy }): Router {
   const router = Router();
 
   router.get("/staff", async (req, res) => {
     res.json(await staff.list(readQuery(staffQuery, req)));
   });
   router.get("/staff/:id", async (req, res) => {
-    res.json(await staff.get(readParams(idParams, req).id));
+    const { id } = readParams(idParams, req);
+    await access.assertCanReadStaff(principalOf(res), id);
+    res.json(await staff.get(id));
   });
 
   return router;

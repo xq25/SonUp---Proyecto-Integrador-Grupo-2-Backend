@@ -10,6 +10,12 @@ const app = createApp(container);
 if (process.env["NODE_ENV"] !== "production") {
   console.warn("⚠ Modo desarrollo: se acepta la cabecera X-Actor-Id (nunca en producción).");
 }
+// Verificación de tokens (ADR-008).
+console.log(
+  container.authMode === "jwt"
+    ? "✔ Tokens: JWT verificado localmente con JWT_SECRET"
+    : "⚠ Tokens: falta JWT_SECRET; solo funcionan las cabeceras de desarrollo (X-Actor-*)",
+);
 // Fuente de los datos del módulo administrativo (ADR-007).
 console.log(
   container.administrativeSource === "saga"

@@ -26,7 +26,7 @@ Módulo de servicio de un proyecto general. Consume una **base de datos general 
   - No se agregan a nuestro SQL ni se les crean FKs: nuestras columnas que los referencian (`student_id` → `children`, `evaluator_id` → `professionals`) son `bigint` sin FK física ni relación Prisma. Los servicios validan su existencia con los `*Reader`.
   - Del módulo administrativo (Saga) solo se consumen `children`, `guardians`, `children_guardians`, `professionals` y `staff` (feature `src/administrative/`).
 - **Actores:** estudiante (`children`), acudiente (`guardians`), tallerista (`professionals`) y administrativo.
-  - **No se usa `profile_id`** para enlazar actores con cuentas (decisión de diseño). `perfiles` solo identifica al `actor` que audita las operaciones.
+  - **No se usa `profile_id`** para enlazar actores con cuentas (decisión de diseño). El `actor` de la auditoría es el `sub` del token del servicio de seguridad, guardado como texto ([ADR-008](docs/decisiones/ADR-008-seguridad-por-roles.md)).
   - Los administrativos son personal (`staff`) de Saga y se consumen en **solo lectura** (`GET /staff`, [ADR-006](docs/decisiones/ADR-006-administrativos-desde-saga.md)). No tenemos tabla propia de administrativos.
 - **Inversión de dependencias, arquitectura por features:**
   - `domain` no importa nada externo.
@@ -75,7 +75,7 @@ Todo cambio de datos propios empieza en el SQL y baja en ese orden. Las tablas d
 ## Comandos
 
 - `npm run typecheck`: correr después de cada cambio de código.
-- `npm run dev`: arranca la API en `http://localhost:3000/api` (recarga al guardar). Autenticación: JWT de Supabase o, solo fuera de producción, `X-Actor-Id`. **En producción `NODE_ENV=production` es obligatorio.**
+- `npm run dev`: arranca la API en `http://localhost:3000/api` (recarga al guardar). Autenticación: `Authorization: Bearer <token del login>` (el de Saga) o, solo fuera de producción, `X-Actor-Id` + `X-Actor-Roles`. **En producción `NODE_ENV=production` es obligatorio.**
 - `npm run db:check`: verifica la conexión y el estado de la BD de `.env` (solo lectura).
 - `npm run db:seed:dev`: datos de prueba en la BD de pruebas, vía servicios. Es idempotente y se niega a correr sin el simulado del administrativo.
 - `npm run docs:requests`: regenera `docs/api/CUERPOS_DE_PETICION.md`, la colección `docs/api/postman-coleccion.json` (con protecciones y pruebas), la colección libre `docs/api/postman-coleccion-libre.json` (sin protecciones, para probar a mano), `docs/api/postman-casos.json` y `src/docs/api-routes.yaml` (Swagger UI en `/api-docs`, [ADR-005](docs/decisiones/ADR-005-swagger-desde-el-catalogo.md)). **Al cambiar un esquema Zod o una ruta, actualiza `scripts/request-catalog.ts` y regenera**; el script falla si los ejemplos no coinciden con los esquemas o las rutas con Express.
@@ -92,10 +92,16 @@ Todo cambio de datos propios empieza en el SQL y baja en ese orden. Las tablas d
 - El modelo se rehízo según el diagrama del módulo (Talleres, Habilidades, Evidencias). Compila y está probado en PGlite.
 - **Validaciones:** las 11 tablas del módulo están aprobadas e implementadas en `docs/VALIDACIONES.md` (✅). Respetarlas; cualquier cambio de regla se acuerda primero ahí.
 - **Capa HTTP: Express 5** bajo `/api` ([ADR-002](docs/decisiones/ADR-002-capa-http-express.md)). 81 rutas, probadas en PGlite y en la BD de pruebas de Supabase (HTTP de punta a punta y la colección de Postman).
-- **Autenticación (feature `src/auth/`, [ADR-003](docs/decisiones/ADR-003-autenticacion-modulo-administrativo.md)):** el login, los usuarios y los roles son del módulo administrativo (servicio en Render, URLs `RENDER_*` en `.env`). Nuestras rutas públicas `/auth/register`, `/auth/login` y `/auth/profile` los remiten por el puerto `AuthGateway` y devuelven nuestros DTOs; el formato de ellos solo lo conoce `administrative-auth.mapper.ts`. Las demás rutas aún autentican con JWT de Supabase o `X-Actor-Id`. Toda ruta nueva sigue yendo a `scripts/request-catalog.ts`.
+- **Autenticación (feature `src/auth/`, [ADR-003](docs/decisiones/ADR-003-autenticacion-modulo-administrativo.md)):** el login, los usuarios y los roles son del módulo administrativo (servicio en Render, URLs `RENDER_*` en `.env`). Nuestras rutas públicas `/auth/register`, `/auth/login` y `/auth/profile` los remiten por el puerto `AuthGateway` y devuelven nuestros DTOs; el formato de ellos solo lo conoce `administrative-auth.mapper.ts`. Las demás rutas exigen ese token (ver Seguridad). Toda ruta nueva sigue yendo a `scripts/request-catalog.ts`.
 - **Esquemas de entrada (nivel 1): Zod** en todas las features ([ADR-001](docs/decisiones/ADR-001-zod-esquemas-de-entrada.md)). No escribir validaciones de forma a mano en los servicios: van en los esquemas.
 - **`profiles` y `access`** usan la propuesta de VALIDACIONES.md §4 (tablas del script de login). Está pendiente revisarla con el usuario.
-- **Seguridad y autorización son de otro equipo** (seguridad e información personal): emiten el login (Supabase Auth) y gestionarán qué roles acceden a cada ruta. Nuestra API solo verifica el token y toma el `actor`; no implementar autorización por rol por nuestra cuenta. La propiedad de `perfiles`/`roles`/`usuario_roles` está por acordar con ellos.
+- **Seguridad ([ADR-008](docs/decisiones/ADR-008-seguridad-por-roles.md)):** el servicio de seguridad emite el login, las sesiones y los roles (JWT con `sub` y `roles`, el mismo token de Saga). **Nosotros protegemos nuestras rutas por rol:**
+  - Verificación **local** del JWT (HS256) con el secreto compartido `JWT_SECRET`, por el puerto `TokenVerifier`. Es el contrato común de todos los backends: no se consulta el servidor de seguridad en cada petición. Sin el secreto la API no arranca en producción.
+  - Roles válidos: `ADMIN` (todo), `TALLERISTA`, `ESTUDIANTE`, `ACUDIENTE`, `DONANTE` (`src/auth/domain/roles.ts`).
+  - Qué rol entra a cada ruta: **solo** en `src/shared/http/route-permissions.ts` (matriz, middleware `authorize`). Toda ruta protegida nueva va ahí; `docs:requests` falla si falta.
+  - A qué registros ("lo suyo": sus talleres, su joven): `AccessPolicy` (`src/auth/application/access-policy.ts`), que las rutas llaman antes del servicio. Sabe a quién de Saga corresponde el usuario con `ActorLinksService`: Saga guarda el `sub` en `security_user_id` de `staff`, `children` y `guardians` cuando el usuario se registra o enlaza (`POST /staff|children|guardians/register` de Saga).
+  - El token del usuario se reenvía a Saga (contexto de la petición).
+  - La propiedad de `perfiles`/`roles`/`usuario_roles` sigue por acordar; hoy no participan en la autenticación.
 - **Provisional, pendiente de confirmar:**
   - El nombre del esquema del módulo administrativo (`administrativo`).
   - Los valores de `role` y `status` de `staff` (Saga).

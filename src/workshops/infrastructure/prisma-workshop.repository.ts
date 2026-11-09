@@ -37,7 +37,7 @@ export class PrismaWorkshopRepository implements WorkshopRepository {
   async findMany(filter: WorkshopFilter = {}): Promise<Workshop[]> {
     const where: Prisma.WorkshopWhereInput = { ...deletedFilter(filter) };
     if (filter.evaluatorId !== undefined) where.evaluatorId = filter.evaluatorId;
-    if (filter.status !== undefined) where.status = filter.status;
+    if (filter.status !== undefined) where.status = Array.isArray(filter.status) ? { in: filter.status } : filter.status;
     if (filter.search) where.name = { contains: filter.search, mode: "insensitive" };
     const rows = await this.prisma.workshop.findMany({
       where,

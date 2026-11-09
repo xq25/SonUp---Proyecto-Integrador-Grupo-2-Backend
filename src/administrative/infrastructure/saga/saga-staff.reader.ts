@@ -19,6 +19,7 @@ const toStaff = (raw: unknown): Staff => {
     statusId: sagaText(row["staff_status_id"]),
     phone: sagaText(row["phone"]),
     email: sagaText(row["email"]),
+    securityUserId: sagaText(row["security_user_id"]),
   };
 };
 
@@ -37,5 +38,10 @@ export class SagaStaffReader implements StaffReader {
       .filter((member) => filter.statusId === undefined || member.statusId === filter.statusId)
       .filter((member) => matchesSearch(filter.search, member.fullName, member.documentNumber, member.email))
       .sort((a, b) => compareText(a.fullName, b.fullName));
+  }
+
+  /** Saga no filtra por `security_user_id`: se busca en el listado. */
+  async findBySecurityUserId(securityUserId: string): Promise<Staff | null> {
+    return (await this.saga.list("/staff")).map(toStaff).find((item) => item.securityUserId === securityUserId) ?? null;
   }
 }

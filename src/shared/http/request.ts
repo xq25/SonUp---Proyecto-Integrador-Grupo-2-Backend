@@ -2,6 +2,7 @@ import type { Request, Response } from "express";
 import { z } from "zod";
 import { idSchema, uuidSchema } from "../application/schemas.js";
 import { parseInput } from "../application/validation.js";
+import type { Principal } from "../../auth/domain/principal.entity.js";
 import type { ActorId } from "../domain/auditable.js";
 
 // Lectura de la parte de la petición que no es el cuerpo (ADR-002 §4):
@@ -18,7 +19,12 @@ export function readQuery<S extends z.ZodType>(schema: S, req: Request): z.outpu
   return parseInput(schema, req.query, "Parámetros de consulta");
 }
 
-/** Actor (perfil) autenticado; lo deja `authenticate` en `res.locals`. */
+/** Usuario autenticado (roles y enlaces con Saga); lo deja `authenticate` en `res.locals`. */
+export function principalOf(res: Response): Principal {
+  return res.locals["principal"] as Principal;
+}
+
+/** Actor (`sub` del token) autenticado; lo deja `authenticate` en `res.locals`. */
 export function actorOf(res: Response): ActorId {
   return res.locals["actor"] as ActorId;
 }

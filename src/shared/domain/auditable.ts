@@ -1,4 +1,4 @@
-/** Id del perfil (= auth.users.id) que ejecuta una operación. */
+/** Id del usuario que ejecuta una operación: el `sub` del token del servicio de seguridad (ADR-008). */
 export type ActorId = string;
 
 /**

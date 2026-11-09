@@ -17,6 +17,7 @@ export const toGuardian = (raw: unknown): Guardian => {
     address: sagaText(row["address"]),
     legalStatusId: sagaText(row["legal_status_id"]),
     legalStatusName: sagaCatalogName(row["legal_statuses"]),
+    securityUserId: sagaText(row["security_user_id"]),
   };
 };
 
@@ -32,6 +33,11 @@ export class SagaGuardianReader implements GuardianReader {
     return (await this.all())
       .filter((guardian) => matchesSearch(filter.search, guardian.fullName, guardian.documentNumber))
       .sort((a, b) => compareText(a.fullName, b.fullName));
+  }
+
+  async findBySecurityUserId(securityUserId: string): Promise<Guardian | null> {
+    // Saga no filtra por `security_user_id`: se busca en el listado.
+    return (await this.all()).find((guardian) => guardian.securityUserId === securityUserId) ?? null;
   }
 
   async all(): Promise<Guardian[]> {

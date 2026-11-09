@@ -44,7 +44,7 @@
 - **BD de pruebas:**
   - `database/dev/administrativo_simulado.sql` simula `staff`: talleristas 77–79 y administrativos 80–81, con valores de `role` y `status` inventados.
   - El seed ya no crea administrativos.
-  - La tabla `public.administrators` que ya existe en la BD de pruebas queda sin uso. Este cambio no la elimina: se retira a mano cuando el equipo lo decida.
+  - La tabla `public.administrators` de la BD de pruebas quedó sin uso. Se retiró el 2026-11-09 con `database/migraciones/2026-11-09-retirar-administrators.sql`.
 - **Pendiente con Saga:**
   - los valores de `role` y `status`;
   - la nulabilidad de las columnas;

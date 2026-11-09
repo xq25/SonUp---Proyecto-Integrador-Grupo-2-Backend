@@ -33,7 +33,8 @@ export interface UpdateWorkshopInput {
 
 export interface WorkshopFilter extends QueryOptions {
   evaluatorId?: bigint;
-  status?: WorkshopStatus;
+  /** Uno o varios estados. */
+  status?: WorkshopStatus | WorkshopStatus[];
   /** Busca en el nombre. */
   search?: string;
 }

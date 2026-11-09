@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type { AccessPolicy } from "../../auth/application/access-policy.js";
 import type { ChildrenService } from "../application/children.service.js";
 import type { GuardiansService } from "../application/guardians.service.js";
 import type { ProfessionalsService } from "../application/professionals.service.js";
@@ -10,6 +11,7 @@ import { createStaffRouter } from "./staff.routes.js";
 
 /** Catálogo de rutas del módulo: estudiantes, acudientes, talleristas y personal (solo lectura). */
 export function createAdministrativeCatalog(services: {
+  access: AccessPolicy;
   children: ChildrenService;
   guardians: GuardiansService;
   professionals: ProfessionalsService;

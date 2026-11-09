@@ -15,6 +15,7 @@ const staffSelect = {
   status: true,
   phone: true,
   email: true,
+  securityUserId: true,
 } satisfies Prisma.StaffSelect;
 
 type StaffRow = Prisma.StaffGetPayload<{ select: typeof staffSelect }>;
@@ -32,6 +33,11 @@ export class PrismaStaffReader implements StaffReader {
 
   async findById(id: bigint): Promise<Staff | null> {
     const row = await this.prisma.staff.findUnique({ where: { id }, select: staffSelect });
+    return row && toStaff(row);
+  }
+
+  async findBySecurityUserId(securityUserId: string): Promise<Staff | null> {
+    const row = await this.prisma.staff.findFirst({ where: { securityUserId }, select: staffSelect });
     return row && toStaff(row);
   }
 

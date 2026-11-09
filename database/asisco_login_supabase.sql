@@ -24,9 +24,10 @@
 -- =====================================================================
 
 -- 0. Auditoría y borrado lógico ----------------------------------------
--- *_por guarda el id del perfil (= auth.users.id) que hizo la operación.
--- Desde Supabase (PostgREST) se toma de auth.uid(); desde el backend
--- (Prisma, conexión sin JWT) el backend debe enviarlo explícitamente.
+-- *_por guarda el id del usuario que hizo la operación, como texto: el `sub`
+-- del token del servicio de seguridad (ADR-008). Desde Supabase (PostgREST)
+-- se toma de auth.uid(); desde el backend (Prisma, conexión sin JWT) el
+-- backend debe enviarlo explícitamente.
 -- Las fechas siempre las pone la base de datos.
 
 create function public.auditar()
@@ -35,7 +36,7 @@ language plpgsql
 set search_path = ''
 as $$
 declare
-  v_actor uuid := (select auth.uid());
+  v_actor text := (select auth.uid())::text;
 begin
   if tg_op = 'INSERT' then
     new.creado_en       := now();
@@ -95,7 +96,7 @@ begin
   execute format(
     'update %I.%I set eliminado_en = now(), eliminado_por = $2 where %s and eliminado_en is null',
     tg_table_schema, tg_table_name, v_filtro
-  ) using old, (select auth.uid());
+  ) using old, (select auth.uid())::text;
 
   return null; -- cancela el DELETE físico
 end;
@@ -111,11 +112,11 @@ begin
   execute format(
     'alter table public.%I
        add column creado_en       timestamptz not null default now(),
-       add column creado_por      uuid,
+       add column creado_por      text,
        add column actualizado_en  timestamptz not null default now(),
-       add column actualizado_por uuid,
+       add column actualizado_por text,
        add column eliminado_en    timestamptz,
-       add column eliminado_por   uuid',
+       add column eliminado_por   text',
     p_tabla
   );
 
@@ -397,15 +398,18 @@ select public.habilitar_auditoria('evaluation_skills', 'id');
 -- EVIDENCIAS
 -- =====================================================================
 
--- Archivo (video, imagen, documento). Quién lo subió y cuándo quedan en
--- creado_por / creado_en (diagrama: upload_by / upload_at).
+-- Archivo de imagen o video. `type` le dice al front cómo previsualizarlo
+-- (<img> o <video>). Quién lo subió y cuándo quedan en creado_por / creado_en
+-- (diagrama: upload_by / upload_at).
 -- Debe relacionarse con 1 a 50 estudiantes activos (lo valida el servicio).
 create table public.evidences (
   id bigint generated always as identity primary key,
   url text not null
     check (char_length(url) <= 2048 and url ~ '^https://\S+$'),
   title text not null
-    check (char_length(title) between 2 and 150 and title = btrim(title) and title !~ '\s{2,}')
+    check (char_length(title) between 2 and 150 and title = btrim(title) and title !~ '\s{2,}'),
+  type text not null
+    constraint evidences_type_check check (type in ('IMAGE', 'VIDEO'))
 );
 select public.habilitar_auditoria('evidences', 'id');
 

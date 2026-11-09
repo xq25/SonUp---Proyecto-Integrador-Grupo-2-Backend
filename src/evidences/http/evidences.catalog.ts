@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type { AccessPolicy } from "../../auth/application/access-policy.js";
 import type { CredentialsService } from "../application/credentials.service.js";
 import type { EvidencesService } from "../application/evidences.service.js";
 import type { StudentEvidencesService } from "../application/student-evidences.service.js";
@@ -8,6 +9,7 @@ import { createStudentEvidencesRouter } from "./student-evidences.routes.js";
 
 /** Catálogo de rutas del módulo: evidencias, sus estudiantes y credenciales. */
 export function createEvidencesCatalog(services: {
+  access: AccessPolicy;
   evidences: EvidencesService;
   studentEvidences: StudentEvidencesService;
   credentials: CredentialsService;

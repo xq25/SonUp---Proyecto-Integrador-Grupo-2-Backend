@@ -85,7 +85,7 @@ const rolesOf = (source: Json): string[] => {
 const userFrom = (source: Json | undefined): AuthUser | null => {
   if (!source) return null;
   const user: AuthUser = {
-    id: text(pick(source, ["id", "id_usuario", "usuario_id", "userId", "uuid"])),
+    id: text(pick(source, ["id", "id_usuario", "usuario_id", "usuarioId", "idUsuario", "userId", "uuid"])),
     username: text(pick(source, ["username", "nombre_usuario", "nombreUsuario", "usuario"])),
     email: text(pick(source, ["email", "correo"])),
     roles: rolesOf(source),

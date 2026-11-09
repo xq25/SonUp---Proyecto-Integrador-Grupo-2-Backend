@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type { AccessPolicy } from "../../auth/application/access-policy.js";
 import type { SkillCategoriesService } from "../application/skill-categories.service.js";
 import type { SkillsService } from "../application/skills.service.js";
 import type { StudentSkillsService } from "../application/student-skills.service.js";
@@ -8,6 +9,7 @@ import { createStudentSkillsRouter } from "./student-skills.routes.js";
 
 /** Catálogo de rutas del módulo: categorías, habilidades y calificaciones de cada estudiante. */
 export function createSkillsCatalog(services: {
+  access: AccessPolicy;
   skillCategories: SkillCategoriesService;
   skills: SkillsService;
   studentSkills: StudentSkillsService;

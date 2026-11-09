@@ -12,6 +12,7 @@ export const guardianSelect = {
   phone: true,
   address: true,
   legalStatusId: true,
+  securityUserId: true,
 } satisfies Prisma.GuardianSelect;
 
 type GuardianRow = Prisma.GuardianGetPayload<{ select: typeof guardianSelect }>;
@@ -26,6 +27,7 @@ export const toGuardian = (row: GuardianRow): Guardian => ({
   address: row.address,
   legalStatusId: row.legalStatusId,
   legalStatusName: null,
+  securityUserId: row.securityUserId,
 });
 
 export class PrismaGuardianReader implements GuardianReader {
@@ -33,6 +35,11 @@ export class PrismaGuardianReader implements GuardianReader {
 
   async findById(id: bigint): Promise<Guardian | null> {
     const row = await this.prisma.guardian.findUnique({ where: { id }, select: guardianSelect });
+    return row && toGuardian(row);
+  }
+
+  async findBySecurityUserId(securityUserId: string): Promise<Guardian | null> {
+    const row = await this.prisma.guardian.findFirst({ where: { securityUserId }, select: guardianSelect });
     return row && toGuardian(row);
   }
 

@@ -127,3 +127,15 @@ values
   (80, 'Carolina Restrepo', 'CC', '43100200', 'administrativo', '2021-03-01', null, 'indefinido', 'activo', '3001234567', 'coordinacion@fundacion.test', 160, 160),
   (81, 'Andrés Gómez',      'CC', '71300400', 'administrativo', '2020-06-01', '2025-11-30', 'fijo', 'retirado', '3007654321', 'comunicaciones@fundacion.test', 0, 0)
 on conflict (staff_id) do nothing;
+
+-- Enlace con las cuentas del servicio de seguridad (ADR-008) ------------
+-- Saga guarda el `sub` del token en `security_user_id` cuando el usuario se
+-- registra o enlaza con POST /staff|children|guardians/register. Aquí se
+-- simulan tres cuentas enlazadas para probar "lo suyo" con tokens de desarrollo.
+alter table administrativo.children  add column if not exists security_user_id text;
+alter table administrativo.guardians add column if not exists security_user_id text;
+alter table administrativo.staff     add column if not exists security_user_id text;
+
+update administrativo.staff     set security_user_id = 'dev-tallerista-500' where staff_id = 77    and security_user_id is null;
+update administrativo.children  set security_user_id = 'dev-estudiante-1'   where child_id = 1     and security_user_id is null;
+update administrativo.guardians set security_user_id = 'dev-acudiente-10'   where guardian_id = 10 and security_user_id is null;

@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type { AccessPolicy } from "../../auth/application/access-policy.js";
 import type { AttendanceService } from "../application/attendance.service.js";
 import type { WorkshopSkillsService } from "../application/workshop-skills.service.js";
 import type { WorkshopsService } from "../application/workshops.service.js";
@@ -8,6 +9,7 @@ import { createWorkshopsRouter } from "./workshops.routes.js";
 
 /** Catálogo de rutas del módulo: talleres, sus habilidades y asistencias. */
 export function createWorkshopsCatalog(services: {
+  access: AccessPolicy;
   workshops: WorkshopsService;
   workshopSkills: WorkshopSkillsService;
   attendance: AttendanceService;

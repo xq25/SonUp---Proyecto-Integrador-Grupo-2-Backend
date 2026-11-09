@@ -22,6 +22,7 @@ export const toChild = (raw: unknown): Child => {
     statusId: sagaText(row["child_status_id"]),
     statusName: sagaCatalogName(row["child_statuses"]),
     notes: sagaText(row["notes"]),
+    securityUserId: sagaText(row["security_user_id"]),
   };
 };
 
@@ -42,6 +43,11 @@ export class SagaChildReader implements ChildReader {
       .filter((child) => filter.statusId === undefined || child.statusId === filter.statusId)
       .filter((child) => matchesSearch(filter.search, child.firstName, child.lastName, child.documentNumber))
       .sort((a, b) => compareText(a.lastName, b.lastName) || compareText(a.firstName, b.firstName));
+  }
+
+  async findBySecurityUserId(securityUserId: string): Promise<Child | null> {
+    // Saga no filtra por `security_user_id`: se busca en el listado.
+    return (await this.all()).find((child) => child.securityUserId === securityUserId) ?? null;
   }
 
   async all(): Promise<Child[]> {

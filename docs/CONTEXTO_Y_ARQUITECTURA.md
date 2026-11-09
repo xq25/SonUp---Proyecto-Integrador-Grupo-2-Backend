@@ -72,16 +72,17 @@
 | `DIRECT_URL` | CLI de Prisma (`db pull`). En Supabase: **Session pooler** (puerto 5432); la conexión "Direct" de Supabase solo funciona por IPv6. Si falta, se usa `DATABASE_URL` |
 | `DB_CHECK_ACTOR` | Opcional: UUID de un usuario de Supabase Auth que `db:check` verifica (el `actor` de las pruebas) |
 | `PORT` | Puerto de la API (por defecto 3000) |
-| `NODE_ENV` | `production` desactiva la cabecera `X-Actor-Id`. **Obligatorio al desplegar** |
-| `SUPABASE_URL` | `https://<ref>.supabase.co`: emisor del JWT y su JWKS. Sin ella solo funciona `X-Actor-Id` |
-| `SUPABASE_JWT_SECRET` | Opcional: secreto HS256 si el proyecto usa las claves JWT antiguas |
+| `NODE_ENV` | `production` desactiva las cabeceras `X-Actor-Id`/`X-Actor-Roles`. **Obligatorio al desplegar** |
+| `JWT_SECRET` | Secreto HS256 compartido con el servicio de seguridad ([ADR-008](decisiones/ADR-008-seguridad-por-roles.md)): con él se verifica cada JWT localmente. **Obligatorio en producción** (sin él la API no arranca). Se pide por un canal seguro y nunca va al repositorio |
+| `AUTH_LINK_CACHE_SECONDS` | Segundos que se reutiliza el enlace usuario ↔ persona de Saga (por defecto 300) |
 | `CORS_ORIGIN` | Opcional: orígenes permitidos separados por comas (sin ella, cualquiera) |
 | `PUBLIC_URL` | Opcional: URL pública del despliegue, sin el prefijo. Agrega ese servidor en Swagger |
 | `RENDER_API_URL` | URL base del servicio de autenticación del módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)). Sin ella, `/auth/*` responde 503 |
 | `RENDER_REGISTER_PATH` / `RENDER_LOGIN_PATH` / `RENDER_PROFILE_PATH` | Rutas de registro, login y perfil allá (por defecto `/auth/registro`, `/auth/login`, `/auth/perfil`) |
 | `RENDER_HTTP_TIMEOUT_MS` | Tiempo límite de cada llamada (por defecto 10000). Render gratuito tarda ~30 s en despertar |
 | `SAGA_API_URL` | URL de la API de Saga (módulo administrativo, [ADR-007](decisiones/ADR-007-saga-por-api.md)). **Sin ella** se leen las tablas simuladas del esquema `administrativo` (solo desarrollo y pruebas) |
-| `SAGA_SERVICE_EMAIL` / `SAGA_SERVICE_PASSWORD` | Usuario de servicio de este módulo en el login; su token se envía a Saga. Lo entrega el equipo de seguridad |
+| `SAGA_SERVICE_EMAIL` / `SAGA_SERVICE_PASSWORD` | Usuario de servicio para consultar Saga **fuera de una petición** (scripts) o en desarrollo con `X-Actor-Id`. En las peticiones se reenvía el token del usuario ([ADR-008](decisiones/ADR-008-seguridad-por-roles.md)) |
+| `SAGA_SERVICE_TOKEN` | Solo pruebas: token ya emitido que se usa en lugar del usuario de servicio mientras Saga lo acepte |
 | `SAGA_HTTP_TIMEOUT_MS` | Tiempo límite de cada llamada a Saga (por defecto 10000) |
 
 ### 2.1 BD de pruebas del módulo
@@ -166,7 +167,7 @@ Los administrativos no tienen tabla propia: son personal (`staff`) del módulo a
 
 | Tabla | Modelo | Notas |
 |---|---|---|
-| `evidences` | `Evidence` | `url` (https, máx. 2048) y `title` (obligatorio, 2–150). Se relaciona con 1 a 50 estudiantes activos. Quién la subió y cuándo quedan en `creado_por`/`creado_en` (diagrama: `upload_by`/`upload_at`). Validaciones: [VALIDACIONES.md §3.10](VALIDACIONES.md) |
+| `evidences` | `Evidence` | `url` (https, máx. 2048), `title` (obligatorio, 2–150) y `type` (`IMAGE` \| `VIDEO`, obligatorio: el front previsualiza con `<img>` o `<video>`). Se relaciona con 1 a 50 estudiantes activos. Quién la subió y cuándo quedan en `creado_por`/`creado_en` (diagrama: `upload_by`/`upload_at`). Validaciones: [VALIDACIONES.md §3.10](VALIDACIONES.md) |
 | `student_evidences` | `StudentEvidence` | Estudiantes de una evidencia. Único (`student_id`, `evidence_id`) |
 | `credentials` | `Credential` | Credencial o certificado del estudiante: `organization_name` (obligatorio, 2–150), `url` (https, obligatoria), taller opcional (`finished` y con asistencia del estudiante), `status` (`pending` → `valid` → `revoked`; nace `pending`). Solo `pending` se edita o elimina. Validaciones: [VALIDACIONES.md §3.12](VALIDACIONES.md) |
 
@@ -290,7 +291,9 @@ src/
 │   │   ├── app.ts               # createApp(container): middlewares, API bajo /api, errores
 │   │   ├── api.routes.ts        # Directorio general: reúne los catálogos de los módulos; API_DOC_FILES para Swagger
 │   │   ├── swagger.ts           # Especificación OpenAPI para Swagger UI en /api-docs (ADR-005)
-│   │   ├── authenticate.ts      # actor: JWT de Supabase (jose) o X-Actor-Id solo en desarrollo
+│   │   ├── authenticate.ts      # actor y roles: token del servicio de seguridad (TokenVerifier) o X-Actor-Id/X-Actor-Roles en desarrollo
+│   │   ├── authorize.ts         # 403 si el rol no está permitido para la ruta (ADR-008)
+│   │   ├── route-permissions.ts # Matriz ruta → roles: único lugar de los permisos
 │   │   ├── error-handler.ts     # Errores de dominio → HTTP; formato { error: { code, message, details? } }
 │   │   └── request.ts           # readParams/readQuery (Zod), actorOf(res), esquemas de parámetros
 │   └── infrastructure/prisma/
@@ -353,7 +356,7 @@ Todos los métodos que escriben reciben `actor`. Eliminar es siempre borrado ló
 
 | Clave | Servicio | Casos de uso principales |
 |---|---|---|
-| `auth` | `AuthService` | `register`, `login`, `getProfile(token)`: remiten al módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)) |
+| `auth` | `AuthService` | `register`, `login`, `getProfile(token)`: remiten al módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)). `describeSession` y `getProfile` agregan `expiresAt` y los ids de Saga del usuario (`saga`, [ADR-008](decisiones/ADR-008-seguridad-por-roles.md) §2.7) |
 | `children` | `ChildrenService` | `get`, `findByDocument`, `list`, `getGuardians` (vínculos vigentes por defecto) |
 | `guardians` | `GuardiansService` | `get`, `list`, `getChildren` |
 | `professionals` | `ProfessionalsService` | `get`, `findByStaffId`, `list` |
@@ -419,7 +422,7 @@ await app.evaluations.evaluate(
 - [x] Consumir Saga por su API REST con un usuario de servicio ([ADR-007](decisiones/ADR-007-saga-por-api.md)).
 - [ ] Pedir al equipo de seguridad el usuario de servicio de este módulo (`SAGA_SERVICE_EMAIL`/`SAGA_SERVICE_PASSWORD`) con permiso para leer `children`, `guardians`, `children-guardians`, `professionals` y `staff` en Saga.
 - [ ] Pedir a Saga los valores de sus catálogos (p. ej. el `staff_role_id` de un administrativo) y, si las listas crecen, filtros o paginación.
-- [ ] Decidir si se retira la tabla `public.administrators` que ya existe en la BD de pruebas (quedó sin uso).
+- [x] Retirar la tabla `public.administrators` (sin uso desde ADR-006): `database/migraciones/2026-11-09-retirar-administrators.sql`, aplicada en la BD de pruebas (2026-11-09).
 - [ ] BD de pruebas del módulo: completar la contraseña en `.env`, ejecutar los dos SQL (§2.1) y pasar `npm run db:check` contra Supabase.
 - [ ] BD general: reemplazar las URLs en `.env`, confirmar el nombre del esquema administrativo y comparar con `prisma db pull --print`.
 - [ ] Probar los repositorios y las políticas RLS en Supabase con usuarios reales.
@@ -428,8 +431,10 @@ await app.evaluations.evaluate(
 - [ ] Ligar el `actor` (cuenta) con su tallerista para que solo el tallerista del taller pueda evaluar (§3.9 de VALIDACIONES.md).
 - [x] Capa de entrada HTTP: Express 5 bajo `/api`, actor del JWT de Supabase ([ADR-002](decisiones/ADR-002-capa-http-express.md)).
 - [x] Autenticación del front a través de nuestra API: `/auth/register`, `/auth/login`, `/auth/profile` remiten al módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)).
-- [ ] **En pausa** hasta que el módulo administrativo defina la tecnología del token. Luego: validar en `authenticate` el token del login administrativo (con `AuthGateway.getProfile`) y definir cómo su id de usuario llega al `actor` de la auditoría.
+- [x] Seguridad de nuestras rutas con el token y los roles del servicio de seguridad ([ADR-008](decisiones/ADR-008-seguridad-por-roles.md)): verificación JWT/endpoint, matriz de roles, token reenviado a Saga, actor = `sub` (texto).
+- [x] Contrato con el servicio de seguridad (2026-11-08): JWT HS256 verificado localmente con `JWT_SECRET`; enlace usuario ↔ persona por `security_user_id` de Saga.
+- [x] Recibir `JWT_SECRET` y configurarlo en Render (2026-11-09).
+- [x] BD de pruebas: migraciones `2026-11-08-auditoria-actor-texto.sql` y `2026-11-09-evidencias-tipo.sql` aplicadas, y simulado administrativo actualizado (`staff` y `security_user_id`) (2026-11-09).
+- [ ] Revisar con el equipo la matriz de `src/shared/http/route-permissions.ts`.
 - [ ] Pedir al módulo administrativo ejemplos de respuesta exitosa (registro, login, perfil) y una excepción del límite de intentos para nuestra IP.
-- [ ] Configurar `SUPABASE_URL` y probar la API con un `access_token` real de Supabase.
-- [ ] Autorización por rol: la gestiona el **equipo de seguridad e información personal** (login, cuentas y permisos de todos los actores). Nosotros les entregaremos la matriz ruta → roles permitidos (base: `routes` en `scripts/request-catalog.ts`). Hoy cualquier perfil activo puede llamar a todas las rutas. Falta definir con ellos el mecanismo (gateway, roles en el token o consulta a sus tablas).
 - [ ] Acordar con el equipo de seguridad la propiedad de `perfiles`, `roles`, `usuario_roles`, `aplicaciones`, `crear_perfil` y `tiene_rol()`: si son suyas, salen de nuestro SQL y las features `profiles`/`access` pasan a solo lectura (o se retiran).

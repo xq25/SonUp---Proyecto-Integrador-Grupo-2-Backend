@@ -20,6 +20,11 @@ const toUserRole = (row: UserRoleRow): UserRole => ({ ...row });
 
 const ENTITY = "Asignación de rol";
 
+// `asignado_por` es FK a `perfiles` (uuid). Con los tokens del servicio de
+// seguridad el actor es su `sub` (p. ej. "20"), que no es un perfil: queda vacío.
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const assignerOf = (actor: ActorId): string | null => (UUID.test(actor) ? actor : null);
+
 export class PrismaUserRoleRepository implements UserRoleRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -55,11 +60,11 @@ export class PrismaUserRoleRepository implements UserRoleRepository {
       const row = revoked
         ? await this.prisma.userRole.update({
             where: { id: revoked.id },
-            data: { assignedBy: actor, ...audit.restore(actor) },
+            data: { assignedBy: assignerOf(actor), ...audit.restore(actor) },
             select: userRoleSelect,
           })
         : await this.prisma.userRole.create({
-            data: { userId: data.userId, role: data.role, app, assignedBy: actor, ...audit.create(actor) },
+            data: { userId: data.userId, role: data.role, app, assignedBy: assignerOf(actor), ...audit.create(actor) },
             select: userRoleSelect,
           });
       return toUserRole(row);

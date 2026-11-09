@@ -1,14 +1,17 @@
-import { ExternalServiceError } from "../../../shared/domain/errors.js";
+import { ExternalServiceError, ForbiddenError, UnauthorizedError } from "../../../shared/domain/errors.js";
 
 // Cliente HTTP hacia la API de Saga (módulo administrativo), ADR-007. Solo GET:
-// este módulo nunca escribe en Saga. Envía el token del usuario de servicio y,
-// si Saga lo rechaza, lo renueva una vez y reintenta.
+// este módulo nunca escribe en Saga. Envía el token del usuario de la petición
+// (ADR-008) o, fuera de una petición, el del usuario de servicio; este último se
+// renueva una vez si Saga lo rechaza.
 
 export interface SagaConfig {
   /** URL base de la API de Saga (`SAGA_API_URL`). Sin ella se leen las tablas simuladas de la BD. */
   baseUrl: string | undefined;
   timeoutMs: number;
   credentials: { email: string; password: string } | undefined;
+  /** Token ya emitido (`SAGA_SERVICE_TOKEN`), útil en pruebas: se usa mientras Saga lo acepte. */
+  token: string | undefined;
 }
 
 /** Tiempo límite por defecto. Render (plan gratuito) tarda ~30 s en despertar: súbelo con SAGA_HTTP_TIMEOUT_MS. */
@@ -22,12 +25,19 @@ export function sagaConfigFromEnv(env: NodeJS.ProcessEnv = process.env): SagaCon
     baseUrl: env["SAGA_API_URL"]?.trim() || undefined,
     timeoutMs: Number.isFinite(timeout) && timeout > 0 ? timeout : DEFAULT_TIMEOUT_MS,
     credentials: email && password ? { email, password } : undefined,
+    token: env["SAGA_SERVICE_TOKEN"]?.trim() || undefined,
   };
 }
 
-/** De dónde sale el token (la sesión del usuario de servicio). */
+/** Token para Saga y de quién es: del usuario de la petición o del usuario de servicio. */
+export interface SagaToken {
+  value: string;
+  fromUser: boolean;
+}
+
+/** De dónde sale el token. Con `forceRefresh` pide uno nuevo (solo posible con el usuario de servicio). */
 export interface SagaTokenSource {
-  getToken(forceRefresh?: boolean): Promise<string>;
+  getToken(forceRefresh?: boolean): Promise<SagaToken>;
 }
 
 const SERVICE = "El módulo administrativo (Saga)";
@@ -51,13 +61,23 @@ export class SagaHttpClient {
   }
 
   private async get(path: string, { notFoundAsNull = false } = {}): Promise<unknown> {
-    let response = await this.send(path, await this.tokens.getToken());
-    // Token vencido o revocado: se renueva una vez.
-    if (response.status === 401) response = await this.send(path, await this.tokens.getToken(true));
+    let token = await this.tokens.getToken();
+    let response = await this.send(path, token.value);
+    // Token vencido o revocado: se renueva una vez (el del usuario no se puede renovar: lanza 401).
+    if (response.status === 401) {
+      token = await this.tokens.getToken(true);
+      response = await this.send(path, token.value);
+    }
 
     if (response.ok) return readJson(response);
     if (response.status === 404 && notFoundAsNull) return null;
     const message = errorMessage(await readJson(response));
+    if (token.fromUser && response.status === 401) {
+      throw new UnauthorizedError(`${SERVICE} rechazó tu sesión: inicia sesión de nuevo${message}`);
+    }
+    if (token.fromUser && response.status === 403) {
+      throw new ForbiddenError(`Tu rol no tiene acceso a esta información en el módulo administrativo${message}`);
+    }
     if (response.status === 401 || response.status === 403) {
       throw new ExternalServiceError(`${SERVICE} rechazó el acceso del usuario de servicio${message}`, "bad_response");
     }

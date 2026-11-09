@@ -1,3 +1,5 @@
+import type { SagaIdentity } from "./saga-identity.entity.js";
+
 // Autenticación delegada al módulo administrativo (ADR-003).
 // Las cuentas, roles y sesiones son suyos: este módulo no los guarda, solo
 // remite las peticiones del front y devuelve lo que necesita de la respuesta.
@@ -11,4 +13,10 @@ export interface AuthUser {
   email: string | null;
   /** Códigos de rol en mayúsculas, como los define el módulo administrativo. */
   roles: string[];
+}
+
+/** Respuesta de GET /auth/profile: el usuario y lo que este módulo agrega (ADR-008). */
+export interface AuthProfile extends AuthUser {
+  expiresAt: Date | null;
+  saga: SagaIdentity | null;
 }

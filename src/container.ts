@@ -26,9 +26,14 @@ import { SagaGuardianReader } from "./administrative/infrastructure/saga/saga-gu
 import { SagaHttpClient, sagaConfigFromEnv } from "./administrative/infrastructure/saga/saga-http.client.js";
 import { SagaProfessionalReader } from "./administrative/infrastructure/saga/saga-professional.reader.js";
 import { SagaStaffReader } from "./administrative/infrastructure/saga/saga-staff.reader.js";
+import { RequestSagaTokenSource } from "./administrative/infrastructure/saga/saga-token.source.js";
+import { AccessPolicy } from "./auth/application/access-policy.js";
 import { AuthService } from "./auth/application/auth.service.js";
 import { ServiceSession } from "./auth/application/service-session.js";
 import type { AuthGateway } from "./auth/domain/auth.gateway.js";
+import type { TokenVerifier } from "./auth/domain/token-verifier.js";
+import { ActorLinksService } from "./auth/application/actor-links.service.js";
+import { JwtTokenVerifier, jwtSecretFromEnv, UnconfiguredTokenVerifier } from "./auth/infrastructure/jwt-token.verifier.js";
 import {
   administrativeAuthConfigFromEnv,
   HttpAdministrativeAuthGateway,
@@ -76,7 +81,9 @@ function createAdministrativeReaders(prisma: PrismaClient, authGateway: AuthGate
       staff: new PrismaStaffReader(prisma),
     };
   }
-  const client = new SagaHttpClient(saga, new ServiceSession(authGateway, saga.credentials));
+  // Con cada petición viaja el token del usuario; el de servicio queda para scripts y desarrollo.
+  const tokens = new RequestSagaTokenSource(new ServiceSession(authGateway, saga.credentials, saga.token));
+  const client = new SagaHttpClient(saga, tokens);
   const children = new SagaChildReader(client);
   const guardians = new SagaGuardianReader(client);
   return {
@@ -89,11 +96,33 @@ function createAdministrativeReaders(prisma: PrismaClient, authGateway: AuthGate
   };
 }
 
+/**
+ * Verificación local del token del servicio de seguridad con `JWT_SECRET` (ADR-008).
+ * En producción el secreto es obligatorio: sin él la API no arranca.
+ */
+function createTokenVerifier(env: NodeJS.ProcessEnv = process.env): { mode: "jwt" | "sin-secreto"; verifier: TokenVerifier } {
+  const secret = jwtSecretFromEnv(env);
+  if (secret) return { mode: "jwt", verifier: new JwtTokenVerifier(secret) };
+  if (env["NODE_ENV"] === "production") {
+    throw new Error("Falta JWT_SECRET: es obligatorio en producción para verificar los tokens del servicio de seguridad");
+  }
+  return { mode: "sin-secreto", verifier: new UnconfiguredTokenVerifier() };
+}
+
+/** Segundos que se reutiliza el enlace usuario ↔ persona de Saga (`AUTH_LINK_CACHE_SECONDS`, por defecto 300). */
+function linkCacheSecondsFromEnv(env: NodeJS.ProcessEnv = process.env): number {
+  const raw = env["AUTH_LINK_CACHE_SECONDS"];
+  const seconds = Number(raw);
+  return raw !== undefined && raw.trim() !== "" && Number.isFinite(seconds) && seconds >= 0 ? seconds : 300;
+}
+
 export function createContainer(prisma: PrismaClient = createPrismaClient()) {
   // Login del módulo administrativo: lo usan el front (AuthService) y este backend (sesión de servicio).
   const authGateway = new HttpAdministrativeAuthGateway(administrativeAuthConfigFromEnv());
   // Lectores del módulo administrativo (solo lectura).
   const administrative = createAdministrativeReaders(prisma, authGateway);
+  // Quién hace cada petición y con qué roles.
+  const tokens = createTokenVerifier();
   const childReader = administrative.children;
   const childGuardianReader = administrative.childGuardians;
   const professionalReader = administrative.professionals;
@@ -111,16 +140,38 @@ export function createContainer(prisma: PrismaClient = createPrismaClient()) {
   const workshopSkillRepository = new PrismaWorkshopSkillRepository(prisma);
   const attendanceRepository = new PrismaWorkshopAttendanceRepository(prisma);
   const evidenceRepository = new PrismaEvidenceRepository(prisma);
+  const studentEvidenceRepository = new PrismaStudentEvidenceRepository(prisma);
+  const credentialRepository = new PrismaCredentialRepository(prisma);
 
   // Recálculo de calificaciones: lo usan evaluaciones, asistencias y habilidades de talleres.
   const grading = new GradingService(evaluationSkillRepository, scaleRepository, studentSkillRepository);
+  // Enlace usuario ↔ persona de Saga (`security_user_id` = `sub`): lo usan la política de acceso y el login.
+  const actorLinks = new ActorLinksService(
+    administrative.staff,
+    professionalReader,
+    childReader,
+    administrative.guardians,
+    linkCacheSecondsFromEnv(),
+  );
 
   return {
     prisma,
     /** De dónde se leen los datos del módulo administrativo: `saga` o `bd-simulada`. */
     administrativeSource: administrative.source,
-    // Autenticación delegada al módulo administrativo (ADR-003)
-    auth: new AuthService(authGateway),
+    /** Verificación de tokens: `jwt` (con JWT_SECRET) o `sin-secreto` (solo desarrollo: todo token se rechaza). */
+    authMode: tokens.mode,
+    tokenVerifier: tokens.verifier,
+    /** A qué registros accede cada usuario dentro de las rutas que su rol permite (ADR-008). */
+    access: new AccessPolicy(
+      workshopRepository,
+      attendanceRepository,
+      childGuardianReader,
+      credentialRepository,
+      studentEvidenceRepository,
+      actorLinks,
+    ),
+    // Autenticación delegada al módulo administrativo (ADR-003); login y perfil con los ids de Saga (ADR-008)
+    auth: new AuthService(authGateway, { tokens: tokens.verifier, links: actorLinks, childGuardians: childGuardianReader }),
     // Acceso
     profiles: new ProfilesService(profileRepository),
     apps: new AppsService(appRepository),
@@ -158,12 +209,12 @@ export function createContainer(prisma: PrismaClient = createPrismaClient()) {
     // Evidencias
     evidences: new EvidencesService(evidenceRepository, childReader),
     studentEvidences: new StudentEvidencesService(
-      new PrismaStudentEvidenceRepository(prisma),
+      studentEvidenceRepository,
       evidenceRepository,
       childReader,
     ),
     credentials: new CredentialsService(
-      new PrismaCredentialRepository(prisma),
+      credentialRepository,
       workshopRepository,
       attendanceRepository,
       childReader,
