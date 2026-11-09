@@ -57,7 +57,7 @@
 | `npm run dev` | Arranca la API con recarga (`tsx watch src/server.ts`) |
 | `npm start` | Arranca la API (`tsx src/server.ts`) |
 | `npm run typecheck` | Verifica los tipos (`tsc --noEmit`) |
-| `npm run prisma:generate` | Genera el cliente Prisma |
+| `npm run prisma:generate` | Genera el cliente Prisma. **Se ejecuta solo después de `npm install` / `npm ci`** (`postinstall`), así el cliente no queda desactualizado tras un `git pull`; no necesita `.env` |
 | `npm run prisma:validate` | Valida `prisma/schema.prisma` |
 | `npm run prisma:studio` | Abre Prisma Studio (requiere BD) |
 | `npm run db:check` | Verifica la conexión y el estado de la BD configurada en `.env` (solo lectura) |
@@ -79,11 +79,11 @@
 | `PUBLIC_URL` | Opcional: URL pública del despliegue, sin el prefijo. Agrega ese servidor en Swagger |
 | `RENDER_API_URL` | URL base del servicio de autenticación del módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)). Sin ella, `/auth/*` responde 503 |
 | `RENDER_REGISTER_PATH` / `RENDER_LOGIN_PATH` / `RENDER_PROFILE_PATH` | Rutas de registro, login y perfil allá (por defecto `/auth/registro`, `/auth/login`, `/auth/perfil`) |
-| `RENDER_HTTP_TIMEOUT_MS` | Tiempo límite de cada llamada (por defecto 10000). Render gratuito tarda ~30 s en despertar |
+| `RENDER_HTTP_TIMEOUT_MS` | Tiempo límite de cada llamada al servicio de seguridad (por defecto 30000: Render gratuito tarda ~30 s en despertar) |
 | `SAGA_API_URL` | URL de la API de Saga (módulo administrativo, [ADR-007](decisiones/ADR-007-saga-por-api.md)). **Sin ella** se leen las tablas simuladas del esquema `administrativo` (solo desarrollo y pruebas) |
 | `SAGA_SERVICE_EMAIL` / `SAGA_SERVICE_PASSWORD` | Usuario de servicio para consultar Saga **fuera de una petición** (scripts) o en desarrollo con `X-Actor-Id`. En las peticiones se reenvía el token del usuario ([ADR-008](decisiones/ADR-008-seguridad-por-roles.md)) |
 | `SAGA_SERVICE_TOKEN` | Solo pruebas: token ya emitido que se usa en lugar del usuario de servicio mientras Saga lo acepte |
-| `SAGA_HTTP_TIMEOUT_MS` | Tiempo límite de cada llamada a Saga (por defecto 10000) |
+| `SAGA_HTTP_TIMEOUT_MS` | Tiempo límite de cada llamada a Saga (por defecto 30000, por la misma razón) |
 
 ### 2.1 BD de pruebas del módulo
 

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
+    "postinstall": "prisma generate --config prisma7.config.ts || echo Aviso: no se pudo generar el cliente de Prisma. Ejecuta npm run prisma:generate",
     "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate --config prisma7.config.ts",
     "prisma:validate": "prisma validate --config prisma7.config.ts",
