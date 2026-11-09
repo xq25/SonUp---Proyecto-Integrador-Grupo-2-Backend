@@ -16,7 +16,7 @@
           "} else {",
           "  pm.request.headers.upsert({ key: 'X-Actor-Id', value: pm.variables.get('actorId') });",
           "  pm.request.headers.upsert({ key: 'X-Actor-Roles', value: pm.variables.get('actorRoles') || 'ADMIN' });",
-          "  for (const [variable, header] of [['actorProfessionalId', 'X-Actor-Professional-Id'], ['actorChildId', 'X-Actor-Child-Id'], ['actorGuardianId', 'X-Actor-Guardian-Id']]) {",
+          "  for (const [variable, header] of [['actorProfessionalId', 'X-Actor-Professional-Id'], ['actorStaffId', 'X-Actor-Staff-Id'], ['actorChildId', 'X-Actor-Child-Id'], ['actorGuardianId', 'X-Actor-Guardian-Id']]) {",
           "    const value = pm.variables.get(variable);",
           "    if (value) pm.request.headers.upsert({ key: header, value });",
           "  }",
@@ -40,6 +40,10 @@
     },
     {
       "key": "actorProfessionalId",
+      "value": ""
+    },
+    {
+      "key": "actorStaffId",
       "value": ""
     },
     {

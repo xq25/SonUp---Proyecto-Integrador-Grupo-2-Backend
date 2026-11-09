@@ -34,7 +34,7 @@
 ### 2.2 Autenticación (`src/shared/http/authenticate.ts`)
 
 - **`Authorization: Bearer <token>`:** se verifica el token. El `actor` es su `sub`, y sus roles quedan en `res.locals`.
-- **Solo fuera de producción:** `X-Actor-Id: <id>` y `X-Actor-Roles: TALLERISTA`, para pruebas manuales. Sin `X-Actor-Roles` se asume `ADMIN`. Para probar "lo suyo" (§2.6): `X-Actor-Professional-Id`, `X-Actor-Child-Id` o `X-Actor-Guardian-Id`.
+- **Solo fuera de producción:** `X-Actor-Id: <id>` y `X-Actor-Roles: TALLERISTA`, para pruebas manuales. Sin `X-Actor-Roles` se asume `ADMIN`. Para probar "lo suyo" (§2.6): `X-Actor-Professional-Id`, `X-Actor-Staff-Id`, `X-Actor-Child-Id` o `X-Actor-Guardian-Id`.
 - **Se retira la verificación del JWT de Supabase y la búsqueda del perfil en `perfiles`.** Las variables `SUPABASE_URL` y `SUPABASE_JWT_SECRET` dejan de usarse.
 
 ### 2.3 Autorización por rol (`authorize` + `route-permissions.ts`)
@@ -48,7 +48,7 @@
 | Flujo | ADMIN | TALLERISTA | ESTUDIANTE | ACUDIENTE |
 |---|---|---|---|---|
 | Datos personales de los jóvenes (Saga, con anamnesis) | Todo | Todos | Él mismo | Sus jóvenes |
-| Acudientes, talleristas y personal (Saga) | Todo | — | — | Él mismo (acudiente) |
+| Acudientes, talleristas y personal (Saga) | Todo | Su propio perfil (`/staff/:id`, `/professionals/:id`, `/professionals/by-staff/:staffId`) | — | Él mismo (acudiente) |
 | Talleres: ver | Todo | **Solo los suyos** | Disponibles (`planned`, `active`) y en los que participó | Igual, por sus jóvenes |
 | Talleres: publicar (crear), editar, cambiar estado, eliminar; habilidades del taller | Todo | Solo los suyos | — | — |
 | Asistencias y evaluaciones: tomar, corregir, eliminar | Todo | En sus talleres | — | — |
@@ -83,9 +83,9 @@
   - **ACUDIENTE:** `guardians` → `guardianId`.
 - **Cómo se busca:** Saga no filtra por ese campo, así que se recorre el listado con el token del usuario. Los enlaces encontrados se guardan `AUTH_LINK_CACHE_SECONDS` segundos (300 por defecto). Los no encontrados no se guardan, para que un usuario recién enlazado no tenga que esperar.
 - **Solo se resuelve cuando hace falta:** en las rutas de "lo suyo" y nunca para ADMIN.
-- **En desarrollo** las cabeceras `X-Actor-Professional-Id`, `X-Actor-Child-Id` y `X-Actor-Guardian-Id` reemplazan la búsqueda (`src/auth/domain/actor-links.ts`).
+- **En desarrollo** las cabeceras `X-Actor-Professional-Id`, `X-Actor-Staff-Id`, `X-Actor-Child-Id` y `X-Actor-Guardian-Id` reemplazan la búsqueda (`src/auth/domain/actor-links.ts`).
 - **`AccessPolicy` (`src/auth/application/access-policy.ts`)** decide, dentro de cada ruta que el rol permite, a qué registros se accede:
-  - **Tallerista:** lista solo sus talleres, crea talleres solo a su nombre (`evaluatorId`), y gestiona habilidades, asistencias y evaluaciones solo en sus talleres.
+  - **Tallerista:** lista solo sus talleres, crea talleres solo a su nombre (`evaluatorId`), y gestiona habilidades, asistencias y evaluaciones solo en sus talleres. Consulta su propio perfil (`staff` y `professional`), no el de otros.
   - **Joven:** lo suyo. **Acudiente:** lo de sus jóvenes con vínculo vigente (Saga `children-guardians`).
   - Ambos listan solo talleres `planned`/`active`, y ven el detalle de un taller si está disponible o si participaron en él.
 - **Sin enlace en Saga** se responde **403** («tu cuenta no está enlazada…: regístrate o enlázate primero»). Si el registro no existe, se deja seguir y el servicio responde 404.

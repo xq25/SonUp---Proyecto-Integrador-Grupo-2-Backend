@@ -56,6 +56,7 @@ export function authenticate(verifier: TokenVerifier, options: AuthOptions): Req
       if (!options.allowDevHeader) throw new UnauthorizedError("La cabecera X-Actor-Id no se acepta en producción");
       principal = devPrincipal(devActor, req.get("x-actor-roles"), {
         professionalId: req.get("x-actor-professional-id"),
+        staffId: req.get("x-actor-staff-id"),
         childId: req.get("x-actor-child-id"),
         guardianId: req.get("x-actor-guardian-id"),
       });

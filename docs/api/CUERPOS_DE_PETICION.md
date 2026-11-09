@@ -9,7 +9,7 @@
 | Tema | Regla |
 |---|---|
 | Base | `http://localhost:3000/api` (`npm run dev`; puerto con `PORT`) |
-| Autenticación | `Authorization: Bearer <token del login>` (el mismo token de Saga). Solo fuera de producción: `X-Actor-Id: <id del usuario>` y `X-Actor-Roles: TALLERISTA` (sin roles se asume `ADMIN`) y, para "lo suyo", `X-Actor-Professional-Id`, `X-Actor-Child-Id` o `X-Actor-Guardian-Id`. [ADR-008](../decisiones/ADR-008-seguridad-por-roles.md) |
+| Autenticación | `Authorization: Bearer <token del login>` (el mismo token de Saga). Solo fuera de producción: `X-Actor-Id: <id del usuario>` y `X-Actor-Roles: TALLERISTA` (sin roles se asume `ADMIN`) y, para "lo suyo", `X-Actor-Professional-Id`, `X-Actor-Staff-Id`, `X-Actor-Child-Id` o `X-Actor-Guardian-Id`. [ADR-008](../decisiones/ADR-008-seguridad-por-roles.md) |
 | Permisos | Roles válidos: `ADMIN` (todo), `TALLERISTA`, `ESTUDIANTE`, `ACUDIENTE` y `DONANTE` (aún sin acceso). Cada ruta admite ciertos roles (columna **Roles**); sin el rol: **403**. Dentro de la ruta, el tallerista solo gestiona **sus** talleres y el joven o acudiente solo ve **lo suyo** (si no, **403**). Matriz en `src/shared/http/route-permissions.ts`; "lo suyo" en `src/auth/application/access-policy.ts`. Públicas: `/health` y `/auth/register`, `/auth/login`, `/auth/profile` (remiten al módulo administrativo, [ADR-003](../decisiones/ADR-003-autenticacion-modulo-administrativo.md)) |
 | Formato | Cuerpo JSON (`Content-Type: application/json`) |
 | Ids | En la entrada, número o texto con un entero positivo (`12` o `"12"`). En las respuestas, **texto** (`"12"`) |
@@ -85,15 +85,15 @@
 | Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
 |---|---|---|---|---|---|
 | `GET` | `/professionals` | Talleristas | ADMIN | `timeDonor` |  |
-| `GET` | `/professionals/by-staff/:staffId` | Tallerista por `staff_id` | ADMIN |  |  |
-| `GET` | `/professionals/:id` | Tallerista | ADMIN |  |  |
+| `GET` | `/professionals/by-staff/:staffId` | Tallerista por `staff_id` | ADMIN, TALLERISTA |  |  |
+| `GET` | `/professionals/:id` | Tallerista | ADMIN, TALLERISTA |  |  |
 
 ### Personal (administrativos)
 
 | Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
 |---|---|---|---|---|---|
 | `GET` | `/staff` | Personal: administrativos y talleristas (solo lectura, Saga) | ADMIN | `roleId`, `statusId` (ids de catálogo de Saga), `search` |  |
-| `GET` | `/staff/:id` | Persona del personal (solo lectura, Saga) | ADMIN |  |  |
+| `GET` | `/staff/:id` | Persona del personal (solo lectura, Saga) | ADMIN, TALLERISTA |  |  |
 
 ### Acceso (roles y aplicaciones)
 

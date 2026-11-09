@@ -30,11 +30,12 @@ export const ROUTE_PERMISSIONS: Readonly<Record<string, readonly string[]>> = {
   "GET /guardians": ADMIN,
   "GET /guardians/:id": FAMILY,
   "GET /guardians/:id/children": FAMILY,
+  // El tallerista consulta solo su propio perfil (su staff y su professional).
   "GET /professionals": ADMIN,
-  "GET /professionals/by-staff/:staffId": ADMIN,
-  "GET /professionals/:id": ADMIN,
+  "GET /professionals/by-staff/:staffId": LEADERS,
+  "GET /professionals/:id": LEADERS,
   "GET /staff": ADMIN,
-  "GET /staff/:id": ADMIN,
+  "GET /staff/:id": LEADERS,
 
   // ── Cuentas y acceso heredados del script de login ──
   "GET /profiles": ADMIN,

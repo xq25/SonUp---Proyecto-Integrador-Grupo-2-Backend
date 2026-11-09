@@ -1107,7 +1107,7 @@
         "Talleristas"
       ],
       "summary": "Tallerista por `staff_id`",
-      "description": "**Roles:** ADMIN",
+      "description": "**Roles:** ADMIN, TALLERISTA",
       "security": [
         {
           "bearerAuth": []
@@ -1179,7 +1179,7 @@
         "Talleristas"
       ],
       "summary": "Tallerista",
-      "description": "**Roles:** ADMIN",
+      "description": "**Roles:** ADMIN, TALLERISTA",
       "security": [
         {
           "bearerAuth": []
@@ -1339,7 +1339,7 @@
         "Personal (administrativos)"
       ],
       "summary": "Persona del personal (solo lectura, Saga)",
-      "description": "**Roles:** ADMIN",
+      "description": "**Roles:** ADMIN, TALLERISTA",
       "security": [
         {
           "bearerAuth": []

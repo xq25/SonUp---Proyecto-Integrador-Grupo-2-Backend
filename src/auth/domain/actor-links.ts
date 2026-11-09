@@ -1,7 +1,7 @@
 import type { ActorLinks } from "./principal.entity.js";
 
 // Ids de Saga que llegan en las cabeceras de desarrollo (X-Actor-Professional-Id,
-// X-Actor-Child-Id, X-Actor-Guardian-Id). En producción el enlace no viene en el
+// X-Actor-Staff-Id, X-Actor-Child-Id, X-Actor-Guardian-Id). En producción el enlace no viene en el
 // token: lo resuelve ActorLinksService con `security_user_id` de Saga (ADR-008).
 
 const CLAIMS: Record<keyof ActorLinks, readonly string[]> = {

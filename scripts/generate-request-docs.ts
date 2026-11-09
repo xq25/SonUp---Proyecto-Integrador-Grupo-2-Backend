@@ -140,6 +140,7 @@ const variables: Record<string, string> = {
   /** Token del servicio de seguridad (el de Saga). Si se llena, se usa en lugar de actorId/actorRoles. */
   /** Solo fuera de producción: a quién de Saga corresponde el usuario (para "lo suyo"; opcionales). */
   actorProfessionalId: "",
+  actorStaffId: "",
   actorChildId: "",
   actorGuardianId: "",
   token: "",
@@ -242,7 +243,7 @@ const authScript = [
   "} else {",
   "  pm.request.headers.upsert({ key: 'X-Actor-Id', value: pm.variables.get('actorId') });",
   "  pm.request.headers.upsert({ key: 'X-Actor-Roles', value: pm.variables.get('actorRoles') || 'ADMIN' });",
-  "  for (const [variable, header] of [['actorProfessionalId', 'X-Actor-Professional-Id'], ['actorChildId', 'X-Actor-Child-Id'], ['actorGuardianId', 'X-Actor-Guardian-Id']]) {",
+  "  for (const [variable, header] of [['actorProfessionalId', 'X-Actor-Professional-Id'], ['actorStaffId', 'X-Actor-Staff-Id'], ['actorChildId', 'X-Actor-Child-Id'], ['actorGuardianId', 'X-Actor-Guardian-Id']]) {",
   "    const value = pm.variables.get(variable);",
   "    if (value) pm.request.headers.upsert({ key: header, value });",
   "  }",
@@ -550,7 +551,7 @@ md.push(`# API: rutas y cuerpos de petición
 | Tema | Regla |
 |---|---|
 | Base | \`http://localhost:3000${API_PREFIX}\` (\`npm run dev\`; puerto con \`PORT\`) |
-| Autenticación | \`Authorization: Bearer <token del login>\` (el mismo token de Saga). Solo fuera de producción: \`X-Actor-Id: <id del usuario>\` y \`X-Actor-Roles: TALLERISTA\` (sin roles se asume \`ADMIN\`) y, para "lo suyo", \`X-Actor-Professional-Id\`, \`X-Actor-Child-Id\` o \`X-Actor-Guardian-Id\`. [ADR-008](../decisiones/ADR-008-seguridad-por-roles.md) |
+| Autenticación | \`Authorization: Bearer <token del login>\` (el mismo token de Saga). Solo fuera de producción: \`X-Actor-Id: <id del usuario>\` y \`X-Actor-Roles: TALLERISTA\` (sin roles se asume \`ADMIN\`) y, para "lo suyo", \`X-Actor-Professional-Id\`, \`X-Actor-Staff-Id\`, \`X-Actor-Child-Id\` o \`X-Actor-Guardian-Id\`. [ADR-008](../decisiones/ADR-008-seguridad-por-roles.md) |
 | Permisos | Roles válidos: \`ADMIN\` (todo), \`TALLERISTA\`, \`ESTUDIANTE\`, \`ACUDIENTE\` y \`DONANTE\` (aún sin acceso). Cada ruta admite ciertos roles (columna **Roles**); sin el rol: **403**. Dentro de la ruta, el tallerista solo gestiona **sus** talleres y el joven o acudiente solo ve **lo suyo** (si no, **403**). Matriz en \`src/shared/http/route-permissions.ts\`; "lo suyo" en \`src/auth/application/access-policy.ts\`. Públicas: \`/health\` y \`/auth/register\`, \`/auth/login\`, \`/auth/profile\` (remiten al módulo administrativo, [ADR-003](../decisiones/ADR-003-autenticacion-modulo-administrativo.md)) |
 | Formato | Cuerpo JSON (\`Content-Type: application/json\`) |
 | Ids | En la entrada, número o texto con un entero positivo (\`12\` o \`"12"\`). En las respuestas, **texto** (\`"12"\`) |
