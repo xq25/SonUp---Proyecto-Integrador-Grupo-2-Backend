@@ -145,6 +145,14 @@ export function createContainer(prisma: PrismaClient = createPrismaClient()) {
 
   // Recálculo de calificaciones: lo usan evaluaciones, asistencias y habilidades de talleres.
   const grading = new GradingService(evaluationSkillRepository, scaleRepository, studentSkillRepository);
+  // Enlace usuario ↔ persona de Saga (`security_user_id` = `sub`): lo usan la política de acceso y el login.
+  const actorLinks = new ActorLinksService(
+    administrative.staff,
+    professionalReader,
+    childReader,
+    administrative.guardians,
+    linkCacheSecondsFromEnv(),
+  );
 
   return {
     prisma,
@@ -160,17 +168,10 @@ export function createContainer(prisma: PrismaClient = createPrismaClient()) {
       childGuardianReader,
       credentialRepository,
       studentEvidenceRepository,
-      // Enlace usuario ↔ persona de Saga (`security_user_id` = `sub`).
-      new ActorLinksService(
-        administrative.staff,
-        professionalReader,
-        childReader,
-        administrative.guardians,
-        linkCacheSecondsFromEnv(),
-      ),
+      actorLinks,
     ),
-    // Autenticación delegada al módulo administrativo (ADR-003)
-    auth: new AuthService(authGateway),
+    // Autenticación delegada al módulo administrativo (ADR-003); login y perfil con los ids de Saga (ADR-008)
+    auth: new AuthService(authGateway, { tokens: tokens.verifier, links: actorLinks, childGuardians: childGuardianReader }),
     // Acceso
     profiles: new ProfilesService(profileRepository),
     apps: new AppsService(appRepository),

@@ -167,7 +167,7 @@ Los administrativos no tienen tabla propia: son personal (`staff`) del módulo a
 
 | Tabla | Modelo | Notas |
 |---|---|---|
-| `evidences` | `Evidence` | `url` (https, máx. 2048) y `title` (obligatorio, 2–150). Se relaciona con 1 a 50 estudiantes activos. Quién la subió y cuándo quedan en `creado_por`/`creado_en` (diagrama: `upload_by`/`upload_at`). Validaciones: [VALIDACIONES.md §3.10](VALIDACIONES.md) |
+| `evidences` | `Evidence` | `url` (https, máx. 2048), `title` (obligatorio, 2–150) y `type` (`IMAGE` \| `VIDEO`, obligatorio: el front previsualiza con `<img>` o `<video>`). Se relaciona con 1 a 50 estudiantes activos. Quién la subió y cuándo quedan en `creado_por`/`creado_en` (diagrama: `upload_by`/`upload_at`). Validaciones: [VALIDACIONES.md §3.10](VALIDACIONES.md) |
 | `student_evidences` | `StudentEvidence` | Estudiantes de una evidencia. Único (`student_id`, `evidence_id`) |
 | `credentials` | `Credential` | Credencial o certificado del estudiante: `organization_name` (obligatorio, 2–150), `url` (https, obligatoria), taller opcional (`finished` y con asistencia del estudiante), `status` (`pending` → `valid` → `revoked`; nace `pending`). Solo `pending` se edita o elimina. Validaciones: [VALIDACIONES.md §3.12](VALIDACIONES.md) |
 
@@ -356,7 +356,7 @@ Todos los métodos que escriben reciben `actor`. Eliminar es siempre borrado ló
 
 | Clave | Servicio | Casos de uso principales |
 |---|---|---|
-| `auth` | `AuthService` | `register`, `login`, `getProfile(token)`: remiten al módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)) |
+| `auth` | `AuthService` | `register`, `login`, `getProfile(token)`: remiten al módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)). `describeSession` y `getProfile` agregan `expiresAt` y los ids de Saga del usuario (`saga`, [ADR-008](decisiones/ADR-008-seguridad-por-roles.md) §2.7) |
 | `children` | `ChildrenService` | `get`, `findByDocument`, `list`, `getGuardians` (vínculos vigentes por defecto) |
 | `guardians` | `GuardiansService` | `get`, `list`, `getChildren` |
 | `professionals` | `ProfessionalsService` | `get`, `findByStaffId`, `list` |
@@ -434,7 +434,7 @@ await app.evaluations.evaluate(
 - [x] Seguridad de nuestras rutas con el token y los roles del servicio de seguridad ([ADR-008](decisiones/ADR-008-seguridad-por-roles.md)): verificación JWT/endpoint, matriz de roles, token reenviado a Saga, actor = `sub` (texto).
 - [x] Contrato con el servicio de seguridad (2026-11-08): JWT HS256 verificado localmente con `JWT_SECRET`; enlace usuario ↔ persona por `security_user_id` de Saga.
 - [ ] Recibir `JWT_SECRET` por un canal seguro y configurarlo en Render.
-- [ ] BD de pruebas: ejecutar `database/migraciones/2026-11-08-auditoria-actor-texto.sql`.
+- [ ] BD de pruebas: ejecutar `database/migraciones/2026-11-08-auditoria-actor-texto.sql` y `database/migraciones/2026-11-09-evidencias-tipo.sql`.
 - [ ] Revisar con el equipo la matriz de `src/shared/http/route-permissions.ts`.
 - [ ] Pedir al módulo administrativo ejemplos de respuesta exitosa (registro, login, perfil) y una excepción del límite de intentos para nuestra IP.
 - [ ] Acordar con el equipo de seguridad la propiedad de `perfiles`, `roles`, `usuario_roles`, `aplicaciones`, `crear_perfil` y `tiene_rol()`: si son suyas, salen de nuestro SQL y las features `profiles`/`access` pasan a solo lectura (o se retiran).

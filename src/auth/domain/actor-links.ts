@@ -6,6 +6,7 @@ import type { ActorLinks } from "./principal.entity.js";
 
 const CLAIMS: Record<keyof ActorLinks, readonly string[]> = {
   professionalId: ["professionalId", "professional_id", "talleristaId", "tallerista_id"],
+  staffId: ["staffId", "staff_id"],
   childId: ["childId", "child_id", "estudianteId", "estudiante_id"],
   guardianId: ["guardianId", "guardian_id", "acudienteId", "acudiente_id"],
 };

@@ -141,9 +141,9 @@ try {
 
   // ── Evidencias ──
   const evidenceDefs = [
-    { title: "Presentación final de Música y ritmo", url: "https://storage.fundacion.test/evidencias/musica-final.mp4", studentIds: [1n, 2n, 4n] },
-    { title: "Ensayo de la obra de teatro", url: "https://storage.fundacion.test/evidencias/teatro-ensayo.jpg", studentIds: [1n, 5n] },
-    { title: "Mural colectivo", url: "https://storage.fundacion.test/evidencias/mural.jpg", studentIds: [2n, 4n] },
+    { title: "Presentación final de Música y ritmo", url: "https://storage.fundacion.test/evidencias/musica-final.mp4", type: "VIDEO" as const, studentIds: [1n, 2n, 4n] },
+    { title: "Ensayo de la obra de teatro", url: "https://storage.fundacion.test/evidencias/teatro-ensayo.jpg", type: "IMAGE" as const, studentIds: [1n, 5n] },
+    { title: "Mural colectivo", url: "https://storage.fundacion.test/evidencias/mural.jpg", type: "IMAGE" as const, studentIds: [2n, 4n] },
   ];
   for (const def of evidenceDefs) {
     const already = (await app.studentEvidences.listByStudent(def.studentIds[0]!)).some((e) => e.evidence.title === def.title);

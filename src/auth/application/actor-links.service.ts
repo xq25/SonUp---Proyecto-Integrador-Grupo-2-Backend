@@ -44,6 +44,7 @@ export class ActorLinksService implements ActorLinksResolver {
     const { userId, roles } = principal;
     if (roles.includes(ROLES.workshopLeader)) {
       const member = await this.staff.findBySecurityUserId(userId);
+      if (member) links.staffId = member.id;
       const professional = member && (await this.professionals.findByStaffId(member.id));
       if (professional) links.professionalId = professional.id;
     }

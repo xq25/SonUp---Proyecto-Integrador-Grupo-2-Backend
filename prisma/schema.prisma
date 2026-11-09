@@ -284,6 +284,7 @@ model Evidence {
   id        BigInt    @id @default(autoincrement())
   url       String // check: https, máx. 2048
   title     String // check: 2–150
+  type      String // check: IMAGE | VIDEO
   createdAt DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
   createdBy String?   @map("creado_por")
   updatedAt DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)

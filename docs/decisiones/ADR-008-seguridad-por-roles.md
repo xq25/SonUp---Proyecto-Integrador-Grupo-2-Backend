@@ -91,6 +91,28 @@
 - **Sin enlace en Saga** se responde **403** («tu cuenta no está enlazada…: regístrate o enlázate primero»). Si el registro no existe, se deja seguir y el servicio responde 404.
 - La llaman las rutas, antes del servicio. Las reglas de negocio (§3.6 de VALIDACIONES) siguen en los servicios.
 
+### 2.7 Lo que recibe el front al iniciar sesión
+
+`POST /auth/login` y `GET /auth/profile` agregan, a lo que devuelve el servicio de seguridad (2026-11-09, pedido del equipo de front):
+
+```json
+{
+  "token": "eyJ…", "tokenType": "Bearer", "expiresIn": 28800, "expiresAt": "2026-11-09T18:32:00.000Z",
+  "user": { "id": "32", "username": "…", "email": "…", "roles": ["ACUDIENTE"] },
+  "saga": { "linked": true, "professionalId": null, "staffId": null, "childId": null, "guardianId": "9", "childIds": ["4"] }
+}
+```
+
+- **`user.id` y `user.roles`** salen del token verificado, así llegan aunque el servicio de seguridad no los incluya en su respuesta.
+- **`expiresAt`** es el `exp` del token.
+- **`saga`** son los ids de Saga del usuario, según su rol, resueltos con `ActorLinksService`:
+  - **TALLERISTA:** `professionalId` (el `evaluatorId` de sus talleres) y `staffId`.
+  - **ESTUDIANTE:** `childId`.
+  - **ACUDIENTE:** `guardianId` y `childIds` (sus jóvenes con vínculo vigente).
+- **Si la cuenta no está enlazada**, llega `linked: false` y el front puede enviarla a registrarse en Saga. ADMIN y DONANTE siempre tienen `linked: false`.
+- **Es de mejor esfuerzo:** si el token no se puede verificar o Saga no responde, el login no falla y `saga` llega en `null`. El front puede reintentar con `GET /auth/profile`.
+- **No se envían datos personales de Saga** (nombre, documento, anamnesis): el front los pide con esos ids.
+
 ## 3. Alternativas descartadas
 
 | Alternativa | Por qué no |

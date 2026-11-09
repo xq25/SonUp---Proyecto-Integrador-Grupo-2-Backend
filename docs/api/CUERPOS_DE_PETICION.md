@@ -61,7 +61,7 @@
 |---|---|---|---|---|---|
 | `POST` | `/auth/register` | Registrar usuario (pública) | Pública |  | [`auth.register`](#authregister) |
 | `POST` | `/auth/login` | Iniciar sesión (pública): devuelve el token | Pública |  | [`auth.login`](#authlogin) |
-| `GET` | `/auth/profile` | Usuario dueño del token (`Authorization: Bearer <token del login>`) | Pública |  |  |
+| `GET` | `/auth/profile` | Usuario dueño del token, con `expiresAt` y sus ids de Saga (`saga`) | Pública |  |  |
 
 ### Estudiantes
 
@@ -281,6 +281,8 @@
 - Credenciales incorrectas → 401 (mensaje del módulo administrativo)
 - El módulo administrativo limita los intentos (hoy 20 cada 15 min por IP) → 429
 - Servicio caído o sin token en la respuesta → 502; sin respuesta a tiempo → 504
+- Respuesta: `{ token, tokenType, expiresIn, expiresAt, user: { id, username, email, roles }, saga }`. `user.id` y `user.roles` salen del token verificado (ADR-008)
+- `saga` según el rol: `{ linked, professionalId, staffId, childId, guardianId, childIds }` (TALLERISTA: professionalId y staffId; ESTUDIANTE: childId; ACUDIENTE: guardianId y childIds de sus jóvenes vigentes). `linked: false` si la cuenta no está enlazada en Saga (registrarla con `/…/register` de Saga). `saga: null` si Saga no respondió: reintentar con `GET /auth/profile`. `GET /auth/profile` devuelve lo mismo, sin el token
 
 
 ---
@@ -663,6 +665,7 @@
 |---|---|---|---|
 | `url` | string | **Sí** | URL `https://…`, sin espacios, máx. 2048 |
 | `title` | string | **Sí** | 2–150 |
+| `type` | string | **Sí** | `IMAGE` \| `VIDEO` (el front previsualiza con `<img>` o `<video>`) |
 | `studentIds` | array | **Sí** | 1–50 ids (número o texto con un entero > 0 (ej. 12 o "12")); los repetidos se cuentan una vez |
 
 **Cuerpo válido:**
@@ -671,6 +674,7 @@
 {
   "url": "https://storage.fundacion.test/evidencias/mural.jpg",
   "title": "Mural colectivo",
+  "type": "IMAGE",
   "studentIds": [
     1,
     "2"
@@ -682,10 +686,12 @@
 
 | Caso | Cuerpo | Campos con error (`details[].path`) |
 |---|---|---|
-| URL http | `{ "url": "http://x.test/a.jpg", "title": "Foto", "studentIds": [ 1 ] }` | `url` |
-| URL con espacios | `{ "url": "https://x.test/mi foto.jpg", "title": "Foto", "studentIds": [ 1 ] }` | `url` |
-| Sin estudiantes | `{ "url": "https://x.test/a.jpg", "title": "Foto", "studentIds": [] }` | `studentIds` |
-| Id de estudiante inválido | `{ "url": "https://x.test/a.jpg", "title": "Foto", "studentIds": [ 1, "x" ] }` | `studentIds.1` |
+| URL http | `{ "url": "http://x.test/a.jpg", "title": "Foto", "type": "IMAGE", "studentIds": [ 1 ] }` | `url` |
+| URL con espacios | `{ "url": "https://x.test/mi foto.jpg", "title": "Foto", "type": "IMAGE", "studentIds": [ 1 ] }` | `url` |
+| Sin tipo | `{ "url": "https://x.test/a.jpg", "title": "Foto", "studentIds": [ 1 ] }` | `type` |
+| Tipo no permitido | `{ "url": "https://x.test/a.pdf", "title": "Acta", "type": "PDF", "studentIds": [ 1 ] }` | `type` |
+| Sin estudiantes | `{ "url": "https://x.test/a.jpg", "title": "Foto", "type": "IMAGE", "studentIds": [] }` | `studentIds` |
+| Id de estudiante inválido | `{ "url": "https://x.test/a.jpg", "title": "Foto", "type": "IMAGE", "studentIds": [ 1, "x" ] }` | `studentIds.1` |
 
 **Reglas de negocio** (las valida el servicio, no el esquema):
 
@@ -697,13 +703,14 @@
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
-| `url, title` | string | No | Las mismas reglas de subir. Los estudiantes se cambian con `linkStudent`/`unlinkStudent` |
+| `url, title, type` | string | No | Las mismas reglas de subir. Los estudiantes se cambian con `linkStudent`/`unlinkStudent` |
 
 **Cuerpo válido:**
 
 ```json
 {
-  "title": "Mural colectivo (versión final)"
+  "title": "Mural colectivo (versión final)",
+  "type": "IMAGE"
 }
 ```
 
@@ -712,6 +719,7 @@
 | Caso | Cuerpo | Campos con error (`details[].path`) |
 |---|---|---|
 | Cambiar estudiantes aquí | `{ "studentIds": [ 1 ] }` | `studentIds` |
+| Tipo en minúsculas | `{ "type": "video" }` | `type` |
 
 **Reglas de negocio** (las valida el servicio, no el esquema):
 
@@ -926,7 +934,7 @@
 
 ## Uso en Postman
 
-**Archivo:** `docs/api/postman-coleccion.json` (Postman v2.1). Trae las 80 rutas en 123 peticiones, **una carpeta por entidad**: Estado, Autenticación, Estudiantes, Acudientes, Talleristas, Personal (administrativos), Acceso (roles y aplicaciones), Perfiles, Categorías de habilidades, Habilidades, Escalas de evaluación, Talleres, Asistencias, Evaluaciones y calificaciones, Evidencias, Credenciales.
+**Archivo:** `docs/api/postman-coleccion.json` (Postman v2.1). Trae las 80 rutas en 126 peticiones, **una carpeta por entidad**: Estado, Autenticación, Estudiantes, Acudientes, Talleristas, Personal (administrativos), Acceso (roles y aplicaciones), Perfiles, Categorías de habilidades, Habilidades, Escalas de evaluación, Talleres, Asistencias, Evaluaciones y calificaciones, Evidencias, Credenciales.
 
 1. En Postman: *Import → File* y elige `docs/api/postman-coleccion.json`.
 2. En la pestaña *Variables* de la colección llena:

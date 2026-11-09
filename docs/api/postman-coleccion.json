@@ -618,7 +618,7 @@
           }
         },
         {
-          "name": "Usuario dueño del token (`Authorization: Bearer <token del login>`) · GET /auth/profile",
+          "name": "Usuario dueño del token, con `expiresAt` y sus ids de Saga (`saga`) · GET /auth/profile",
           "event": [
             {
               "listen": "prerequest",
@@ -4757,7 +4757,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"url\": \"https://storage.fundacion.test/evidencias/mural.jpg\",\n  \"title\": \"Mural colectivo\",\n  \"studentIds\": [\n    1,\n    \"2\"\n  ]\n}",
+              "raw": "{\n  \"url\": \"https://storage.fundacion.test/evidencias/mural.jpg\",\n  \"title\": \"Mural colectivo\",\n  \"type\": \"IMAGE\",\n  \"studentIds\": [\n    1,\n    \"2\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4804,7 +4804,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"url\": \"http://x.test/a.jpg\",\n  \"title\": \"Foto\",\n  \"studentIds\": [\n    1\n  ]\n}",
+              "raw": "{\n  \"url\": \"http://x.test/a.jpg\",\n  \"title\": \"Foto\",\n  \"type\": \"IMAGE\",\n  \"studentIds\": [\n    1\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4851,7 +4851,101 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"url\": \"https://x.test/mi foto.jpg\",\n  \"title\": \"Foto\",\n  \"studentIds\": [\n    1\n  ]\n}",
+              "raw": "{\n  \"url\": \"https://x.test/mi foto.jpg\",\n  \"title\": \"Foto\",\n  \"type\": \"IMAGE\",\n  \"studentIds\": [\n    1\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evidences",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evidences"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Subir evidencia · Sin tipo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 · error de validación', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('code = VALIDATION', () => pm.expect(body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('Campos con error: type', () => {",
+                  "  const paths = (body.error.details || []).map((d) => d.path).sort();",
+                  "  pm.expect(paths).to.eql([\"type\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://x.test/a.jpg\",\n  \"title\": \"Foto\",\n  \"studentIds\": [\n    1\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evidences",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evidences"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Subir evidencia · Tipo no permitido",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 · error de validación', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('code = VALIDATION', () => pm.expect(body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('Campos con error: type', () => {",
+                  "  const paths = (body.error.details || []).map((d) => d.path).sort();",
+                  "  pm.expect(paths).to.eql([\"type\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"url\": \"https://x.test/a.pdf\",\n  \"title\": \"Acta\",\n  \"type\": \"PDF\",\n  \"studentIds\": [\n    1\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4898,7 +4992,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"url\": \"https://x.test/a.jpg\",\n  \"title\": \"Foto\",\n  \"studentIds\": []\n}",
+              "raw": "{\n  \"url\": \"https://x.test/a.jpg\",\n  \"title\": \"Foto\",\n  \"type\": \"IMAGE\",\n  \"studentIds\": []\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4945,7 +5039,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"url\": \"https://x.test/a.jpg\",\n  \"title\": \"Foto\",\n  \"studentIds\": [\n    1,\n    \"x\"\n  ]\n}",
+              "raw": "{\n  \"url\": \"https://x.test/a.jpg\",\n  \"title\": \"Foto\",\n  \"type\": \"IMAGE\",\n  \"studentIds\": [\n    1,\n    \"x\"\n  ]\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -5105,7 +5199,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"title\": \"Mural colectivo (versión final)\"\n}",
+              "raw": "{\n  \"title\": \"Mural colectivo (versión final)\",\n  \"type\": \"IMAGE\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -5154,6 +5248,54 @@
             "body": {
               "mode": "raw",
               "raw": "{\n  \"studentIds\": [\n    1\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/evidences/{{evidenceId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "evidences",
+                "{{evidenceId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Actualizar evidencia · Tipo en minúsculas",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 · error de validación', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('code = VALIDATION', () => pm.expect(body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('Campos con error: type', () => {",
+                  "  const paths = (body.error.details || []).map((d) => d.path).sort();",
+                  "  pm.expect(paths).to.eql([\"type\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"video\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

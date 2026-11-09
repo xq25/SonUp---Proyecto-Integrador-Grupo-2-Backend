@@ -6,6 +6,8 @@ export type * from "./domain/registration.entity.js";
 export type * from "./domain/auth.gateway.js";
 export * from "./application/auth.service.js";
 export type * from "./domain/principal.entity.js";
+export type * from "./domain/saga-identity.entity.js";
+export type * from "./domain/actor-links.resolver.js";
 export type * from "./domain/token-verifier.js";
 export * from "./domain/roles.js";
 export * from "./domain/actor-links.js";

@@ -4,7 +4,7 @@ import { withPrismaErrors } from "../../shared/infrastructure/prisma/prisma-erro
 import type { Prisma, PrismaClient } from "../../shared/infrastructure/prisma/prisma.client.js";
 import type { StudentEvidence, StudentEvidenceWithEvidence } from "../domain/student-evidence.entity.js";
 import type { StudentEvidenceRepository } from "../domain/student-evidence.repository.js";
-import { evidenceSelect } from "./prisma-evidence.repository.js";
+import { evidenceSelect, toEvidence } from "./prisma-evidence.repository.js";
 
 const studentEvidenceSelect = {
   id: true,
@@ -23,12 +23,13 @@ export class PrismaStudentEvidenceRepository implements StudentEvidenceRepositor
     });
   }
 
-  findByStudent(studentId: bigint): Promise<StudentEvidenceWithEvidence[]> {
-    return this.prisma.studentEvidence.findMany({
+  async findByStudent(studentId: bigint): Promise<StudentEvidenceWithEvidence[]> {
+    const rows = await this.prisma.studentEvidence.findMany({
       where: { studentId, ...notDeleted, evidence: notDeleted },
       select: { ...studentEvidenceSelect, evidence: { select: evidenceSelect } },
       orderBy: { createdAt: "desc" },
     });
+    return rows.map((row) => ({ ...row, evidence: toEvidence(row.evidence) }));
   }
 
   findByEvidence(evidenceId: bigint): Promise<StudentEvidence[]> {

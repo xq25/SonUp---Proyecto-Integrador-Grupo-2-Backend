@@ -8,6 +8,8 @@
 export interface ActorLinks {
   /** `professional_id` del tallerista. */
   professionalId?: bigint;
+  /** `staff_id` del tallerista. */
+  staffId?: bigint;
   /** `child_id` del joven. */
   childId?: bigint;
   /** `guardian_id` del acudiente. */
@@ -20,4 +22,6 @@ export interface Principal {
   /** Códigos de rol en mayúsculas (`ADMIN`, `TALLERISTA`, `ESTUDIANTE`, `ACUDIENTE`, `DONANTE`). */
   roles: string[];
   links: ActorLinks;
+  /** Vencimiento del token (`exp`), si se conoce. */
+  expiresAt?: Date;
 }

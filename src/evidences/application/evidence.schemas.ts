@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { httpsUrlSchema, idSchema, nameSchema } from "../../shared/application/schemas.js";
 import {
+  EVIDENCE_TYPES,
   MAX_STUDENTS_PER_EVIDENCE,
   MIN_STUDENTS_PER_EVIDENCE,
   type UpdateEvidenceInput,
@@ -11,6 +12,7 @@ import {
 // Estudiantes activos y el máximo por evidencia al relacionar (nivel 2) siguen en el servicio.
 
 const evidenceTitle = nameSchema(2, 150);
+const evidenceType = z.enum(EVIDENCE_TYPES, { error: `Debe ser uno de: ${EVIDENCE_TYPES.join(", ")}` });
 
 /** 1 a 50 estudiantes; los repetidos se cuentan una vez. */
 const studentIds = z
@@ -26,10 +28,12 @@ const studentIds = z
 export const uploadEvidenceSchema = z.strictObject({
   url: httpsUrlSchema,
   title: evidenceTitle,
+  type: evidenceType,
   studentIds,
 }) satisfies z.ZodType<UploadEvidenceInput>;
 
 export const updateEvidenceSchema = z.strictObject({
   url: httpsUrlSchema.exactOptional(),
   title: evidenceTitle.exactOptional(),
+  type: evidenceType.exactOptional(),
 }) satisfies z.ZodType<UpdateEvidenceInput>;

@@ -468,7 +468,7 @@
     "path": "/evidences",
     "case": "Cuerpo válido",
     "expect": "valid",
-    "body": "{\"url\":\"https://storage.fundacion.test/evidencias/mural.jpg\",\"title\":\"Mural colectivo\",\"studentIds\":[1,\"2\"]}",
+    "body": "{\"url\":\"https://storage.fundacion.test/evidencias/mural.jpg\",\"title\":\"Mural colectivo\",\"type\":\"IMAGE\",\"studentIds\":[1,\"2\"]}",
     "errorPaths": []
   },
   {
@@ -477,7 +477,7 @@
     "path": "/evidences",
     "case": "URL http",
     "expect": "invalid",
-    "body": "{\"url\":\"http://x.test/a.jpg\",\"title\":\"Foto\",\"studentIds\":[1]}",
+    "body": "{\"url\":\"http://x.test/a.jpg\",\"title\":\"Foto\",\"type\":\"IMAGE\",\"studentIds\":[1]}",
     "errorPaths": [
       "url"
     ]
@@ -488,7 +488,7 @@
     "path": "/evidences",
     "case": "URL con espacios",
     "expect": "invalid",
-    "body": "{\"url\":\"https://x.test/mi foto.jpg\",\"title\":\"Foto\",\"studentIds\":[1]}",
+    "body": "{\"url\":\"https://x.test/mi foto.jpg\",\"title\":\"Foto\",\"type\":\"IMAGE\",\"studentIds\":[1]}",
     "errorPaths": [
       "url"
     ]
@@ -497,9 +497,31 @@
     "operation": "evidences.upload",
     "method": "POST",
     "path": "/evidences",
+    "case": "Sin tipo",
+    "expect": "invalid",
+    "body": "{\"url\":\"https://x.test/a.jpg\",\"title\":\"Foto\",\"studentIds\":[1]}",
+    "errorPaths": [
+      "type"
+    ]
+  },
+  {
+    "operation": "evidences.upload",
+    "method": "POST",
+    "path": "/evidences",
+    "case": "Tipo no permitido",
+    "expect": "invalid",
+    "body": "{\"url\":\"https://x.test/a.pdf\",\"title\":\"Acta\",\"type\":\"PDF\",\"studentIds\":[1]}",
+    "errorPaths": [
+      "type"
+    ]
+  },
+  {
+    "operation": "evidences.upload",
+    "method": "POST",
+    "path": "/evidences",
     "case": "Sin estudiantes",
     "expect": "invalid",
-    "body": "{\"url\":\"https://x.test/a.jpg\",\"title\":\"Foto\",\"studentIds\":[]}",
+    "body": "{\"url\":\"https://x.test/a.jpg\",\"title\":\"Foto\",\"type\":\"IMAGE\",\"studentIds\":[]}",
     "errorPaths": [
       "studentIds"
     ]
@@ -510,7 +532,7 @@
     "path": "/evidences",
     "case": "Id de estudiante inválido",
     "expect": "invalid",
-    "body": "{\"url\":\"https://x.test/a.jpg\",\"title\":\"Foto\",\"studentIds\":[1,\"x\"]}",
+    "body": "{\"url\":\"https://x.test/a.jpg\",\"title\":\"Foto\",\"type\":\"IMAGE\",\"studentIds\":[1,\"x\"]}",
     "errorPaths": [
       "studentIds.1"
     ]
@@ -521,7 +543,7 @@
     "path": "/evidences/{{evidenceId}}",
     "case": "Cuerpo válido",
     "expect": "valid",
-    "body": "{\"title\":\"Mural colectivo (versión final)\"}",
+    "body": "{\"title\":\"Mural colectivo (versión final)\",\"type\":\"IMAGE\"}",
     "errorPaths": []
   },
   {
@@ -533,6 +555,17 @@
     "body": "{\"studentIds\":[1]}",
     "errorPaths": [
       "studentIds"
+    ]
+  },
+  {
+    "operation": "evidences.update",
+    "method": "PATCH",
+    "path": "/evidences/{{evidenceId}}",
+    "case": "Tipo en minúsculas",
+    "expect": "invalid",
+    "body": "{\"type\":\"video\"}",
+    "errorPaths": [
+      "type"
     ]
   },
   {

@@ -233,6 +233,7 @@ planned ──▶ active ──▶ finished
 |---|---|---|---|---|
 | `url` | texto | Sí | **Cualquier `https`**, sin espacios, formato de URL válido; máx. 2048 ✔(servicio + BD) | 1, 3 |
 | `title` | texto | **Sí** | 2–150 ✔(BD); sin espacios sobrantes ✔ | 1, 3 |
+| `type` | enum | **Sí** | `IMAGE` \| `VIDEO` ✔(BD). El front lo usa para previsualizar con `<img>` o `<video>` (pedido del equipo de front, 2026-11-09). Se puede cambiar al editar | 1, 3 |
 | `studentIds` (entrada) | lista de bigint | **Sí** | **1 a 50** estudiantes ✔; repetidos se cuentan una vez ✔; cada uno debe existir ✔ y estar **activo** (§3.5) ✔ | 1, 2 |
 
 **Reglas de negocio:**
@@ -242,7 +243,8 @@ planned ──▶ active ──▶ finished
 - **Límite de estudiantes:** máximo 50 por evidencia ✔ (`linkStudent` → `ConflictError` si se supera). **No se quita el último estudiante** → `ConflictError`; se elimina la evidencia ✔.
 - **Al eliminar la evidencia** también se ocultan sus relaciones con estudiantes ✔.
 - Validación de URL reutilizable: `httpsUrlSchema` en `shared/application/schemas.ts`.
-- **Pendiente:** los tipos de archivo permitidos (imagen, video, PDF) y el tamaño máximo se validan al subir el archivo, no en la URL. Se definen con la capa de entrada o almacenamiento.
+- **No se valida que la URL coincida con `type`** (por ejemplo, `.mp4` con `VIDEO`): la URL puede no tener extensión. Lo declara quien sube la evidencia.
+- **Pendiente:** el tamaño máximo y el formato real del archivo se validan al subirlo, no en la URL. Se definen con la capa de almacenamiento.
 
 ### 3.11 `student_evidences` — ✅ Aprobada
 

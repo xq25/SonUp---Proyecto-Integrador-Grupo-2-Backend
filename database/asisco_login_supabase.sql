@@ -398,15 +398,18 @@ select public.habilitar_auditoria('evaluation_skills', 'id');
 -- EVIDENCIAS
 -- =====================================================================
 
--- Archivo (video, imagen, documento). Quién lo subió y cuándo quedan en
--- creado_por / creado_en (diagrama: upload_by / upload_at).
+-- Archivo de imagen o video. `type` le dice al front cómo previsualizarlo
+-- (<img> o <video>). Quién lo subió y cuándo quedan en creado_por / creado_en
+-- (diagrama: upload_by / upload_at).
 -- Debe relacionarse con 1 a 50 estudiantes activos (lo valida el servicio).
 create table public.evidences (
   id bigint generated always as identity primary key,
   url text not null
     check (char_length(url) <= 2048 and url ~ '^https://\S+$'),
   title text not null
-    check (char_length(title) between 2 and 150 and title = btrim(title) and title !~ '\s{2,}')
+    check (char_length(title) between 2 and 150 and title = btrim(title) and title !~ '\s{2,}'),
+  type text not null
+    constraint evidences_type_check check (type in ('IMAGE', 'VIDEO'))
 );
 select public.habilitar_auditoria('evidences', 'id');
 

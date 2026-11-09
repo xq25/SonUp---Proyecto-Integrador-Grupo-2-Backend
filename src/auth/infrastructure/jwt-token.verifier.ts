@@ -34,13 +34,14 @@ export class JwtTokenVerifier implements TokenVerifier {
     } catch {
       throw invalid();
     }
-    const { sub, roles } = payload;
+    const { sub, roles, exp } = payload;
     if (typeof sub !== "string" || sub.trim() === "") throw invalid();
     if (!Array.isArray(roles) || !roles.every((role) => typeof role === "string")) throw invalid();
     return {
       userId: sub.trim(),
       roles: [...new Set(roles.map((role) => role.trim().toUpperCase()).filter(Boolean))],
       links: {},
+      ...(typeof exp === "number" ? { expiresAt: new Date(exp * 1000) } : {}),
     };
   }
 }
