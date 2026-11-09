@@ -32,8 +32,8 @@ export interface AdministrativeAuthConfig {
   timeoutMs: number;
 }
 
-/** Tiempo límite por defecto. Render (plan gratuito) tarda ~30 s en despertar: súbelo con RENDER_HTTP_TIMEOUT_MS. */
-const DEFAULT_TIMEOUT_MS = 10_000;
+/** Tiempo límite por defecto: el servicio de seguridad (Render, plan gratuito) tarda ~30 s en despertar. Se cambia con RENDER_HTTP_TIMEOUT_MS. */
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 export function administrativeAuthConfigFromEnv(env: NodeJS.ProcessEnv = process.env): AdministrativeAuthConfig {
   const timeout = Number(env["RENDER_HTTP_TIMEOUT_MS"]);

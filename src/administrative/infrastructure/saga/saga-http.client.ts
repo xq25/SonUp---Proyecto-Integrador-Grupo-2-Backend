@@ -14,8 +14,8 @@ export interface SagaConfig {
   token: string | undefined;
 }
 
-/** Tiempo límite por defecto. Render (plan gratuito) tarda ~30 s en despertar: súbelo con SAGA_HTTP_TIMEOUT_MS. */
-const DEFAULT_TIMEOUT_MS = 10_000;
+/** Tiempo límite por defecto: Saga (Render, plan gratuito) tarda ~30 s en despertar. Se cambia con SAGA_HTTP_TIMEOUT_MS. */
+const DEFAULT_TIMEOUT_MS = 30_000;
 
 export function sagaConfigFromEnv(env: NodeJS.ProcessEnv = process.env): SagaConfig {
   const timeout = Number(env["SAGA_HTTP_TIMEOUT_MS"]);
