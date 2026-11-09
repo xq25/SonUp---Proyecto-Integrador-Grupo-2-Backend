@@ -10,12 +10,14 @@ export function createSwaggerSpec(): object {
   const servers = [
     {
       url: `http://localhost:${process.env["PORT"] ?? 3000}${API_PREFIX}`,
-      description: "Desarrollo",
+      description: "Local (la API corriendo en este equipo)",
     },
   ];
-  // PUBLIC_URL (opcional): URL pública del despliegue, sin el prefijo.
-  const publicUrl = process.env["PUBLIC_URL"];
-  if (publicUrl) servers.push({ url: `${publicUrl}${API_PREFIX}`, description: "Producción" });
+  // PUBLIC_URL (opcional): URL pública del despliegue, sin el prefijo. Va primero
+  // para que Swagger la use por defecto: en el despliegue, "localhost" apunta al
+  // equipo de quien abre Swagger, no al servidor.
+  const publicUrl = process.env["PUBLIC_URL"]?.trim().replace(/\/+$/, "");
+  if (publicUrl) servers.unshift({ url: `${publicUrl}${API_PREFIX}`, description: "Despliegue" });
 
   return swaggerJSDoc({
     definition: {
