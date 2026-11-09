@@ -422,7 +422,7 @@ await app.evaluations.evaluate(
 - [x] Consumir Saga por su API REST con un usuario de servicio ([ADR-007](decisiones/ADR-007-saga-por-api.md)).
 - [ ] Pedir al equipo de seguridad el usuario de servicio de este módulo (`SAGA_SERVICE_EMAIL`/`SAGA_SERVICE_PASSWORD`) con permiso para leer `children`, `guardians`, `children-guardians`, `professionals` y `staff` en Saga.
 - [ ] Pedir a Saga los valores de sus catálogos (p. ej. el `staff_role_id` de un administrativo) y, si las listas crecen, filtros o paginación.
-- [ ] Decidir si se retira la tabla `public.administrators` que ya existe en la BD de pruebas (quedó sin uso).
+- [x] Retirar la tabla `public.administrators` (sin uso desde ADR-006): `database/migraciones/2026-11-09-retirar-administrators.sql`, aplicada en la BD de pruebas (2026-11-09).
 - [ ] BD de pruebas del módulo: completar la contraseña en `.env`, ejecutar los dos SQL (§2.1) y pasar `npm run db:check` contra Supabase.
 - [ ] BD general: reemplazar las URLs en `.env`, confirmar el nombre del esquema administrativo y comparar con `prisma db pull --print`.
 - [ ] Probar los repositorios y las políticas RLS en Supabase con usuarios reales.
@@ -433,8 +433,8 @@ await app.evaluations.evaluate(
 - [x] Autenticación del front a través de nuestra API: `/auth/register`, `/auth/login`, `/auth/profile` remiten al módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)).
 - [x] Seguridad de nuestras rutas con el token y los roles del servicio de seguridad ([ADR-008](decisiones/ADR-008-seguridad-por-roles.md)): verificación JWT/endpoint, matriz de roles, token reenviado a Saga, actor = `sub` (texto).
 - [x] Contrato con el servicio de seguridad (2026-11-08): JWT HS256 verificado localmente con `JWT_SECRET`; enlace usuario ↔ persona por `security_user_id` de Saga.
-- [ ] Recibir `JWT_SECRET` por un canal seguro y configurarlo en Render.
-- [ ] BD de pruebas: ejecutar `database/migraciones/2026-11-08-auditoria-actor-texto.sql` y `database/migraciones/2026-11-09-evidencias-tipo.sql`.
+- [x] Recibir `JWT_SECRET` y configurarlo en Render (2026-11-09).
+- [x] BD de pruebas: migraciones `2026-11-08-auditoria-actor-texto.sql` y `2026-11-09-evidencias-tipo.sql` aplicadas, y simulado administrativo actualizado (`staff` y `security_user_id`) (2026-11-09).
 - [ ] Revisar con el equipo la matriz de `src/shared/http/route-permissions.ts`.
 - [ ] Pedir al módulo administrativo ejemplos de respuesta exitosa (registro, login, perfil) y una excepción del límite de intentos para nuestra IP.
 - [ ] Acordar con el equipo de seguridad la propiedad de `perfiles`, `roles`, `usuario_roles`, `aplicaciones`, `crear_perfil` y `tiene_rol()`: si son suyas, salen de nuestro SQL y las features `profiles`/`access` pasan a solo lectura (o se retiran).
