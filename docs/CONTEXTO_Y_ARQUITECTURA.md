@@ -80,7 +80,7 @@
 | `RENDER_API_URL` | URL base del servicio de autenticación del módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)). Sin ella, `/auth/*` responde 503 |
 | `RENDER_REGISTER_PATH` / `RENDER_LOGIN_PATH` / `RENDER_PROFILE_PATH` | Rutas de registro, login y perfil allá (por defecto `/auth/registro`, `/auth/login`, `/auth/perfil`) |
 | `RENDER_HTTP_TIMEOUT_MS` | Tiempo límite de cada llamada al servicio de seguridad (por defecto 30000: Render gratuito tarda ~30 s en despertar) |
-| `SAGA_API_URL` | URL de la API de Saga (módulo administrativo, [ADR-007](decisiones/ADR-007-saga-por-api.md)). **Sin ella** se leen las tablas simuladas del esquema `administrativo` (solo desarrollo y pruebas) |
+| `SAGA_API_URL` | URL de la API de Saga (módulo administrativo, [ADR-007](decisiones/ADR-007-saga-por-api.md)): `https://saga-up-backend-lr4u.onrender.com`. **Viene activa en `.env.example`**: con ella se leen los datos reales y las cuentas enlazadas (`security_user_id`). **Sin ella** se leen las tablas simuladas del esquema `administrativo` (solo para trabajar sin conexión, el seed y las pruebas automáticas): las cuentas reales no quedan enlazadas y "lo suyo" responde 403. El arranque avisa en qué modo está |
 | `SAGA_SERVICE_EMAIL` / `SAGA_SERVICE_PASSWORD` | Usuario de servicio para consultar Saga **fuera de una petición** (scripts) o en desarrollo con `X-Actor-Id`. En las peticiones se reenvía el token del usuario ([ADR-008](decisiones/ADR-008-seguridad-por-roles.md)) |
 | `SAGA_SERVICE_TOKEN` | Solo pruebas: token ya emitido que se usa en lugar del usuario de servicio mientras Saga lo acepte |
 | `SAGA_HTTP_TIMEOUT_MS` | Tiempo límite de cada llamada a Saga (por defecto 30000, por la misma razón) |

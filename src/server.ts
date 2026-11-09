@@ -17,11 +17,20 @@ console.log(
     : "⚠ Tokens: falta JWT_SECRET; solo funcionan las cabeceras de desarrollo (X-Actor-*)",
 );
 // Fuente de los datos del módulo administrativo (ADR-007).
-console.log(
-  container.administrativeSource === "saga"
-    ? "✔ Módulo administrativo: API de Saga (SAGA_API_URL)"
-    : "⚠ Módulo administrativo: tablas simuladas de la BD (sin SAGA_API_URL; solo desarrollo y pruebas)",
-);
+if (container.administrativeSource === "saga") {
+  console.log("✔ Módulo administrativo: API de Saga (SAGA_API_URL). Cuentas reales enlazadas por security_user_id");
+} else {
+  // Modo simulado: fácil de confundir con un error de permisos, así que se avisa en detalle.
+  console.warn(
+    [
+      "⚠ Módulo administrativo: MODO SIMULADO (falta SAGA_API_URL).",
+      "  · Se leen las tablas de prueba del esquema administrativo, no Saga.",
+      "  · Las cuentas reales NO quedan enlazadas: talleristas, estudiantes y acudientes reciben 403",
+      "    («tu cuenta no está enlazada…») y el login devuelve saga.linked = false.",
+      '  · Para usar Saga real: SAGA_API_URL="https://saga-up-backend-lr4u.onrender.com" en el .env.',
+    ].join("\n"),
+  );
+}
 
 const server = app.listen(port, () => {
   console.log(`✔ API escuchando en http://localhost:${port}${API_PREFIX}`);

@@ -21,7 +21,7 @@ Módulo de servicio de un proyecto general. Consume una **base de datos general 
     - En Prisma se mapean con `@@map`/`@map`.
   - Los valores de datos definidos por checks de la BD (`'activo'`, `'planned'`…) se escriben tal como están en la BD.
 - **Los datos de otros módulos se consumen en SOLO LECTURA.**
-  - **Saga (módulo administrativo) se consume por su API REST** ([ADR-007](docs/decisiones/ADR-007-saga-por-api.md)): lectores `Saga*Reader` en `src/administrative/infrastructure/saga/`, con el token de un usuario de servicio (`ServiceSession`). Con `SAGA_API_URL` se usa Saga; sin ella, las tablas simuladas del esquema `administrativo` (solo desarrollo y pruebas, lectores `Prisma*Reader`).
+  - **Saga (módulo administrativo) se consume por su API REST** ([ADR-007](docs/decisiones/ADR-007-saga-por-api.md)): lectores `Saga*Reader` en `src/administrative/infrastructure/saga/`, con el token de un usuario de servicio (`ServiceSession`). Con `SAGA_API_URL` (activa por defecto en `.env.example`) se usa Saga real y sus cuentas enlazadas; sin ella, las tablas simuladas del esquema `administrativo` (solo sin conexión, el seed y las pruebas, lectores `Prisma*Reader`; las cuentas reales no quedan enlazadas).
   - Se acceden por puertos `*Reader` (nunca `*Repository`), sin create/update/delete y sin auditoría.
   - No se agregan a nuestro SQL ni se les crean FKs: nuestras columnas que los referencian (`student_id` → `children`, `evaluator_id` → `professionals`) son `bigint` sin FK física ni relación Prisma. Los servicios validan su existencia con los `*Reader`.
   - Del módulo administrativo (Saga) solo se consumen `children`, `guardians`, `children_guardians`, `professionals` y `staff` (feature `src/administrative/`).
