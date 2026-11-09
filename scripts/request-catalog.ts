@@ -554,10 +554,10 @@ export const routes: RouteDoc[] = [
   { method: "POST", path: "/skills", description: "Crear habilidad" },
   { method: "PATCH", path: "/skills/:id", description: "Actualizar habilidad" },
   { method: "DELETE", path: "/skills/:id", description: "Eliminar habilidad (sin historial)" },
-  { method: "GET", path: "/students/:studentId/skills", description: "Calificaciones del estudiante (calculadas)" },
-  { method: "GET", path: "/students/:studentId/category-averages", description: "Promedio por categoría del estudiante" },
+  { method: "GET", path: "/students/:studentId/skills", description: "Calificaciones del estudiante (calculadas), con `skillName`, `categoryName` y su escala (`scale`: código, nombre y valor)" },
+  { method: "GET", path: "/students/:studentId/category-averages", description: "Promedio por categoría del estudiante, con la escala en la que cae (`scale`)" },
   // Escalas y evaluaciones
-  { method: "GET", path: "/evaluation-scales", description: "Escalas, ordenadas por `numValue`", query: "`activeOnly` (por defecto `true`)" },
+  { method: "GET", path: "/evaluation-scales", description: "Escalas, ordenadas por `numValue` (la leyenda de los niveles; la lee cualquier rol)", query: "`activeOnly` (por defecto `true`)" },
   { method: "GET", path: "/evaluation-scales/coverage-gaps", description: "Tramos de 0–5 sin escala activa" },
   { method: "GET", path: "/evaluation-scales/classify", description: "Escala en la que cae un valor", query: "`value` (obligatorio)" },
   { method: "GET", path: "/evaluation-scales/:id", description: "Escala" },

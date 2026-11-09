@@ -2,7 +2,7 @@ import type { ChildReader } from "../../administrative/domain/child.reader.js";
 import type { EvaluationScaleRepository } from "../../evaluations/domain/evaluation-scale.repository.js";
 import { average, findScaleForValue } from "../../evaluations/domain/grading.js";
 import { NotFoundError } from "../../shared/domain/errors.js";
-import type { CategoryAverage, StudentSkill } from "../domain/student-skill.entity.js";
+import type { CategoryAverage, StudentSkillDetail } from "../domain/student-skill.entity.js";
 import type { StudentSkillRepository } from "../domain/student-skill.repository.js";
 
 /**
@@ -16,7 +16,7 @@ export class StudentSkillsService {
     private readonly children: ChildReader,
   ) {}
 
-  async listByStudent(studentId: bigint): Promise<StudentSkill[]> {
+  async listByStudent(studentId: bigint): Promise<StudentSkillDetail[]> {
     await this.ensureStudentExists(studentId);
     return this.studentSkills.findByStudent(studentId);
   }
@@ -40,12 +40,14 @@ export class StudentSkillsService {
 
     return [...byCategory].map(([skillCategoryId, { name, values }]) => {
       const avg = average(values);
+      const scale = findScaleForValue(scales, avg);
       return {
         skillCategoryId,
         categoryName: name,
         skillCount: values.length,
         average: avg,
-        evaluationScaleId: findScaleForValue(scales, avg)?.id ?? null,
+        evaluationScaleId: scale?.id ?? null,
+        scale: scale ? { id: scale.id, code: scale.code, name: scale.name, numValue: scale.numValue } : null,
       };
     });
   }

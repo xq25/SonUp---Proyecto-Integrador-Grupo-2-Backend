@@ -65,10 +65,11 @@ export const ROUTE_PERMISSIONS: Readonly<Record<string, readonly string[]>> = {
   "POST /skills": ADMIN,
   "PATCH /skills/:id": ADMIN,
   "DELETE /skills/:id": ADMIN,
-  "GET /evaluation-scales": LEADERS,
+  // Las escalas son la leyenda de los niveles (sin datos personales): las lee cualquier rol.
+  "GET /evaluation-scales": EVERYONE,
   "GET /evaluation-scales/coverage-gaps": LEADERS,
   "GET /evaluation-scales/classify": LEADERS,
-  "GET /evaluation-scales/:id": LEADERS,
+  "GET /evaluation-scales/:id": EVERYONE,
   "POST /evaluation-scales": ADMIN,
   "PATCH /evaluation-scales/:id": ADMIN,
   "DELETE /evaluation-scales/:id": ADMIN,

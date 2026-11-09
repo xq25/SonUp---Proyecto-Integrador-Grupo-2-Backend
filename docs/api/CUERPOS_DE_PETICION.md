@@ -143,10 +143,10 @@
 
 | Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
 |---|---|---|---|---|---|
-| `GET` | `/evaluation-scales` | Escalas, ordenadas por `numValue` | ADMIN, TALLERISTA | `activeOnly` (por defecto `true`) |  |
+| `GET` | `/evaluation-scales` | Escalas, ordenadas por `numValue` (la leyenda de los niveles; la lee cualquier rol) | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE | `activeOnly` (por defecto `true`) |  |
 | `GET` | `/evaluation-scales/coverage-gaps` | Tramos de 0–5 sin escala activa | ADMIN, TALLERISTA |  |  |
 | `GET` | `/evaluation-scales/classify` | Escala en la que cae un valor | ADMIN, TALLERISTA | `value` (obligatorio) |  |
-| `GET` | `/evaluation-scales/:id` | Escala | ADMIN, TALLERISTA |  |  |
+| `GET` | `/evaluation-scales/:id` | Escala | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
 | `POST` | `/evaluation-scales` | Crear escala | ADMIN |  | [`evaluationScales.create`](#evaluationscalescreate) |
 | `PATCH` | `/evaluation-scales/:id` | Actualizar escala | ADMIN |  | [`evaluationScales.update`](#evaluationscalesupdate) |
 | `DELETE` | `/evaluation-scales/:id` | Eliminar escala (si nunca se usó) | ADMIN |  |  |
@@ -179,8 +179,8 @@
 
 | Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
 |---|---|---|---|---|---|
-| `GET` | `/students/:studentId/skills` | Calificaciones del estudiante (calculadas) | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
-| `GET` | `/students/:studentId/category-averages` | Promedio por categoría del estudiante | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
+| `GET` | `/students/:studentId/skills` | Calificaciones del estudiante (calculadas), con `skillName`, `categoryName` y su escala (`scale`: código, nombre y valor) | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
+| `GET` | `/students/:studentId/category-averages` | Promedio por categoría del estudiante, con la escala en la que cae (`scale`) | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
 | `POST` | `/evaluations` | Evaluar una habilidad en una asistencia (recalcula la calificación) | ADMIN, TALLERISTA |  | [`evaluations.evaluate`](#evaluationsevaluate) |
 | `GET` | `/attendances/:attendanceId/evaluations` | Evaluaciones de la asistencia | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
 | `DELETE` | `/attendances/:attendanceId/evaluations/:workshopSkillId` | Eliminar evaluación (recalcula) | ADMIN, TALLERISTA |  |  |

@@ -1146,7 +1146,7 @@
           }
         },
         {
-          "name": "Escalas, ordenadas por `numValue` · GET /evaluation-scales",
+          "name": "Escalas, ordenadas por `numValue` (la leyenda de los niveles; la lee cualquier rol) · GET /evaluation-scales",
           "event": [],
           "request": {
             "method": "GET",
@@ -1670,7 +1670,7 @@
           }
         },
         {
-          "name": "Calificaciones del estudiante (calculadas) · GET /students/:studentId/skills",
+          "name": "Calificaciones del estudiante (calculadas), con `skillName`, `categoryName` y su escala (`scale`: código, nombre y valor) · GET /students/:studentId/skills",
           "event": [],
           "request": {
             "method": "GET",
@@ -1689,7 +1689,7 @@
           }
         },
         {
-          "name": "Promedio por categoría del estudiante · GET /students/:studentId/category-averages",
+          "name": "Promedio por categoría del estudiante, con la escala en la que cae (`scale`) · GET /students/:studentId/category-averages",
           "event": [],
           "request": {
             "method": "GET",
