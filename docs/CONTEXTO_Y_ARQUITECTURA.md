@@ -366,7 +366,7 @@ Todos los métodos que escriben reciben `actor`. Eliminar es siempre borrado ló
 | `userRoles` | `UserRolesService` | `assign`, `revoke`, `getUserRoles`, `hasRole` |
 | `skillCategories` | `SkillCategoriesService` | CRUD (nombre único sin distinguir mayúsculas; no se elimina con habilidades vigentes) |
 | `skills` | `SkillsService` | CRUD (nombre único por categoría sin distinguir mayúsculas; con historial no se elimina, se inactiva) |
-| `studentSkills` | `StudentSkillsService` | `listByStudent` (calificaciones calculadas), `getCategoryAverages` (promedio por categoría) |
+| `studentSkills` | `StudentSkillsService` | `listByStudent` (calificaciones calculadas, con el nombre de la habilidad, su categoría y su escala), `getCategoryAverages` (promedio por categoría, con su escala) |
 | `evaluationScales` | `EvaluationScalesService` | CRUD con las reglas de §3.4 (rango 0–5, sin solapamiento, valores fijos si está en uso), ordenadas por `num_value`. `classify(valor)` (redondea a 2 decimales), `getCoverageGaps()` |
 | `evaluations` | `EvaluationsService` | `evaluate` y `remove` (validan taller `active`/no cerrado, escala y que el estudiante siga activo, y **recalculan la calificación** de la habilidad del estudiante), `recalculateStudentSkill`, `listByAttendance` |
 | `workshops` | `WorkshopsService` | CRUD de talleres con ciclo de vida (§3.6: transiciones, fechas por estado, solo `planned` editable, con asistencias no se elimina) |

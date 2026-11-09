@@ -3502,7 +3502,7 @@
       "tags": [
         "Evaluaciones y calificaciones"
       ],
-      "summary": "Calificaciones del estudiante (calculadas)",
+      "summary": "Calificaciones del estudiante (calculadas), con `skillName`, `categoryName` y su escala (`scale`: código, nombre y valor)",
       "description": "**Roles:** ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE",
       "security": [
         {
@@ -3574,7 +3574,7 @@
       "tags": [
         "Evaluaciones y calificaciones"
       ],
-      "summary": "Promedio por categoría del estudiante",
+      "summary": "Promedio por categoría del estudiante, con la escala en la que cae (`scale`)",
       "description": "**Roles:** ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE",
       "security": [
         {
@@ -3646,8 +3646,8 @@
       "tags": [
         "Escalas de evaluación"
       ],
-      "summary": "Escalas, ordenadas por `numValue`",
-      "description": "**Roles:** ADMIN, TALLERISTA\n\nConsulta: `activeOnly` (por defecto `true`)",
+      "summary": "Escalas, ordenadas por `numValue` (la leyenda de los niveles; la lee cualquier rol)",
+      "description": "**Roles:** ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE\n\nConsulta: `activeOnly` (por defecto `true`)",
       "security": [
         {
           "bearerAuth": []
@@ -3994,7 +3994,7 @@
         "Escalas de evaluación"
       ],
       "summary": "Escala",
-      "description": "**Roles:** ADMIN, TALLERISTA",
+      "description": "**Roles:** ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE",
       "security": [
         {
           "bearerAuth": []

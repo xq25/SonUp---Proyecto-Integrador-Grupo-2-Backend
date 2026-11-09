@@ -53,7 +53,7 @@
 | Talleres: publicar (crear), editar, cambiar estado, eliminar; habilidades del taller | Todo | Solo los suyos | — | — |
 | Asistencias y evaluaciones: tomar, corregir, eliminar | Todo | En sus talleres | — | — |
 | Historial: asistencias, detalle de evaluaciones, calificaciones y promedios por categoría | Todo | Todos los jóvenes | Lo suyo | Sus jóvenes |
-| Árbol de habilidades y escalas | Define | Consulta | Solo sus calificaciones por categoría | Igual, por sus jóvenes |
+| Árbol de habilidades y escalas | Define | Consulta | Solo sus habilidades calificadas (con nombre, categoría y escala) y las escalas (leyenda de niveles) | Igual, por sus jóvenes |
 | Evidencias y certificados: subir, editar, retirar | Todo | Todo | — | — |
 | Evidencias y certificados: ver | Todo | Todo | Los suyos | Los de sus jóvenes |
 | Cuentas y acceso heredados (`perfiles`, `roles`…), recálculo manual | Todo | — | — | — |

@@ -3,7 +3,7 @@ import { audit, auditSelect, notDeleted } from "../../shared/infrastructure/pris
 import { decimalToNumber } from "../../shared/infrastructure/prisma/mappers.js";
 import { withPrismaErrors } from "../../shared/infrastructure/prisma/prisma-errors.js";
 import type { Prisma, PrismaClient } from "../../shared/infrastructure/prisma/prisma.client.js";
-import type { SetStudentSkillInput, StudentSkill, StudentSkillGrade } from "../domain/student-skill.entity.js";
+import type { SetStudentSkillInput, StudentSkill, StudentSkillDetail, StudentSkillGrade } from "../domain/student-skill.entity.js";
 import type { StudentSkillRepository } from "../domain/student-skill.repository.js";
 
 const studentSkillSelect = {
@@ -18,6 +18,22 @@ type StudentSkillRow = Prisma.StudentSkillGetPayload<{ select: typeof studentSki
 
 const toStudentSkill = (row: StudentSkillRow): StudentSkill => ({ ...row });
 
+const studentSkillDetailSelect = {
+  ...studentSkillSelect,
+  skill: { select: { name: true, skillCategoryId: true, category: { select: { name: true } } } },
+  scale: { select: { id: true, code: true, name: true, numValue: true } },
+} satisfies Prisma.StudentSkillSelect;
+
+type StudentSkillDetailRow = Prisma.StudentSkillGetPayload<{ select: typeof studentSkillDetailSelect }>;
+
+const toStudentSkillDetail = ({ skill, scale, ...row }: StudentSkillDetailRow): StudentSkillDetail => ({
+  ...toStudentSkill(row),
+  skillName: skill.name,
+  skillCategoryId: skill.skillCategoryId,
+  categoryName: skill.category.name,
+  scale: { id: scale.id, code: scale.code, name: scale.name, numValue: decimalToNumber(scale.numValue) },
+});
+
 export class PrismaStudentSkillRepository implements StudentSkillRepository {
   constructor(private readonly prisma: PrismaClient) {}
 
@@ -29,13 +45,13 @@ export class PrismaStudentSkillRepository implements StudentSkillRepository {
     return row && toStudentSkill(row);
   }
 
-  async findByStudent(studentId: bigint): Promise<StudentSkill[]> {
+  async findByStudent(studentId: bigint): Promise<StudentSkillDetail[]> {
     const rows = await this.prisma.studentSkill.findMany({
       where: { studentId, ...notDeleted },
-      select: studentSkillSelect,
+      select: studentSkillDetailSelect,
       orderBy: { skillId: "asc" },
     });
-    return rows.map(toStudentSkill);
+    return rows.map(toStudentSkillDetail);
   }
 
   async findGrades(studentId: bigint): Promise<StudentSkillGrade[]> {

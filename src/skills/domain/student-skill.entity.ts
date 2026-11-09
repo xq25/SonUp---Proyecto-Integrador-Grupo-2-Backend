@@ -15,6 +15,26 @@ export interface StudentSkill extends AuditableEntity {
   evaluationScaleId: bigint;
 }
 
+/** Escala de una calificación, para mostrarla sin consultar el catálogo de escalas. */
+export interface GradeScaleSummary {
+  id: bigint;
+  code: string;
+  name: string;
+  numValue: number;
+}
+
+/**
+ * Calificación con los nombres de su habilidad, su categoría y su escala: lo que
+ * muestra el front. Así el estudiante y el acudiente ven sus habilidades sin
+ * leer el árbol completo de habilidades.
+ */
+export interface StudentSkillDetail extends StudentSkill {
+  skillName: string;
+  skillCategoryId: bigint;
+  categoryName: string;
+  scale: GradeScaleSummary;
+}
+
 export interface SetStudentSkillInput {
   studentId: bigint;
   skillId: bigint;
@@ -38,4 +58,6 @@ export interface CategoryAverage {
   average: number;
   /** Escala en la que cae el promedio (null si cae en un hueco entre escalas). */
   evaluationScaleId: bigint | null;
+  /** Esa misma escala con su código, nombre y valor (null si cae en un hueco). */
+  scale: GradeScaleSummary | null;
 }
