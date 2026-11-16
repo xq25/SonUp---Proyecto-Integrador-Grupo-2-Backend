@@ -59,9 +59,11 @@ import { PrismaSkillRepository } from "./skills/infrastructure/prisma-skill.repo
 import { PrismaStudentSkillRepository } from "./skills/infrastructure/prisma-student-skill.repository.js";
 import { AttendanceService } from "./workshops/application/attendance.service.js";
 import { WorkshopSkillsService } from "./workshops/application/workshop-skills.service.js";
+import { WorkshopSessionsService } from "./workshops/application/workshop-sessions.service.js";
 import { WorkshopsService } from "./workshops/application/workshops.service.js";
 import { PrismaWorkshopAttendanceRepository } from "./workshops/infrastructure/prisma-workshop-attendance.repository.js";
 import { PrismaWorkshopSkillRepository } from "./workshops/infrastructure/prisma-workshop-skill.repository.js";
+import { PrismaWorkshopSessionRepository } from "./workshops/infrastructure/prisma-workshop-session.repository.js";
 import { PrismaWorkshopRepository } from "./workshops/infrastructure/prisma-workshop.repository.js";
 
 /**
@@ -138,12 +140,13 @@ export function createContainer(prisma: PrismaClient = createPrismaClient()) {
   const evaluationSkillRepository = new PrismaEvaluationSkillRepository(prisma);
   const workshopRepository = new PrismaWorkshopRepository(prisma);
   const workshopSkillRepository = new PrismaWorkshopSkillRepository(prisma);
+  const sessionRepository = new PrismaWorkshopSessionRepository(prisma);
   const attendanceRepository = new PrismaWorkshopAttendanceRepository(prisma);
   const evidenceRepository = new PrismaEvidenceRepository(prisma);
   const studentEvidenceRepository = new PrismaStudentEvidenceRepository(prisma);
   const credentialRepository = new PrismaCredentialRepository(prisma);
 
-  // Recálculo de calificaciones: lo usan evaluaciones, asistencias y habilidades de talleres.
+  // Recálculo de calificaciones: lo usan las sesiones (al finalizar) y el recálculo a mano (ADR-009).
   const grading = new GradingService(evaluationSkillRepository, scaleRepository, studentSkillRepository);
   // Enlace usuario ↔ persona de Saga (`security_user_id` = `sub`): lo usan la política de acceso y el login.
   const actorLinks = new ActorLinksService(
@@ -169,6 +172,7 @@ export function createContainer(prisma: PrismaClient = createPrismaClient()) {
       credentialRepository,
       studentEvidenceRepository,
       actorLinks,
+      sessionRepository,
     ),
     // Autenticación delegada al módulo administrativo (ADR-003); login y perfil con los ids de Saga (ADR-008)
     auth: new AuthService(authGateway, { tokens: tokens.verifier, links: actorLinks, childGuardians: childGuardianReader }),
@@ -201,11 +205,13 @@ export function createContainer(prisma: PrismaClient = createPrismaClient()) {
       grading,
       childReader,
       workshopRepository,
+      sessionRepository,
     ),
     // Talleres
-    workshops: new WorkshopsService(workshopRepository, workshopSkillRepository, professionalReader),
-    workshopSkills: new WorkshopSkillsService(workshopSkillRepository, workshopRepository, skillRepository, grading),
-    attendance: new AttendanceService(attendanceRepository, workshopRepository, childReader, grading),
+    workshops: new WorkshopsService(workshopRepository, workshopSkillRepository, professionalReader, sessionRepository),
+    workshopSkills: new WorkshopSkillsService(workshopSkillRepository, workshopRepository, skillRepository),
+    workshopSessions: new WorkshopSessionsService(sessionRepository, workshopRepository, grading),
+    attendance: new AttendanceService(attendanceRepository, workshopRepository, sessionRepository, childReader),
     // Evidencias
     evidences: new EvidencesService(evidenceRepository, childReader),
     studentEvidences: new StudentEvidencesService(

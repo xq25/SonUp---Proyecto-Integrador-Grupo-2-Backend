@@ -15,7 +15,7 @@ const studentSkillParams = z.object({ studentId: idSchema, skillId: idSchema });
 export function createEvaluationsRouter({ evaluations, access }: { evaluations: EvaluationsService; access: AccessPolicy }): Router {
   const router = Router();
 
-  /** Crea o cambia la escala de una habilidad en una asistencia; recalcula la calificación. */
+  /** Crea o cambia la escala de una habilidad en una asistencia (sesión en curso); cuenta al finalizar la sesión. */
   router.post("/evaluations", async (req, res) => {
     const attendanceId = bodyId(req.body, "workshopAttendanceId");
     if (attendanceId !== undefined) await access.assertCanManageAttendance(principalOf(res), attendanceId);

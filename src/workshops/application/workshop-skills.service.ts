@@ -1,4 +1,3 @@
-import type { SkillGradeRecalculator } from "../../evaluations/domain/skill-grade-recalculator.js";
 import type { ActorId } from "../../shared/domain/auditable.js";
 import { ConflictError, NotFoundError, ValidationError } from "../../shared/domain/errors.js";
 import type { SkillRepository } from "../../skills/domain/skill.repository.js";
@@ -13,7 +12,6 @@ export class WorkshopSkillsService {
     private readonly workshopSkills: WorkshopSkillRepository,
     private readonly workshops: WorkshopRepository,
     private readonly skills: SkillRepository,
-    private readonly grades: SkillGradeRecalculator,
   ) {}
 
   async listByWorkshop(workshopId: bigint): Promise<WorkshopSkill[]> {
@@ -30,16 +28,11 @@ export class WorkshopSkillsService {
     if (await this.workshopSkills.find(workshopId, skillId)) {
       throw new ConflictError("La habilidad ya está asociada al taller");
     }
-    const relation = await this.workshopSkills.create(workshopId, skillId, actor);
-    // Si se restauró una relación que ya tenía evaluaciones, vuelven a contar en las calificaciones.
-    await this.grades.recalculateForWorkshopSkill(relation.id, actor);
-    return relation;
+    // Con el taller `planned` aún no hay sesiones iniciadas: nada que recalcular.
+    return this.workshopSkills.create(workshopId, skillId, actor);
   }
 
-  /**
-   * Solo con el taller `planned` y si la habilidad no tiene evaluaciones vigentes.
-   * Recalcula por seguridad (p. ej. evaluaciones de asistencias ya eliminadas).
-   */
+  /** Solo con el taller `planned` y si la habilidad no tiene evaluaciones vigentes. */
   async remove(workshopId: bigint, skillId: bigint, actor: ActorId): Promise<void> {
     await this.ensurePlanned(workshopId);
     const relation = await this.workshopSkills.find(workshopId, skillId);
@@ -48,7 +41,6 @@ export class WorkshopSkillsService {
       throw new ConflictError("La habilidad ya tiene evaluaciones en este taller: no se puede quitar");
     }
     await this.workshopSkills.delete(relation.id, actor);
-    await this.grades.recalculateForWorkshopSkill(relation.id, actor);
   }
 
   private async getWorkshop(workshopId: bigint): Promise<Workshop> {

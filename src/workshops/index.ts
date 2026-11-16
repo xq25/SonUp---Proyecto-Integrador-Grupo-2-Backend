@@ -2,10 +2,13 @@
 // la importa la raíz de composición (src/container.ts).
 export * from "./domain/workshop.entity.js";
 export type * from "./domain/workshop-skill.entity.js";
+export * from "./domain/workshop-session.entity.js";
 export type * from "./domain/workshop-attendance.entity.js";
 export type * from "./domain/workshop.repository.js";
 export type * from "./domain/workshop-skill.repository.js";
+export type * from "./domain/workshop-session.repository.js";
 export type * from "./domain/workshop-attendance.repository.js";
 export * from "./application/workshops.service.js";
 export * from "./application/workshop-skills.service.js";
+export * from "./application/workshop-sessions.service.js";
 export * from "./application/attendance.service.js";

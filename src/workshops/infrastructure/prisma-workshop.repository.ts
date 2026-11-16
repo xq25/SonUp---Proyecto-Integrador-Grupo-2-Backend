@@ -47,15 +47,6 @@ export class PrismaWorkshopRepository implements WorkshopRepository {
     return rows.map(toWorkshop);
   }
 
-  async findLastAttendedAt(id: bigint): Promise<Date | null> {
-    const row = await this.prisma.workshopAttendance.findFirst({
-      where: { workshopId: id, ...notDeleted },
-      select: { attendedAt: true },
-      orderBy: { attendedAt: "desc" },
-    });
-    return row?.attendedAt ?? null;
-  }
-
   async hasAttendances(id: bigint): Promise<boolean> {
     const row = await this.prisma.workshopAttendance.findFirst({
       where: { workshopId: id, ...notDeleted },

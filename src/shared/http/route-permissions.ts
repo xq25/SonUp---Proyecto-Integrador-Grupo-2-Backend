@@ -84,6 +84,17 @@ export const ROUTE_PERMISSIONS: Readonly<Record<string, readonly string[]>> = {
   "PUT /workshops/:id/skills/:skillId": LEADERS,
   "DELETE /workshops/:id/skills/:skillId": LEADERS,
 
+  // ── Sesiones (ADR-009): el tallerista las programa, inicia y finaliza; jóvenes y acudientes
+  // las ven (tema, materiales, pasos) en los talleres disponibles o a los que asistieron.
+  "GET /workshops/:id/sessions": EVERYONE,
+  "POST /workshops/:id/sessions": LEADERS,
+  "GET /sessions/:id": EVERYONE,
+  "PATCH /sessions/:id": LEADERS,
+  "POST /sessions/:id/start": LEADERS,
+  "POST /sessions/:id/finish": LEADERS,
+  "DELETE /sessions/:id": LEADERS,
+  "GET /sessions/:id/attendances": LEADERS,
+
   // ── Asistencias y evaluaciones: las toma el tallerista en sus talleres; el joven ve las suyas ──
   "GET /workshops/:id/attendances": LEADERS,
   "GET /students/:studentId/attendances": EVERYONE,
