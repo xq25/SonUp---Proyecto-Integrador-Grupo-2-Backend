@@ -36,27 +36,18 @@ export class PrismaEvaluationSkillRepository implements EvaluationSkillRepositor
     const rows = await this.prisma.evaluationSkill.findMany({
       where: {
         ...notDeleted,
-        attendance: { studentId, ...notDeleted },
+        attendance: { studentId, ...notDeleted, session: { status: "finished", ...notDeleted } },
         workshopSkill: { skillId, ...notDeleted },
       },
       select: { scale: { select: { numValue: true } } },
-      orderBy: [{ attendance: { attendedAt: "asc" } }, { id: "asc" }],
+      orderBy: [{ attendance: { session: { startsAt: "asc" } } }, { id: "asc" }],
     });
     return rows.map((row) => decimalToNumber(row.scale.numValue));
   }
 
-  findGradedPairsByAttendance(workshopAttendanceId: bigint): Promise<StudentSkillPair[]> {
-    return this.findGradedPairs({ workshopAttendanceId });
-  }
-
-  findGradedPairsByWorkshopSkill(workshopSkillId: bigint): Promise<StudentSkillPair[]> {
-    return this.findGradedPairs({ workshopSkillId });
-  }
-
-  // No filtra la asistencia ni la habilidad del taller: se usa justo después de eliminarlas.
-  private async findGradedPairs(where: Prisma.EvaluationSkillWhereInput): Promise<StudentSkillPair[]> {
+  async findGradedPairsBySession(workshopSessionId: bigint): Promise<StudentSkillPair[]> {
     const rows = await this.prisma.evaluationSkill.findMany({
-      where: { ...where, ...notDeleted },
+      where: { ...notDeleted, attendance: { sessionId: workshopSessionId, ...notDeleted } },
       select: { attendance: { select: { studentId: true } }, workshopSkill: { select: { skillId: true } } },
     });
     const unique = new Map<string, StudentSkillPair>();

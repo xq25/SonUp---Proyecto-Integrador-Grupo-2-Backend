@@ -11,6 +11,7 @@ import {
   ensureStatusRequirements,
 } from "../domain/workshop.rules.js";
 import type { WorkshopSkillRepository } from "../domain/workshop-skill.repository.js";
+import type { WorkshopSessionRepository } from "../domain/workshop-session.repository.js";
 import { createWorkshopSchema, updateWorkshopSchema } from "./workshop.schemas.js";
 
 /** Talleres y su ciclo de vida (docs/VALIDACIONES.md §3.6). */
@@ -19,6 +20,7 @@ export class WorkshopsService {
     private readonly workshops: WorkshopRepository,
     private readonly workshopSkills: WorkshopSkillRepository,
     private readonly professionals: ProfessionalReader,
+    private readonly sessions: WorkshopSessionRepository,
   ) {}
 
   async get(id: bigint): Promise<Workshop> {
@@ -57,20 +59,31 @@ export class WorkshopsService {
     ensureEditable(current, input);
     const status = input.status ?? current.status;
     ensureCanTransition(current.status, status);
+    const startsAt = input.startsAt !== undefined ? input.startsAt : current.startsAt;
     const endsAt = input.endsAt !== undefined ? input.endsAt : current.endsAt;
-    ensureStatusRequirements(status, input.startsAt !== undefined ? input.startsAt : current.startsAt, endsAt);
-    // Al finalizar, el fin no puede dejar asistencias por fuera de las fechas del taller (§3.8).
-    if (status === "finished" && endsAt) {
-      const lastAttendedAt = await this.workshops.findLastAttendedAt(id);
-      if (lastAttendedAt && endsAt < lastAttendedAt) {
-        throw new ValidationError("La fecha de fin no puede ser anterior a la última asistencia registrada");
+    ensureStatusRequirements(status, startsAt, endsAt);
+    const sessions = await this.sessions.findByWorkshop(id);
+    // Para finalizar, todas sus sesiones deben estar finalizadas (§3.13).
+    if (status === "finished" && current.status !== "finished") {
+      const open = sessions.filter((s) => s.status !== "finished");
+      if (open.length > 0) {
+        throw new ConflictError(
+          `El taller tiene ${open.length} sesión(es) sin finalizar (${open.map((s) => `«${s.topic}»`).join(", ")}): finalízalas o elimínalas primero`,
+        );
       }
     }
+    // Las fechas del taller no pueden dejar sesiones por fuera (§3.13).
+    if (sessions.some((s) => (startsAt && s.startsAt < startsAt) || (endsAt && s.endsAt > endsAt))) {
+      throw new ValidationError("Las fechas del taller dejarían sesiones por fuera: ajusta primero esas sesiones");
+    }
     if (input.evaluatorId !== undefined) await this.ensureEvaluatorExists(input.evaluatorId);
-    // Sin habilidades no habría nada que evaluar en las asistencias.
+    // Sin habilidades no habría nada que evaluar, y sin sesiones no habría dónde tomar asistencia.
     if (status === "active" && current.status !== "active") {
       if ((await this.workshopSkills.findByWorkshop(id)).length === 0) {
         throw new ValidationError("Un taller necesita al menos una habilidad para activarse");
+      }
+      if (sessions.length === 0) {
+        throw new ValidationError("Un taller necesita al menos una sesión para activarse");
       }
     }
     return this.workshops.update(id, input, actor);

@@ -1,19 +1,15 @@
 import type { ActorId } from "../../shared/domain/auditable.js";
-import { appDayRange } from "../../shared/domain/dates.js";
 import { audit, auditSelect, notDeleted } from "../../shared/infrastructure/prisma/audit.js";
 import { withPrismaErrors } from "../../shared/infrastructure/prisma/prisma-errors.js";
 import type { Prisma, PrismaClient } from "../../shared/infrastructure/prisma/prisma.client.js";
-import type {
-  RegisterAttendanceInput,
-  UpdateAttendanceInput,
-  WorkshopAttendance,
-} from "../domain/workshop-attendance.entity.js";
+import type { NewAttendance, UpdateAttendanceInput, WorkshopAttendance } from "../domain/workshop-attendance.entity.js";
 import type { WorkshopAttendanceRepository } from "../domain/workshop-attendance.repository.js";
 
 const attendanceSelect = {
   id: true,
   studentId: true,
   workshopId: true,
+  sessionId: true,
   attendedAt: true,
   observation: true,
   ...auditSelect,
@@ -34,6 +30,14 @@ export class PrismaWorkshopAttendanceRepository implements WorkshopAttendanceRep
     });
   }
 
+  findBySession(sessionId: bigint): Promise<WorkshopAttendance[]> {
+    return this.prisma.workshopAttendance.findMany({
+      where: { sessionId, ...notDeleted },
+      select: attendanceSelect,
+      orderBy: { id: "asc" },
+    });
+  }
+
   findByStudent(studentId: bigint): Promise<WorkshopAttendance[]> {
     return this.prisma.workshopAttendance.findMany({
       where: { studentId, ...notDeleted },
@@ -50,16 +54,14 @@ export class PrismaWorkshopAttendanceRepository implements WorkshopAttendanceRep
     return row !== null;
   }
 
-  findOnDay(workshopId: bigint, studentId: bigint, day: string): Promise<WorkshopAttendance | null> {
-    // Mismo criterio que el índice único de la BD: el día en hora de Bogotá.
-    const { start, end } = appDayRange(day);
+  findInSession(sessionId: bigint, studentId: bigint): Promise<WorkshopAttendance | null> {
     return this.prisma.workshopAttendance.findFirst({
-      where: { workshopId, studentId, attendedAt: { gte: start, lt: end }, ...notDeleted },
+      where: { sessionId, studentId, ...notDeleted },
       select: attendanceSelect,
     });
   }
 
-  create(data: RegisterAttendanceInput, actor: ActorId): Promise<WorkshopAttendance> {
+  create(data: NewAttendance, actor: ActorId): Promise<WorkshopAttendance> {
     return withPrismaErrors("Asistencia", () =>
       this.prisma.workshopAttendance.create({ data: { ...data, ...audit.create(actor) }, select: attendanceSelect }),
     );

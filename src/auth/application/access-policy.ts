@@ -5,6 +5,7 @@ import { ForbiddenError } from "../../shared/domain/errors.js";
 import type { WorkshopAttendanceRepository } from "../../workshops/domain/workshop-attendance.repository.js";
 import type { WorkshopFilter, WorkshopStatus } from "../../workshops/domain/workshop.entity.js";
 import type { WorkshopRepository } from "../../workshops/domain/workshop.repository.js";
+import type { WorkshopSessionRepository } from "../../workshops/domain/workshop-session.repository.js";
 import type { ActorLinksResolver } from "../domain/actor-links.resolver.js";
 import type { Principal } from "../domain/principal.entity.js";
 import { ROLES } from "../domain/roles.js";
@@ -40,6 +41,7 @@ export class AccessPolicy {
     private readonly credentials: CredentialRepository,
     private readonly studentEvidences: StudentEvidenceRepository,
     private readonly links: ActorLinksResolver,
+    private readonly sessions: WorkshopSessionRepository,
   ) {}
 
   // ── Talleres ──
@@ -95,6 +97,24 @@ export class AccessPolicy {
     if (this.isAdmin(principal)) return;
     const evaluatorId = bodyId(body, "evaluatorId");
     if (evaluatorId !== undefined) await this.assertOwnWorkshop(principal, evaluatorId);
+  }
+
+  // ── Sesiones ──
+
+  /** Ver una sesión: las mismas reglas que ver su taller. */
+  async assertCanReadSession(principal: Principal, sessionId: bigint): Promise<void> {
+    if (this.isAdmin(principal)) return;
+    const session = await this.sessions.findById(sessionId);
+    if (!session) return;
+    await this.assertCanReadWorkshop(principal, session.workshopId);
+  }
+
+  /** Gestionar una sesión (editar, iniciar, finalizar, tomar asistencia): solo el tallerista del taller. */
+  async assertCanManageSession(principal: Principal, sessionId: bigint): Promise<void> {
+    if (this.isAdmin(principal)) return;
+    const session = await this.sessions.findById(sessionId);
+    if (!session) return;
+    await this.assertCanManageWorkshop(principal, session.workshopId);
   }
 
   // ── Asistencias y evaluaciones ──

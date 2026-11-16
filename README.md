@@ -77,7 +77,7 @@ Petición → http (router) → application (servicio) → domain (puerto) ← i
 |---|---|---|
 | `skills` | `skill_categories`, `skills`, `student_skills` | Propia |
 | `evaluations` | `evaluation_scales`, `evaluation_skills` (+ cálculo de calificaciones) | Propia |
-| `workshops` | `workshops`, `workshop_skills`, `workshop_attendances` | Propia |
+| `workshops` | `workshops`, `workshop_skills`, `workshop_sessions`, `workshop_attendances` | Propia |
 | `evidences` | `evidences`, `student_evidences`, `credentials` | Propia |
 | `administrative` | `children`, `guardians`, `children_guardians`, `professionals`, `staff` | **Solo lectura** (Saga) |
 | `auth` | Sesión, verificación del token, enlace con Saga, política de acceso | Remite al servicio de seguridad |
@@ -115,7 +115,8 @@ Los tres niveles de validación ([VALIDACIONES.md §1](docs/VALIDACIONES.md)) so
 | `student_skills` | Único (`student_id`, `skill_id`); `evaluation_scale_id` con FK a la escala |
 | `workshops` | `name` 3–150; `status` ∈ `planned`, `active`, `finished`, `cancelled`; `ends_at ≥ starts_at`; `active` y `finished` exigen `starts_at`; `finished` exige `ends_at` |
 | `workshop_skills` | Único (`workshop_id`, `skill_id`) |
-| `workshop_attendances` | `observation` ≤ 1000; **una asistencia vigente por estudiante, taller y día** en hora de Bogotá (índice único parcial sobre `(workshop_id, student_id, (attended_at at time zone 'America/Bogota')::date)`) |
+| `workshop_sessions` | `topic` 2–150; `objective` ≤ 1000; `materials` ≤ 1000; `steps` ≤ 2000; `ends_at > starts_at`; `status` ∈ `planned`, `in_progress`, `finished`. **Sesiones iniciadas o finalizadas de un taller sin solapamiento** (restricción de exclusión `gist` sobre `(workshop_id, tstzrange(starts_at, ends_at, '[)'))`, con `btree_gist`) |
+| `workshop_attendances` | `observation` ≤ 1000; `workshop_session_id` obligatorio (FK); **una asistencia vigente por estudiante y sesión** (índice único parcial sobre `(workshop_session_id, student_id)`) |
 | `evaluation_skills` | Única (`workshop_attendance_id`, `workshop_skill_id`) |
 | `evidences` | `url` https ≤ 2048; `title` 2–150; `type` ∈ `IMAGE`, `VIDEO` |
 | `student_evidences` | Única (`student_id`, `evidence_id`) |
@@ -142,10 +143,10 @@ Cada entidad tiene sus esquemas en `src/<feature>/application/<entity>.schemas.t
 - **Puertos:**
   - `*Repository` (lectura y escritura; todo método que escribe recibe `actor: ActorId`).
   - `*Reader` (solo lectura, para Saga: `ChildReader`, `GuardianReader`, `ChildGuardianReader`, `ProfessionalReader`, `StaffReader`).
-  - `SkillGradeRecalculator`: talleres y asistencias piden recalcular calificaciones sin conocer al servicio que lo hace.
+  - `SkillGradeRecalculator`: el servicio de sesiones pide cargar las calificaciones al finalizar una sesión sin conocer al servicio que lo hace.
   - `TokenVerifier`, `AuthGateway` y `ActorLinksResolver` (auth).
 - **Reglas puras** (`*.rules.ts`, `grading.ts`):
-  - `workshop.rules.ts` y `credential.rules.ts`: máquinas de estado (qué transición se permite y qué se edita en cada estado).
+  - `workshop.rules.ts`, `workshop-session.rules.ts` y `credential.rules.ts`: máquinas de estado (qué transición se permite y qué se edita en cada estado). La de sesiones también valida el solapamiento de horarios.
   - `attendance.rules.ts`: fecha válida, día en Bogotá.
   - `evaluation-skill.rules.ts`: cuándo se evalúa o se elimina.
   - `grading.ts`: `accumulateSkillGrade`, `findScaleForValue`, `roundGrade`, `average`.
@@ -178,7 +179,7 @@ Cada entidad tiene sus esquemas en `src/<feature>/application/<entity>.schemas.t
 La calificación de un joven en una habilidad (`student_skills`) **no se asigna a mano: se calcula** a partir de su historial de evaluaciones.
 
 **Regla** ([src/evaluations/domain/grading.ts](src/evaluations/domain/grading.ts)):
-1. Recorre las evaluaciones vigentes del joven en esa habilidad, en orden de fecha de asistencia.
+1. Recorre las evaluaciones vigentes del joven en esa habilidad **de sesiones finalizadas**, en orden de inicio de la sesión.
 2. La primera evaluación es su escala tal cual.
 3. Cada evaluación siguiente se promedia con la calificación anterior, `(num_value anterior + num_value nueva) / 2`, **se redondea a 2 decimales** y se clasifica en la escala activa cuyo intervalo `[min, max]` contiene el valor.
 4. Sin evaluaciones vigentes, la calificación se elimina (borrado lógico). Si el valor cae en un hueco entre escalas → `ValidationError`.
@@ -193,18 +194,14 @@ La calificación de un joven en una habilidad (`student_skills`) **no se asigna 
 
 Como se guarda la **escala** y no el número, cada paso parte del `num_value` de la escala anterior.
 
-**Siempre recalcula desde el historial completo**, así que el resultado es correcto aunque se cambie o se borre algo del pasado. **Se dispara en estos escenarios:**
+**Siempre recalcula desde el historial completo**, así que el resultado es correcto aunque cambie algo del pasado. **Las evaluaciones cuentan cuando la sesión termina** ([ADR-009](docs/decisiones/ADR-009-sesiones-de-taller.md)), así que se dispara en estos escenarios:
 
 | Escenario | Quién lo pide | Qué recalcula |
 |---|---|---|
-| Evaluar o reevaluar (`POST /evaluations`) | `EvaluationsService.evaluate` | La habilidad evaluada del joven |
-| Eliminar una evaluación | `EvaluationsService.remove` | Esa habilidad del joven |
-| **Cambiar la fecha** de una asistencia | `AttendanceService.update` | Todas las habilidades evaluadas en esa asistencia (cambia el orden cronológico) |
-| **Eliminar una asistencia** | `AttendanceService.delete` | Todas las habilidades evaluadas en ella |
-| Quitar o volver a asociar una habilidad a un taller | `WorkshopSkillsService.remove` / `add` | Todos los jóvenes evaluados en esa habilidad del taller |
+| **Finalizar una sesión** (`POST /sessions/:id/finish`) | `WorkshopSessionsService.finish` → `GradingService.recalculateForSession` | Cada joven y habilidad evaluados en la sesión |
 | A mano (p. ej. tras ajustar escalas) | `POST /students/:id/skills/:skillId/recalculate` | Esa habilidad del joven |
 
-Talleres y asistencias dependen solo del puerto `SkillGradeRecalculator`, no de `GradingService`.
+Evaluar, reevaluar o eliminar evaluaciones y asistencias ocurre con la sesión en curso: todavía no cuentan y no recalculan. El servicio de sesiones depende solo del puerto `SkillGradeRecalculator`, no de `GradingService`.
 
 **Promedio por categoría** (`StudentSkillsService.getCategoryAverages`): promedio de los `num_value` de las habilidades calificadas de cada categoría, redondeado y clasificado en su escala. `listByStudent` devuelve cada calificación con el nombre de la habilidad, su categoría y su escala.
 
@@ -220,16 +217,25 @@ planned ──▶ active ──▶ finished
 ```
 
 - **Nace siempre `planned`.** Solo en ese estado se edita (nombre, fechas, tallerista) y se agregan o quitan habilidades.
-- **Para activarlo** necesita `starts_at` y al menos una habilidad.
-- **Para finalizarlo** necesita `ends_at`, que no puede ser anterior a la última asistencia.
+- **Para activarlo** necesita `starts_at`, al menos una habilidad y al menos una sesión.
+- **Para finalizarlo** necesita `ends_at` y que todas sus sesiones estén finalizadas. Sus fechas nunca pueden dejar sesiones por fuera.
 - **Con asistencias no se elimina, se cancela.** No se saltan estados ni se reabre.
 - Solo se asocian habilidades `active`. No se quita una habilidad con evaluaciones vigentes.
 
-### 6.3 Asistencia y evaluación (`AttendanceService`, `EvaluationsService`)
+### 6.3 Sesiones, asistencia y evaluación (`WorkshopSessionsService`, `AttendanceService`, `EvaluationsService`)
 
-- **Asistencia** solo en talleres `active`, de un joven **activo** en Saga (sin `exit_date` pasada), con fecha no futura y dentro de las fechas del taller. Una por joven, taller y día (hora de Bogotá).
-- **Con el taller cerrado** solo se corrige la observación: no se cambia la fecha ni se elimina.
-- **Evaluación:** la habilidad debe ser del mismo taller de la asistencia, la escala debe estar activa y el taller `active`. Reevaluar cambia la escala. Con el taller cerrado, las evaluaciones son historial.
+Un taller tiene **una o más sesiones** ([ADR-009](docs/decisiones/ADR-009-sesiones-de-taller.md)), cada una con horario, tema, objetivo (opcional), materiales (opcional) y pasos (opcional):
+
+```
+planned ──(iniciar)──▶ in_progress ──(finalizar)──▶ finished
+horario tentativo      asistencia y evaluación      fin real; carga las calificaciones
+```
+
+- **Horario:** dos sesiones de un taller no se cruzan. En `planned` el horario es tentativo y se edita; en `in_progress` solo cambia el contenido (tema, objetivo, materiales, pasos); `finished` es historial.
+- **Iniciar:** taller `active`, hora de inicio alcanzada y ninguna otra sesión en curso. Si una sesión anterior terminó más tarde de lo previsto y se cruza con esta, responde *"cambia primero la fecha de inicio de esta sesión antes de tomar asistencia y calificar"*.
+- **Finalizar:** guarda el fin real (puede pasarse del previsto) y **carga las evaluaciones a las calificaciones** ([§6.1](#61-recalcular-la-calificación-de-una-habilidad-gradingservice)).
+- **Asistencia:** a una sesión `in_progress`, de un joven **activo** en Saga (sin `exit_date` pasada); una por joven y sesión. El taller y la fecha son los de la sesión. Con la sesión finalizada solo se corrige la observación.
+- **Evaluación:** con la sesión en curso; la habilidad debe ser del mismo taller y la escala debe estar activa. Reevaluar cambia la escala. Con la sesión finalizada, las evaluaciones son historial.
 
 ### 6.4 Evidencias y certificados
 
@@ -273,7 +279,7 @@ Authorization: Bearer <JWT> ─▶ authenticate ─▶ authorize (matriz) ─▶
 | Rol | Talleres | Jóvenes (datos, calificaciones, asistencias, evidencias, certificados) | Perfiles de Saga |
 |---|---|---|---|
 | `ADMIN` | Todos, también los eliminados (`includeDeleted`) | Todos | Todos |
-| `TALLERISTA` | **Solo los suyos** (`evaluatorId` = su `professionalId`): los lista, crea, edita, gestiona sus habilidades, asistencias y evaluaciones | Todos, con la anamnesis (`notes`), para tenerla en cuenta al evaluar | Solo su propio `staff` y `professional` |
+| `TALLERISTA` | **Solo los suyos** (`evaluatorId` = su `professionalId`): los lista, crea, edita, gestiona sus habilidades, sesiones, asistencias y evaluaciones | Todos, con la anamnesis (`notes`), para tenerla en cuenta al evaluar | Solo su propio `staff` y `professional` |
 | `ESTUDIANTE` | Los **disponibles** (`planned`, `active`) y aquellos a los que asistió. Su historial está en sus asistencias | **Solo él mismo** (su `childId`) | — |
 | `ACUDIENTE` | Igual que el estudiante | **Solo sus jóvenes** (vínculos vigentes en `children_guardians`) | Solo su propio registro de acudiente |
 
@@ -337,7 +343,20 @@ Authorization: Bearer <JWT> ─▶ authenticate ─▶ authorize (matriz) ─▶
 | PATCH | `/workshops/:id` | A, T | T: suyo, sin pasárselo a otro tallerista. Edita (solo `planned`) o cambia de estado |
 | DELETE | `/workshops/:id` | A, T | T: suyo. Sin asistencias |
 | GET | `/workshops/:id/skills` | A, T, E, Ac | Mismo filtro que `GET /workshops/:id` |
-| PUT · DELETE | `/workshops/:id/skills/:skillId` | A, T | T: suyo. Solo en `planned`; recalcula |
+| PUT · DELETE | `/workshops/:id/skills/:skillId` | A, T | T: suyo. Solo en `planned` |
+
+**Sesiones** ([ADR-009](docs/decisiones/ADR-009-sesiones-de-taller.md))
+
+| Método | Ruta | Roles | Filtro / consulta |
+|---|---|---|---|
+| GET | `/workshops/:id/sessions` | A, T, E, Ac | Mismo filtro que `GET /workshops/:id`: jóvenes y acudientes ven tema, objetivo, materiales y pasos |
+| POST | `/workshops/:id/sessions` | A, T | T: su taller. Nace `planned`; sin cruzarse con otra sesión |
+| GET | `/sessions/:id` | A, T, E, Ac | Mismo filtro que su taller |
+| PATCH | `/sessions/:id` | A, T | T: su taller. Horario solo en `planned`; contenido también en `in_progress` |
+| POST | `/sessions/:id/start` | A, T | T: su taller. Abre la asistencia y la evaluación |
+| POST | `/sessions/:id/finish` | A, T | T: su taller. Cuerpo opcional `{ endsAt }` (fin real). Carga las calificaciones |
+| DELETE | `/sessions/:id` | A, T | T: su taller. Solo `planned` |
+| GET | `/sessions/:id/attendances` | A, T | T: su taller |
 
 **Asistencias y evaluaciones**
 
@@ -345,12 +364,12 @@ Authorization: Bearer <JWT> ─▶ authenticate ─▶ authorize (matriz) ─▶
 |---|---|---|---|
 | GET | `/workshops/:id/attendances` | A, T | T: suyo |
 | GET | `/students/:studentId/attendances` | A, T, E, Ac | E: él mismo · Ac: sus jóvenes (su historial de talleres) |
-| POST | `/attendances` | A, T | T: en sus talleres (`workshopId` del cuerpo) |
+| POST | `/attendances` | A, T | T: en sus talleres (`sessionId` del cuerpo). Cuerpo `{ sessionId, studentId, observation? }`; sesión en curso |
 | GET | `/attendances/:id` | A, T, E, Ac | T: en sus talleres · E/Ac: la suya o la de sus jóvenes |
-| PATCH · DELETE | `/attendances/:id` | A, T | T: en sus talleres. Recalcula |
-| POST | `/evaluations` | A, T | T: en sus talleres (`workshopAttendanceId` del cuerpo). Recalcula |
+| PATCH · DELETE | `/attendances/:id` | A, T | T: en sus talleres. `PATCH` solo la observación; `DELETE` con la sesión en curso |
+| POST | `/evaluations` | A, T | T: en sus talleres (`workshopAttendanceId` del cuerpo). Con la sesión en curso; cuenta al finalizarla |
 | GET | `/attendances/:attendanceId/evaluations` | A, T, E, Ac | Mismo filtro que `GET /attendances/:id` |
-| DELETE | `/attendances/:attendanceId/evaluations/:workshopSkillId` | A, T | T: en sus talleres. Recalcula |
+| DELETE | `/attendances/:attendanceId/evaluations/:workshopSkillId` | A, T | T: en sus talleres. Con la sesión en curso |
 | POST | `/students/:studentId/skills/:skillId/recalculate` | A | Recalcular a mano |
 
 **Evidencias y certificados**
@@ -390,3 +409,4 @@ Cada decisión que agrega una dependencia o cambia la arquitectura queda en [doc
 | [006](docs/decisiones/ADR-006-administrativos-desde-saga.md) | **Administrativos desde `staff`** de Saga | No hay tabla propia de administrativos: se leen en solo lectura (se retiró `public.administrators`) |
 | [007](docs/decisiones/ADR-007-saga-por-api.md) | **Saga por su API REST** | Lectores `Saga*Reader` (solo `GET`). Sin `SAGA_API_URL`, tablas simuladas para desarrollo |
 | [008](docs/decisiones/ADR-008-seguridad-por-roles.md) | **Seguridad por roles** | JWT verificado localmente con `JWT_SECRET`, matriz ruta → rol, `AccessPolicy` para "lo suyo" con el enlace `security_user_id` de Saga, token reenviado a Saga y actor = `sub` |
+| [009](docs/decisiones/ADR-009-sesiones-de-taller.md) | **Sesiones de taller** | Un taller tiene una o más sesiones (horario, tema, materiales, pasos) con ciclo `planned → in_progress → finished`, sin cruzarse; cada asistencia pertenece a una sesión y las calificaciones se cargan al finalizarla |

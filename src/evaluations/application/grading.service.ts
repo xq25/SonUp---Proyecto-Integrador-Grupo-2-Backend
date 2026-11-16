@@ -9,12 +9,12 @@ import type { SkillGradeRecalculator } from "../domain/skill-grade-recalculator.
 
 /**
  * Recalcula las calificaciones (`student_skills`) a partir del historial de
- * evaluaciones: cada calificación nueva se promedia con la anterior,
- * `(anterior + nueva) / 2` (ver `accumulateSkillGrade`).
+ * evaluaciones de sesiones finalizadas (ADR-009): cada calificación nueva se
+ * promedia con la anterior, `(anterior + nueva) / 2` (ver `accumulateSkillGrade`).
  *
- * Siempre parte del historial completo, así que reevaluar, eliminar una
- * evaluación, eliminar una asistencia o quitar una habilidad de un taller deja
- * el resultado correcto. Sin evaluaciones, la calificación se elimina.
+ * Siempre parte del historial completo, en orden de inicio de las sesiones, así
+ * que el resultado es correcto aunque cambie algo del pasado. Sin evaluaciones,
+ * la calificación se elimina.
  */
 export class GradingService implements SkillGradeRecalculator {
   constructor(
@@ -35,15 +35,8 @@ export class GradingService implements SkillGradeRecalculator {
     return this.studentSkills.upsert({ studentId, skillId, evaluationScaleId: scale.id }, actor);
   }
 
-  async recalculateForAttendance(workshopAttendanceId: bigint, actor: ActorId): Promise<void> {
-    await this.recalculateAll(await this.evaluations.findGradedPairsByAttendance(workshopAttendanceId), actor);
-  }
-
-  async recalculateForWorkshopSkill(workshopSkillId: bigint, actor: ActorId): Promise<void> {
-    await this.recalculateAll(await this.evaluations.findGradedPairsByWorkshopSkill(workshopSkillId), actor);
-  }
-
-  private async recalculateAll(pairs: StudentSkillPair[], actor: ActorId) {
+  async recalculateForSession(workshopSessionId: bigint, actor: ActorId): Promise<void> {
+    const pairs: StudentSkillPair[] = await this.evaluations.findGradedPairsBySession(workshopSessionId);
     for (const { studentId, skillId } of pairs) await this.recalculate(studentId, skillId, actor);
   }
 }

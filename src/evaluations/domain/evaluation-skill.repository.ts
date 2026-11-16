@@ -7,14 +7,13 @@ export interface EvaluationSkillRepository {
   findByAttendance(workshopAttendanceId: bigint): Promise<EvaluationSkill[]>;
   /**
    * `numValue` de las escalas con que se calificó una habilidad a un estudiante
-   * en sus talleres, en orden cronológico (fecha de asistencia). Solo considera
-   * evaluaciones, asistencias y habilidades de taller vigentes.
+   * en sus talleres, en orden cronológico (inicio de la sesión). Solo considera
+   * evaluaciones, asistencias y habilidades de taller vigentes de sesiones
+   * `finished` (ADR-009).
    */
   findGradeHistory(studentId: bigint, skillId: bigint): Promise<number[]>;
-  /** Pares estudiante–habilidad evaluados en una asistencia (aunque la asistencia esté eliminada). */
-  findGradedPairsByAttendance(workshopAttendanceId: bigint): Promise<StudentSkillPair[]>;
-  /** Pares estudiante–habilidad evaluados con una habilidad de taller (aunque esté eliminada). */
-  findGradedPairsByWorkshopSkill(workshopSkillId: bigint): Promise<StudentSkillPair[]>;
+  /** Pares estudiante–habilidad evaluados en las asistencias vigentes de una sesión. */
+  findGradedPairsBySession(workshopSessionId: bigint): Promise<StudentSkillPair[]>;
   /** Crea, cambia la escala o restaura la evaluación (única por asistencia y habilidad). */
   upsert(data: EvaluateSkillInput, actor: ActorId): Promise<EvaluationSkill>;
   /** Borrado lógico. */

@@ -162,18 +162,31 @@
 | `DELETE` | `/workshops/:id` | Eliminar taller (sin asistencias) | ADMIN, TALLERISTA |  |  |
 | `GET` | `/workshops/:id/skills` | Habilidades del taller | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
 | `PUT` | `/workshops/:id/skills/:skillId` | Asociar habilidad (o restaurarla) | ADMIN, TALLERISTA |  |  |
-| `DELETE` | `/workshops/:id/skills/:skillId` | Quitar habilidad (recalcula) | ADMIN, TALLERISTA |  |  |
+| `DELETE` | `/workshops/:id/skills/:skillId` | Quitar habilidad (solo `planned`) | ADMIN, TALLERISTA |  |  |
 | `GET` | `/workshops/:id/attendances` | Asistencias del taller | ADMIN, TALLERISTA |  |  |
+
+### Sesiones
+
+| Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
+|---|---|---|---|---|---|
+| `GET` | `/workshops/:id/sessions` | Sesiones del taller, en orden de inicio | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
+| `POST` | `/workshops/:id/sessions` | Crear sesión (nace `planned`) | ADMIN, TALLERISTA |  | [`workshopSessions.create`](#workshopsessionscreate) |
+| `GET` | `/sessions/:id` | Sesión (tema, objetivo, materiales, pasos, horario y estado) | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
+| `PATCH` | `/sessions/:id` | Editar sesión (horario solo en `planned`; contenido también en `in_progress`) | ADMIN, TALLERISTA |  | [`workshopSessions.update`](#workshopsessionsupdate) |
+| `POST` | `/sessions/:id/start` | Iniciar sesión: abre la asistencia y la evaluación | ADMIN, TALLERISTA |  |  |
+| `POST` | `/sessions/:id/finish` | Finalizar sesión: guarda el fin real y carga las calificaciones | ADMIN, TALLERISTA |  | [`workshopSessions.finish`](#workshopsessionsfinish) |
+| `DELETE` | `/sessions/:id` | Eliminar sesión (solo `planned`) | ADMIN, TALLERISTA |  |  |
+| `GET` | `/sessions/:id/attendances` | Asistencias de la sesión | ADMIN, TALLERISTA |  |  |
 
 ### Asistencias
 
 | Método | Ruta | Descripción | Roles | Consulta | Cuerpo |
 |---|---|---|---|---|---|
 | `GET` | `/students/:studentId/attendances` | Asistencias del estudiante | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
-| `POST` | `/attendances` | Registrar asistencia | ADMIN, TALLERISTA |  | [`attendance.register`](#attendanceregister) |
+| `POST` | `/attendances` | Registrar asistencia a una sesión en curso | ADMIN, TALLERISTA |  | [`attendance.register`](#attendanceregister) |
 | `GET` | `/attendances/:id` | Asistencia | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
-| `PATCH` | `/attendances/:id` | Actualizar asistencia | ADMIN, TALLERISTA |  | [`attendance.update`](#attendanceupdate) |
-| `DELETE` | `/attendances/:id` | Eliminar asistencia (recalcula) | ADMIN, TALLERISTA |  |  |
+| `PATCH` | `/attendances/:id` | Corregir la observación | ADMIN, TALLERISTA |  | [`attendance.update`](#attendanceupdate) |
+| `DELETE` | `/attendances/:id` | Eliminar asistencia (con la sesión en curso) | ADMIN, TALLERISTA |  |  |
 
 ### Evaluaciones y calificaciones
 
@@ -181,9 +194,9 @@
 |---|---|---|---|---|---|
 | `GET` | `/students/:studentId/skills` | Calificaciones del estudiante (calculadas), con `skillName`, `categoryName` y su escala (`scale`: código, nombre y valor) | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
 | `GET` | `/students/:studentId/category-averages` | Promedio por categoría del estudiante, con la escala en la que cae (`scale`) | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
-| `POST` | `/evaluations` | Evaluar una habilidad en una asistencia (recalcula la calificación) | ADMIN, TALLERISTA |  | [`evaluations.evaluate`](#evaluationsevaluate) |
+| `POST` | `/evaluations` | Evaluar una habilidad en una asistencia (con la sesión en curso; cuenta al finalizarla) | ADMIN, TALLERISTA |  | [`evaluations.evaluate`](#evaluationsevaluate) |
 | `GET` | `/attendances/:attendanceId/evaluations` | Evaluaciones de la asistencia | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
-| `DELETE` | `/attendances/:attendanceId/evaluations/:workshopSkillId` | Eliminar evaluación (recalcula) | ADMIN, TALLERISTA |  |  |
+| `DELETE` | `/attendances/:attendanceId/evaluations/:workshopSkillId` | Eliminar evaluación (con la sesión en curso) | ADMIN, TALLERISTA |  |  |
 | `POST` | `/students/:studentId/skills/:skillId/recalculate` | Recalcular a mano una calificación | ADMIN |  |  |
 
 ### Evidencias
@@ -509,11 +522,11 @@
 
 **Reglas de negocio** (las valida el servicio, no el esquema):
 
-- El taller debe estar `active` → 409
+- La sesión de la asistencia debe estar `in_progress` y el taller `active` → 409
 - El estudiante no debe haber salido de la fundación → 400
 - La habilidad debe ser del mismo taller de la asistencia → 400
 - La escala debe estar activa → 400
-- Reevaluar cambia la escala y recalcula la calificación
+- Reevaluar cambia la escala. La calificación del joven se actualiza al finalizar la sesión, no al evaluar
 
 
 ---
@@ -584,8 +597,105 @@
 
 - Transiciones: `planned → active → finished`; `planned`/`active → cancelled` → si no, 409
 - Solo un taller `planned` se edita; en `active` solo cambia el estado (al finalizar puede llevar `endsAt`) → 409
-- `active` exige `startsAt` y al menos una habilidad → 400
-- `finished` exige `endsAt`, no anterior a la última asistencia → 400
+- `active` exige `startsAt`, al menos una habilidad y al menos una sesión → 400
+- `finished` exige `endsAt` y que todas sus sesiones estén finalizadas → 400/409
+- Las fechas del taller no pueden dejar sesiones por fuera → 400
+
+### workshopSessions.create
+
+**Crear sesión de un taller** · `POST /api/workshops/:id/sessions` · `app.workshopSessions.create(workshopId, body, actor)`
+
+| Campo | Tipo JSON | Requerido | Reglas |
+|---|---|---|---|
+| `startsAt` | string | **Sí** | texto ISO 8601 con zona (ej. "2026-10-20T15:00:00Z"); inicio tentativo |
+| `endsAt` | string | **Sí** | texto ISO 8601 con zona (ej. "2026-10-20T15:00:00Z"); posterior a startsAt |
+| `topic` | string | **Sí** | tema; 2–150 |
+| `objective` | string \| null | No | objetivo de la sesión; máx. 1000; vacío → null |
+| `materials` | string \| null | No | materiales que deben llevar los jóvenes; máx. 1000; vacío → null |
+| `steps` | string \| null | No | pasos o actividades; máx. 2000; vacío → null |
+
+**Cuerpo válido:**
+
+```json
+{
+  "startsAt": "2026-11-10T15:00:00Z",
+  "endsAt": "2026-11-10T17:00:00Z",
+  "topic": "Ritmos básicos con percusión",
+  "objective": "Reconocer y seguir un pulso constante en grupo",
+  "materials": "Ropa cómoda y una botella de agua",
+  "steps": "1. Calentamiento. 2. Ejercicios de ritmo. 3. Cierre."
+}
+```
+
+**Casos inválidos (400, `VALIDATION`):**
+
+| Caso | Cuerpo | Campos con error (`details[].path`) |
+|---|---|---|
+| Falta el fin | `{ "startsAt": "2026-11-10T15:00:00Z", "topic": "Ritmos" }` | `endsAt` |
+| Tema de 1 carácter | `{ "startsAt": "2026-11-10T15:00:00Z", "endsAt": "2026-11-10T17:00:00Z", "topic": "R" }` | `topic` |
+| Crear con estado | `{ "startsAt": "2026-11-10T15:00:00Z", "endsAt": "2026-11-10T17:00:00Z", "topic": "Ritmos", "status": "in_progress" }` | `status` |
+
+**Reglas de negocio** (las valida el servicio, no el esquema):
+
+- Nace `planned`
+- El taller debe estar `planned` o `active` → 409
+- `endsAt > startsAt` y dentro de las fechas del taller → 400
+- No se cruza con otra sesión del taller → 409
+
+### workshopSessions.update
+
+**Editar sesión** · `PATCH /api/sessions/:id` · `app.workshopSessions.update(id, body, actor)`
+
+| Campo | Tipo JSON | Requerido | Reglas |
+|---|---|---|---|
+| `startsAt, endsAt, topic, objective, materials, steps` | — | No | Las mismas reglas de crear |
+
+**Cuerpo válido:**
+
+```json
+{
+  "materials": "Ropa cómoda, agua y un cuaderno"
+}
+```
+
+**Casos inválidos (400, `VALIDATION`):**
+
+| Caso | Cuerpo | Campos con error (`details[].path`) |
+|---|---|---|
+| Cambiar el estado | `{ "status": "finished" }` | `status` |
+
+**Reglas de negocio** (las valida el servicio, no el esquema):
+
+- `planned`: se edita todo (el horario es tentativo), sin cruzarse con otra sesión → 409
+- `in_progress`: solo el contenido (tema, objetivo, materiales, pasos) → 409
+- `finished`: no se edita → 409
+
+### workshopSessions.finish
+
+**Finalizar sesión** · `POST /api/sessions/:id/finish` · `app.workshopSessions.finish(id, body, actor)`
+
+| Campo | Tipo JSON | Requerido | Reglas |
+|---|---|---|---|
+| `endsAt` | string | No | texto ISO 8601 con zona (ej. "2026-10-20T15:00:00Z"); fin real; por defecto, ahora |
+
+**Cuerpo válido:**
+
+```json
+{}
+```
+
+**Casos inválidos (400, `VALIDATION`):**
+
+| Caso | Cuerpo | Campos con error (`details[].path`) |
+|---|---|---|
+| Fecha inválida | `{ "endsAt": "ya" }` | `endsAt` |
+
+**Reglas de negocio** (las valida el servicio, no el esquema):
+
+- La sesión debe estar `in_progress` → 409
+- Fin real posterior al inicio, no futuro y dentro del taller → 400
+- No puede pisar otra sesión ya iniciada o finalizada → 409 (sí una `planned`, que deberá corregir su inicio)
+- Carga las evaluaciones de la sesión a las calificaciones de los jóvenes
 
 ### attendance.register
 
@@ -593,18 +703,16 @@
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
+| `sessionId` | number \| string | **Sí** | número o texto con un entero > 0 (ej. 12 o "12"); la sesión define el taller y la fecha |
 | `studentId` | number \| string | **Sí** | número o texto con un entero > 0 (ej. 12 o "12"); joven (child_id) |
-| `workshopId` | number \| string | **Sí** | número o texto con un entero > 0 (ej. 12 o "12") |
-| `attendedAt` | string | No | texto ISO 8601 con zona (ej. "2026-10-20T15:00:00Z"); por defecto, ahora |
 | `observation` | string \| null | No | máx. 1000; vacía → null |
 
 **Cuerpo válido:**
 
 ```json
 {
+  "sessionId": 1,
   "studentId": 1,
-  "workshopId": 2,
-  "attendedAt": "2026-10-20T15:00:00Z",
   "observation": "Participó activamente"
 }
 ```
@@ -613,16 +721,16 @@
 
 | Caso | Cuerpo | Campos con error (`details[].path`) |
 |---|---|---|
-| Falta el estudiante | `{ "workshopId": 2 }` | `studentId` |
-| Observación de más de 1000 | `{ "studentId": 1, "workshopId": 2, "observation": "aaa… (1001 caracteres)" }` | `observation` |
-| Campo no permitido | `{ "studentId": 1, "workshopId": 2, "grade": 5 }` | `grade` |
+| Falta el estudiante | `{ "sessionId": 1 }` | `studentId` |
+| Observación de más de 1000 | `{ "sessionId": 1, "studentId": 1, "observation": "aaa… (1001 caracteres)" }` | `observation` |
+| Campo no permitido (ya no se envía el taller) | `{ "sessionId": 1, "studentId": 1, "workshopId": 2 }` | `workshopId` |
 
 **Reglas de negocio** (las valida el servicio, no el esquema):
 
-- El taller debe estar `active` → 409
+- La sesión debe estar `in_progress` y el taller `active` → 409
 - El estudiante debe existir y no haber salido de la fundación → 404/400
-- Fecha no futura y dentro de las fechas del taller → 400
-- Una asistencia por estudiante, taller y día (hora de Bogotá) → 409
+- Una asistencia por estudiante y sesión → 409
+- `attendedAt` es el inicio de la sesión
 
 ### attendance.update
 
@@ -630,7 +738,6 @@
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
-| `attendedAt` | string | No | texto ISO 8601 con zona (ej. "2026-10-20T15:00:00Z") |
 | `observation` | string \| null | No | máx. 1000; vacía → null |
 
 **Cuerpo válido:**
@@ -645,12 +752,12 @@
 
 | Caso | Cuerpo | Campos con error (`details[].path`) |
 |---|---|---|
-| Fecha inválida | `{ "attendedAt": "ayer" }` | `attendedAt` |
+| Cambiar la fecha (ya no se permite) | `{ "attendedAt": "2026-10-20T15:00:00Z" }` | `attendedAt` |
 
 **Reglas de negocio** (las valida el servicio, no el esquema):
 
-- Con el taller cerrado (`finished`/`cancelled`) solo se cambia la observación → 409
-- Cambiar la fecha recalcula las calificaciones
+- Solo se corrige la observación, también con la sesión finalizada
+- Para cambiar de sesión se elimina y se registra en la otra
 
 
 ---
@@ -934,7 +1041,7 @@
 
 ## Uso en Postman
 
-**Archivo:** `docs/api/postman-coleccion.json` (Postman v2.1). Trae las 80 rutas en 126 peticiones, **una carpeta por entidad**: Estado, Autenticación, Estudiantes, Acudientes, Talleristas, Personal (administrativos), Acceso (roles y aplicaciones), Perfiles, Categorías de habilidades, Habilidades, Escalas de evaluación, Talleres, Asistencias, Evaluaciones y calificaciones, Evidencias, Credenciales.
+**Archivo:** `docs/api/postman-coleccion.json` (Postman v2.1). Trae las 88 rutas en 139 peticiones, **una carpeta por entidad**: Estado, Autenticación, Estudiantes, Acudientes, Talleristas, Personal (administrativos), Acceso (roles y aplicaciones), Perfiles, Categorías de habilidades, Habilidades, Escalas de evaluación, Talleres, Sesiones, Asistencias, Evaluaciones y calificaciones, Evidencias, Credenciales.
 
 1. En Postman: *Import → File* y elige `docs/api/postman-coleccion.json`.
 2. En la pestaña *Variables* de la colección llena:
@@ -964,10 +1071,10 @@ Las variables de ids traen valores de la BD de pruebas (`npm run db:seed:dev` y 
 
 ### Colección libre (pruebas a mano)
 
-**Archivo:** `docs/api/postman-coleccion-libre.json`. Para el front y para probar flujos a mano: **una petición por ruta** (80), con un cuerpo válido de ejemplo y **sin protecciones ni pruebas**.
+**Archivo:** `docs/api/postman-coleccion-libre.json`. Para el front y para probar flujos a mano: **una petición por ruta** (88), con un cuerpo válido de ejemplo y **sin protecciones ni pruebas**.
 
 - Cada petición **se envía siempre**, con los ids que tengan las variables o los que escribas en la URL (p. ej. `/workshops/10/skills/1`).
-- Crear y asociar guardan el id nuevo en su variable (`workshopId`, `skillId`, `workshopSkillId`…), así que un flujo como crear taller → asociar habilidad → activar funciona en orden.
+- Crear y asociar guardan el id nuevo en su variable (`workshopId`, `skillId`, `workshopSkillId`, `sessionId`…), así que un flujo como crear taller → asociar habilidad → crear sesión → activar → iniciar sesión → registrar asistencia → evaluar → finalizar sesión funciona en orden.
 - El login guarda el token en `authToken`, que usa `GET /auth/profile`.
 - Se configura igual: `baseUrl` y `actorId` (o `token`).
 - ⚠️ **Todo se ejecuta de verdad** sobre la BD de `baseUrl`: crear, actualizar y eliminar. Úsala solo con la BD de pruebas, y nunca pongas tu propio perfil en `profileId`.
