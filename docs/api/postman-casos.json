@@ -406,16 +406,16 @@
     "path": "/workshops/{{workshopId}}/sessions",
     "case": "Cuerpo válido",
     "expect": "valid",
-    "body": "{\"startsAt\":\"2026-11-10T15:00:00Z\",\"endsAt\":\"2026-11-10T17:00:00Z\",\"topic\":\"Ritmos básicos con percusión\",\"objective\":\"Reconocer y seguir un pulso constante en grupo\",\"materials\":\"Ropa cómoda y una botella de agua\",\"steps\":\"1. Calentamiento. 2. Ejercicios de ritmo. 3. Cierre.\"}",
+    "body": "{\"startsAt\":\"2026-11-10T15:00:00Z\",\"topic\":\"Ritmos básicos con percusión\",\"objective\":\"Reconocer y seguir un pulso constante en grupo\",\"materials\":\"Ropa cómoda y una botella de agua\",\"steps\":\"1. Calentamiento. 2. Ejercicios de ritmo. 3. Cierre.\"}",
     "errorPaths": []
   },
   {
     "operation": "workshopSessions.create",
     "method": "POST",
     "path": "/workshops/{{workshopId}}/sessions",
-    "case": "Falta el fin",
+    "case": "Enviar el fin al crear (se da al finalizar)",
     "expect": "invalid",
-    "body": "{\"startsAt\":\"2026-11-10T15:00:00Z\",\"topic\":\"Ritmos\"}",
+    "body": "{\"startsAt\":\"2026-11-10T15:00:00Z\",\"endsAt\":\"2026-11-10T17:00:00Z\",\"topic\":\"Ritmos\"}",
     "errorPaths": [
       "endsAt"
     ]
@@ -426,7 +426,7 @@
     "path": "/workshops/{{workshopId}}/sessions",
     "case": "Tema de 1 carácter",
     "expect": "invalid",
-    "body": "{\"startsAt\":\"2026-11-10T15:00:00Z\",\"endsAt\":\"2026-11-10T17:00:00Z\",\"topic\":\"R\"}",
+    "body": "{\"startsAt\":\"2026-11-10T15:00:00Z\",\"topic\":\"R\"}",
     "errorPaths": [
       "topic"
     ]
@@ -437,7 +437,7 @@
     "path": "/workshops/{{workshopId}}/sessions",
     "case": "Crear con estado",
     "expect": "invalid",
-    "body": "{\"startsAt\":\"2026-11-10T15:00:00Z\",\"endsAt\":\"2026-11-10T17:00:00Z\",\"topic\":\"Ritmos\",\"status\":\"in_progress\"}",
+    "body": "{\"startsAt\":\"2026-11-10T15:00:00Z\",\"topic\":\"Ritmos\",\"status\":\"in_progress\"}",
     "errorPaths": [
       "status"
     ]

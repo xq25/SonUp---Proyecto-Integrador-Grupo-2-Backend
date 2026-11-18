@@ -3,32 +3,20 @@ import type { Workshop } from "./workshop.entity.js";
 import type { UpdateWorkshopSessionInput, WorkshopSession } from "./workshop-session.entity.js";
 
 // Reglas de las sesiones de un taller (docs/VALIDACIONES.md §3.13, ADR-009). Funciones puras.
-
-/** Intervalo de una sesión: [inicio, fin). */
-export interface SessionWindow {
-  startsAt: Date;
-  endsAt: Date;
-}
-
-/** ¿Se cruzan? Terminar a las 3:00 y empezar a las 3:00 no es cruce. */
-export function sessionsOverlap(a: SessionWindow, b: SessionWindow): boolean {
-  return a.startsAt < b.endsAt && b.startsAt < a.endsAt;
-}
-
-/** Primera sesión de la lista (sin contar `excludeId`) que se cruza con el intervalo. */
-export function findOverlappingSession(
-  sessions: readonly WorkshopSession[],
-  window: SessionWindow,
-  excludeId?: bigint,
-): WorkshopSession | null {
-  return sessions.find((s) => s.id !== excludeId && sessionsOverlap(s, window)) ?? null;
-}
+// El fin de una sesión no se programa: se guarda al finalizarla. Por eso una sesión
+// programada o en curso es solo un inicio, y solo las finalizadas tienen intervalo [inicio, fin).
 
 const formatTime = (date: Date) =>
   date.toLocaleString("es-CO", { timeZone: "America/Bogota", dateStyle: "short", timeStyle: "short" });
 
 const describe = (session: WorkshopSession) =>
-  `«${session.topic}» (${formatTime(session.startsAt)} – ${formatTime(session.endsAt)})`;
+  session.endsAt
+    ? `«${session.topic}» (${formatTime(session.startsAt)} – ${formatTime(session.endsAt)})`
+    : `«${session.topic}» (${formatTime(session.startsAt)})`;
+
+/** ¿El momento cae dentro del horario real de una sesión finalizada? [inicio, fin) */
+const isInside = (moment: Date, session: WorkshopSession) =>
+  session.endsAt !== null && session.startsAt <= moment && moment < session.endsAt;
 
 /** Las sesiones se crean, editan o eliminan con el taller `planned` o `active`. */
 export function ensureWorkshopAcceptsSessions(workshop: Workshop): void {
@@ -37,28 +25,35 @@ export function ensureWorkshopAcceptsSessions(workshop: Workshop): void {
   }
 }
 
-/** Fin posterior al inicio y dentro de las fechas del taller (si están definidas). */
-export function ensureValidSessionWindow(workshop: Workshop, window: SessionWindow): void {
-  if (window.endsAt <= window.startsAt) {
-    throw new ValidationError("El fin de la sesión debe ser posterior a su inicio");
-  }
-  if (workshop.startsAt && window.startsAt < workshop.startsAt) {
+/** El inicio cae dentro de las fechas del taller (si están definidas). */
+export function ensureStartWithinWorkshop(workshop: Workshop, startsAt: Date): void {
+  if (workshop.startsAt && startsAt < workshop.startsAt) {
     throw new ValidationError("La sesión empieza antes del inicio del taller");
   }
-  if (workshop.endsAt && window.endsAt > workshop.endsAt) {
-    throw new ValidationError("La sesión termina después del fin del taller");
+  if (workshop.endsAt && startsAt >= workshop.endsAt) {
+    throw new ValidationError("La sesión empieza después del fin del taller");
   }
 }
 
-/** Al crear o editar el horario: no se cruza con ninguna otra sesión del taller. */
-export function ensureNoOverlap(sessions: readonly WorkshopSession[], window: SessionWindow, excludeId?: bigint): void {
-  const other = findOverlappingSession(sessions, window, excludeId);
-  if (other) throw new ConflictError(`La sesión se cruza con la sesión ${describe(other)}`);
+/**
+ * Al programar o mover una sesión: no repite la hora de inicio de otra sesión del
+ * taller ni cae dentro del horario real de una sesión ya finalizada.
+ */
+export function ensureStartAvailable(sessions: readonly WorkshopSession[], startsAt: Date, excludeId?: bigint): void {
+  for (const other of sessions) {
+    if (other.id === excludeId) continue;
+    if (other.startsAt.getTime() === startsAt.getTime()) {
+      throw new ConflictError(`Ya hay una sesión que empieza a esa hora: ${describe(other)}`);
+    }
+    if (isInside(startsAt, other)) {
+      throw new ConflictError(`La sesión empezaría durante la sesión ${describe(other)}`);
+    }
+  }
 }
 
 /**
  * Qué se puede cambiar según el estado:
- * - `planned`: todo (el horario es tentativo).
+ * - `planned`: todo (el inicio es tentativo).
  * - `in_progress`: solo el contenido (tema, objetivo, materiales, pasos).
  * - `finished`: nada (es historial).
  */
@@ -67,20 +62,18 @@ export function ensureSessionEditable(session: WorkshopSession, data: UpdateWork
   if (session.status === "finished") {
     throw new ConflictError("La sesión ya finalizó: no se puede editar");
   }
-  const scheduleChanged = (["startsAt", "endsAt"] as const).filter(
-    (field) => data[field] !== undefined && data[field].getTime() !== session[field].getTime(),
-  );
-  if (scheduleChanged.length > 0) {
+  if (data.startsAt !== undefined && data.startsAt.getTime() !== session.startsAt.getTime()) {
     throw new ConflictError(
-      `La sesión está en curso: solo se corrige su contenido (tema, objetivo, materiales, pasos), no su horario (campos: ${scheduleChanged.join(", ")})`,
+      "La sesión está en curso: solo se corrige su contenido (tema, objetivo, materiales, pasos), no su hora de inicio",
     );
   }
 }
 
 /**
  * Iniciar (`planned → in_progress`) abre la asistencia y la evaluación:
- * taller `active`, hora de inicio ya alcanzada, ninguna otra sesión en curso y
- * sin cruzarse con otra sesión (p. ej. una anterior que terminó más tarde de lo previsto).
+ * taller `active`, hora de inicio ya alcanzada, ninguna otra sesión en curso, el
+ * inicio no cae dentro de una sesión ya dictada (p. ej. una anterior que terminó
+ * más tarde de lo previsto) y no hay sesiones posteriores ya dictadas.
  */
 export function ensureCanStartSession(
   workshop: Workshop,
@@ -103,34 +96,39 @@ export function ensureCanStartSession(
   if (inProgress) {
     throw new ConflictError(`Ya hay una sesión en curso en este taller: ${describe(inProgress)}. Finalízala primero`);
   }
-  const other = findOverlappingSession(sessions, session, session.id);
-  if (other) {
+  const overlapped = sessions.find((s) => s.id !== session.id && isInside(session.startsAt, s));
+  if (overlapped) {
     throw new ConflictError(
-      `La sesión se cruza con la sesión ${describe(other)}: cambia primero la fecha de inicio de esta sesión antes de tomar asistencia y calificar`,
+      `La sesión se cruza con la sesión ${describe(overlapped)}: cambia primero la fecha de inicio de esta sesión antes de tomar asistencia y calificar`,
+    );
+  }
+  const later = sessions.find((s) => s.id !== session.id && s.status !== "planned" && s.startsAt > session.startsAt);
+  if (later) {
+    throw new ConflictError(
+      `Ya se dictó una sesión posterior, ${describe(later)}: cambia primero la fecha de inicio de esta sesión o elimínala`,
     );
   }
 }
 
 /**
- * Finalizar (`in_progress → finished`) con el fin real: posterior al inicio, no
- * futuro, dentro del taller y sin pisar otra sesión ya iniciada o finalizada.
- * Sí puede quedar encima de una sesión `planned`: esa deberá corregir su inicio.
+ * Finalizar (`in_progress → finished`) guarda el fin real: posterior al inicio,
+ * no futuro y no posterior al fin del taller. Puede quedar encima del inicio de
+ * una sesión `planned`: esa deberá corregir su inicio antes de iniciarse.
  */
 export function ensureCanFinishSession(
   workshop: Workshop,
   session: WorkshopSession,
   endsAt: Date,
-  sessions: readonly WorkshopSession[],
   now: Date = new Date(),
 ): void {
   if (session.status !== "in_progress") {
     throw new ConflictError(`Solo se finaliza una sesión "in_progress"; esta está "${session.status}"`);
   }
+  if (endsAt <= session.startsAt) throw new ValidationError("El fin de la sesión debe ser posterior a su inicio");
   if (endsAt > now) throw new ValidationError("El fin real de la sesión no puede ser futuro");
-  ensureValidSessionWindow(workshop, { startsAt: session.startsAt, endsAt });
-  const started = sessions.filter((s) => s.status !== "planned");
-  const other = findOverlappingSession(started, { startsAt: session.startsAt, endsAt }, session.id);
-  if (other) throw new ConflictError(`El fin indicado se cruza con la sesión ${describe(other)}`);
+  if (workshop.endsAt && endsAt > workshop.endsAt) {
+    throw new ValidationError("La sesión termina después del fin del taller");
+  }
 }
 
 /** Solo se elimina una sesión `planned` (aún no tiene asistencias ni evaluaciones). */

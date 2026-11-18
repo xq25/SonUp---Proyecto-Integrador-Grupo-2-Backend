@@ -30,7 +30,7 @@
 | `id` | bigint identity | PK |
 | `workshop_id` | bigint, **FK `workshops`** (`restrict`) | Obligatoria: cada sesión pertenece a un único taller |
 | `starts_at` | timestamptz | Obligatoria. Inicio **tentativo**, editable mientras la sesión esté `planned` |
-| `ends_at` | timestamptz | Obligatoria, `> starts_at`. Fin previsto; al finalizar, el fin real |
+| `ends_at` | timestamptz | **Fin real, se da al finalizar** (opcional hasta entonces; solo las sesiones `finished` lo tienen). `> starts_at`. Cambio del 2026-11-17 (§5) |
 | `topic` | text | Obligatorio, 2–150, sin espacios sobrantes |
 | `objective` | text | Opcional, máx. 1000 (agregado el 2026-11-16, migración `2026-11-16-sesiones-objetivo.sql`) |
 | `materials` | text | Opcional, máx. 1000 |
@@ -139,3 +139,17 @@ Feature `workshops`, un archivo por entidad ([ADR-004](ADR-004-un-archivo-por-en
 - **Observaciones (decisión del 2026-11-16):** quedan por joven y por sesión (`observation` de la asistencia). No se agrega una observación general del joven en el taller; el resumen del taller las muestra sesión por sesión.
 - **Simplificaciones:** desaparecen el cambio de fecha de una asistencia y los recálculos al evaluar, reevaluar o eliminar.
 - **Documentación y herramientas:** se actualizan CONTEXTO, README, `scripts/request-catalog.ts` (y `npm run docs:requests`) y el seed `db-seed-dev`, que crea sesiones, las inicia y las finaliza.
+
+## 5. Cambio del 2026-11-17: el fin se da al finalizar
+
+- **Motivo:** pedir un fin previsto al programar la sesión hacía el flujo confuso: el tallerista no sabe de antemano cuánto durará la clase.
+- **Decisión:**
+  - `ends_at` ya no se recibe al crear ni al editar. Se guarda solo al finalizar la sesión (`POST /sessions/:id/finish`, con `endsAt` opcional; por defecto, ahora).
+  - Solo las sesiones `finished` tienen fin. Lo exige la BD con el check `workshop_sessions_ends_at_finished`.
+- **Cruces, ahora que una sesión programada es solo un inicio:**
+  - Dos sesiones de un taller no pueden empezar a la misma hora (índice único `workshop_sessions_start_key`).
+  - Un inicio no puede caer dentro del horario real de una sesión finalizada.
+  - No se inicia una sesión si ya se dictó una posterior.
+  - La restricción de exclusión entre sesiones iniciadas se mantiene: una sesión en curso, sin fin, cuenta como abierta hacia adelante.
+- **Migración:** `database/migraciones/2026-11-17-sesiones-fin-al-finalizar.sql` vuelve opcional la columna, quita el fin previsto de las sesiones no finalizadas y agrega el check y el índice.
+- **Front:** el formulario de la sesión ya no pide hora de fin; la hora de fin real se pide (o se toma la actual) al pulsar "Finalizar sesión".

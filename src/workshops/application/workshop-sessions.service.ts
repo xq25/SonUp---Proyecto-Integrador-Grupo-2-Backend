@@ -14,10 +14,10 @@ import type { WorkshopSessionRepository } from "../domain/workshop-session.repos
 import {
   ensureCanFinishSession,
   ensureCanStartSession,
-  ensureNoOverlap,
   ensureSessionDeletable,
   ensureSessionEditable,
-  ensureValidSessionWindow,
+  ensureStartAvailable,
+  ensureStartWithinWorkshop,
   ensureWorkshopAcceptsSessions,
 } from "../domain/workshop-session.rules.js";
 import {
@@ -28,8 +28,9 @@ import {
 
 /**
  * Sesiones de un taller y su ciclo de vida (docs/VALIDACIONES.md §3.13, ADR-009):
- * `planned` (horario tentativo) → `in_progress` (asistencia y evaluación) → `finished`.
- * Al finalizar una sesión, sus evaluaciones se cargan a las calificaciones de los jóvenes.
+ * `planned` (inicio tentativo) → `in_progress` (asistencia y evaluación) → `finished` (fin real).
+ * El fin no se programa: se guarda al finalizar. Al finalizar una sesión, sus
+ * evaluaciones se cargan a las calificaciones de los jóvenes.
  */
 export class WorkshopSessionsService {
   constructor(
@@ -50,13 +51,13 @@ export class WorkshopSessionsService {
     return this.sessions.findByWorkshop(workshopId);
   }
 
-  /** Nace `planned`, dentro de las fechas del taller y sin cruzarse con otra sesión. */
+  /** Nace `planned` y sin fin, dentro de las fechas del taller y sin chocar con otra sesión. */
   async create(workshopId: bigint, data: CreateWorkshopSessionInput, actor: ActorId): Promise<WorkshopSession> {
     const input = parseInput(createWorkshopSessionSchema, data, "Sesión");
     const workshop = await this.getWorkshop(workshopId);
     ensureWorkshopAcceptsSessions(workshop);
-    ensureValidSessionWindow(workshop, input);
-    ensureNoOverlap(await this.sessions.findByWorkshop(workshopId), input);
+    ensureStartWithinWorkshop(workshop, input.startsAt);
+    ensureStartAvailable(await this.sessions.findByWorkshop(workshopId), input.startsAt);
     return this.sessions.create(workshopId, input, actor);
   }
 
@@ -68,10 +69,9 @@ export class WorkshopSessionsService {
     ensureWorkshopAcceptsSessions(workshop);
     ensureSessionEditable(current, input);
 
-    const window = { startsAt: input.startsAt ?? current.startsAt, endsAt: input.endsAt ?? current.endsAt };
-    if (current.status === "planned") {
-      ensureValidSessionWindow(workshop, window);
-      ensureNoOverlap(await this.sessions.findByWorkshop(current.workshopId), window, id);
+    if (current.status === "planned" && input.startsAt !== undefined) {
+      ensureStartWithinWorkshop(workshop, input.startsAt);
+      ensureStartAvailable(await this.sessions.findByWorkshop(current.workshopId), input.startsAt, id);
     }
     return this.sessions.update(id, input, actor);
   }
@@ -90,7 +90,7 @@ export class WorkshopSessionsService {
     const session = await this.get(id);
     const workshop = await this.getWorkshop(session.workshopId);
     const endsAt = input.endsAt ?? new Date();
-    ensureCanFinishSession(workshop, session, endsAt, await this.sessions.findByWorkshop(session.workshopId));
+    ensureCanFinishSession(workshop, session, endsAt);
 
     const finished = await this.sessions.update(id, { status: "finished", endsAt }, actor);
     await this.grades.recalculateForSession(id, actor);

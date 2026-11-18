@@ -1532,7 +1532,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"startsAt\": \"2026-11-10T15:00:00Z\",\n  \"endsAt\": \"2026-11-10T17:00:00Z\",\n  \"topic\": \"Ritmos básicos con percusión\",\n  \"objective\": \"Reconocer y seguir un pulso constante en grupo\",\n  \"materials\": \"Ropa cómoda y una botella de agua\",\n  \"steps\": \"1. Calentamiento. 2. Ejercicios de ritmo. 3. Cierre.\"\n}",
+              "raw": "{\n  \"startsAt\": \"2026-11-10T15:00:00Z\",\n  \"topic\": \"Ritmos básicos con percusión\",\n  \"objective\": \"Reconocer y seguir un pulso constante en grupo\",\n  \"materials\": \"Ropa cómoda y una botella de agua\",\n  \"steps\": \"1. Calentamiento. 2. Ejercicios de ritmo. 3. Cierre.\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1642,7 +1642,7 @@
           }
         },
         {
-          "name": "Editar sesión (horario solo en `planned`; contenido también en `in_progress`) · PATCH /sessions/:id",
+          "name": "Editar sesión (inicio solo en `planned`; contenido también en `in_progress`) · PATCH /sessions/:id",
           "event": [],
           "request": {
             "method": "PATCH",

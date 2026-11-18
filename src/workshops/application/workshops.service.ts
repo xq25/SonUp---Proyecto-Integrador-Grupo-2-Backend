@@ -73,7 +73,7 @@ export class WorkshopsService {
       }
     }
     // Las fechas del taller no pueden dejar sesiones por fuera (§3.13).
-    if (sessions.some((s) => (startsAt && s.startsAt < startsAt) || (endsAt && s.endsAt > endsAt))) {
+    if (sessions.some((s) => (startsAt && s.startsAt < startsAt) || (endsAt && (s.endsAt ?? s.startsAt) > endsAt))) {
       throw new ValidationError("Las fechas del taller dejarían sesiones por fuera: ajusta primero esas sesiones");
     }
     if (input.evaluatorId !== undefined) await this.ensureEvaluatorExists(input.evaluatorId);

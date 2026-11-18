@@ -301,7 +301,7 @@ Sesiones de un taller: cada clase o encuentro, con su horario y su contenido. Un
 |---|---|---|---|---|
 | `workshop_id` | bigint (FK `workshops`) | Sí | Debe existir y estar `planned` o `active` para crear o editar sesiones | 2, 3 |
 | `starts_at` | timestamptz | Sí | Inicio **tentativo**: se puede corregir mientras la sesión esté `planned`. Dentro de `starts_at`–`ends_at` del taller, si están definidas | 1, 2, 3 |
-| `ends_at` | timestamptz | Sí | Fin previsto; al finalizar la sesión se guarda el fin real. `> starts_at` (BD) | 1, 2, 3 |
+| `ends_at` | timestamptz | No (no se recibe al crear ni al editar) | **Fin real: se da al finalizar la sesión** (el enviado o, si no, ahora). `> starts_at` (BD). Solo las sesiones `finished` tienen fin (BD: `workshop_sessions_ends_at_finished`). Cambio del 2026-11-17: antes era un fin previsto obligatorio | 1, 2, 3 |
 | `topic` | texto | **Sí** | Tema de la sesión. 2–150 (BD); sin espacios sobrantes | 1, 3 |
 | `objective` | texto | No | Objetivo de la sesión. Máx. 1000 (BD); vacío → `null` (agregado el 2026-11-16) | 1, 3 |
 | `materials` | texto | No | Materiales o implementos que deben llevar los jóvenes. Máx. 1000 (BD); vacío → `null` | 1, 3 |
@@ -316,26 +316,31 @@ planned ──(iniciar)──▶ in_progress ──(finalizar)──▶ finished
                        abiertas                       se cargan a las calificaciones
 ```
 
-- **`planned`** (programada): nace así. Se editan todos sus datos, incluido el horario tentativo, y se puede eliminar.
-- **`in_progress`** (en curso): se toma asistencia y se evalúa. Solo se corrige el contenido (`topic`, `objective`, `materials`, `steps`); el horario ya no cambia.
+- **`planned`** (programada): nace así, sin fin. Se editan todos sus datos, incluido el inicio tentativo, y se puede eliminar.
+- **`in_progress`** (en curso): se toma asistencia y se evalúa. Solo se corrige el contenido (`topic`, `objective`, `materials`, `steps`); el inicio ya no cambia.
 - **`finished`** (finalizada): es historial, no se edita ni se elimina, no se reabre.
 
-**Horario y solapamiento:**
+**Horario y cruces** (el fin solo existe en las sesiones finalizadas):
 
-- **Dos sesiones de un mismo taller no se solapan.** Sus intervalos `[starts_at, ends_at)` no pueden cruzarse; terminar a las 3:00 y empezar otra a las 3:00 sí se permite. Se valida al crear, al editar y al finalizar. Lo valida el servicio y, entre sesiones ya iniciadas o finalizadas, también la BD (restricción de exclusión `workshop_sessions_no_overlap`) → `ConflictError`. Entre sesiones `planned` solo lo valida el servicio, porque su horario es tentativo (ver "Finalizar").
-- Se permiten **varias sesiones el mismo día**, siempre que no se solapen.
+- **Al programar o mover el inicio de una sesión:**
+  - No puede repetir la hora de inicio de otra sesión del taller (servicio + índice único `workshop_sessions_start_key`).
+  - No puede caer dentro del horario real `[inicio, fin)` de una sesión ya finalizada → `ConflictError`.
+  - Terminar a las 3:00 y empezar otra a las 3:00 sí se permite.
+- **Las sesiones iniciadas o finalizadas no se cruzan:** lo garantiza también la BD (restricción de exclusión `workshop_sessions_no_overlap`). Una sesión en curso, sin fin todavía, cuenta como abierta hacia adelante.
+- Se permiten **varias sesiones el mismo día**.
 
 **Iniciar una sesión** (`planned → in_progress`), es decir, abrir la asistencia y la evaluación:
 
 - El taller debe estar `active`.
 - La hora de inicio ya debe haber llegado (`starts_at ≤ ahora`).
 - **No puede haber otra sesión `in_progress`** en el mismo taller.
-- **Si su inicio se solapa con el fin de otra sesión** (por ejemplo, porque la anterior duró más de lo previsto y se finalizó más tarde) → `ConflictError`: *"La sesión se cruza con la sesión «…», que termina a las …: cambia primero la fecha de inicio de esta sesión antes de tomar asistencia y calificar"*.
+- **Si su inicio cae dentro del horario real de una sesión ya finalizada** (por ejemplo, porque la anterior duró más de lo previsto) → `ConflictError`: *"La sesión se cruza con la sesión «…»: cambia primero la fecha de inicio de esta sesión antes de tomar asistencia y calificar"*.
+- **Si ya se dictó una sesión posterior** a esta → `ConflictError`: hay que mover su inicio o eliminarla.
 
 **Finalizar una sesión** (`in_progress → finished`):
 
-- `ends_at` se actualiza con el fin real: el enviado o, si no se envía, ahora. Debe ser `> starts_at` y no puede ser futuro.
-- **Puede terminar más tarde de lo previsto** y quedar encima del inicio tentativo de una sesión `planned` siguiente. Se permite, y esa siguiente sesión tendrá que corregir su inicio antes de iniciarse (regla de arriba). No puede quedar encima de una sesión ya iniciada o finalizada → `ConflictError`.
+- **Aquí se da el fin:** `ends_at` es el fin real, el enviado o, si no se envía, ahora. Debe ser `> starts_at`, no futuro y no posterior al fin del taller.
+- **Puede quedar encima del inicio tentativo de una sesión `planned`** siguiente. Se permite, y esa sesión tendrá que corregir su inicio antes de iniciarse (regla de arriba).
 - **Al finalizar, sus evaluaciones se cargan a las calificaciones de los jóvenes:** se recalcula la calificación de cada (joven, habilidad) evaluado en la sesión (§3.5).
 
 **Eliminar:** solo en `planned` (todavía no tiene asistencias) → si no, `ConflictError`.
@@ -346,7 +351,7 @@ planned ──(iniciar)──▶ in_progress ──(finalizar)──▶ finished
 
 - **`workshops` (§3.6):**
   - Para **activar** (`planned → active`) hacen falta, además de al menos una habilidad, **al menos una sesión** → `ValidationError`.
-  - Para **finalizar** (`active → finished`) no puede quedar ninguna sesión `planned` ni `in_progress`: se finalizan o se eliminan primero → `ConflictError`. `ends_at` del taller no puede ser anterior al fin de su última sesión.
+  - Para **finalizar** (`active → finished`) no puede quedar ninguna sesión `planned` ni `in_progress`: se finalizan o se eliminan primero → `ConflictError`. `ends_at` del taller no puede ser anterior al fin real de su última sesión.
   - Las fechas del taller siguen siendo manuales y las sesiones deben caer dentro de ellas. Si se editan en `planned`, no pueden dejar sesiones por fuera → `ValidationError`.
   - **Cancelar** un taller deja sus sesiones como están. Las evaluaciones de una sesión que no se finalizó no cuentan en las calificaciones.
 - **`workshop_attendances` (§3.8):**

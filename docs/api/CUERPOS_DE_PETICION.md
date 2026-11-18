@@ -172,7 +172,7 @@
 | `GET` | `/workshops/:id/sessions` | Sesiones del taller, en orden de inicio | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
 | `POST` | `/workshops/:id/sessions` | Crear sesión (nace `planned`) | ADMIN, TALLERISTA |  | [`workshopSessions.create`](#workshopsessionscreate) |
 | `GET` | `/sessions/:id` | Sesión (tema, objetivo, materiales, pasos, horario y estado) | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
-| `PATCH` | `/sessions/:id` | Editar sesión (horario solo en `planned`; contenido también en `in_progress`) | ADMIN, TALLERISTA |  | [`workshopSessions.update`](#workshopsessionsupdate) |
+| `PATCH` | `/sessions/:id` | Editar sesión (inicio solo en `planned`; contenido también en `in_progress`) | ADMIN, TALLERISTA |  | [`workshopSessions.update`](#workshopsessionsupdate) |
 | `POST` | `/sessions/:id/start` | Iniciar sesión: abre la asistencia y la evaluación | ADMIN, TALLERISTA |  |  |
 | `POST` | `/sessions/:id/finish` | Finalizar sesión: guarda el fin real y carga las calificaciones | ADMIN, TALLERISTA |  | [`workshopSessions.finish`](#workshopsessionsfinish) |
 | `DELETE` | `/sessions/:id` | Eliminar sesión (solo `planned`) | ADMIN, TALLERISTA |  |  |
@@ -607,8 +607,7 @@
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
-| `startsAt` | string | **Sí** | texto ISO 8601 con zona (ej. "2026-10-20T15:00:00Z"); inicio tentativo |
-| `endsAt` | string | **Sí** | texto ISO 8601 con zona (ej. "2026-10-20T15:00:00Z"); posterior a startsAt |
+| `startsAt` | string | **Sí** | texto ISO 8601 con zona (ej. "2026-10-20T15:00:00Z"); inicio tentativo. El fin no se envía: se da al finalizar la sesión |
 | `topic` | string | **Sí** | tema; 2–150 |
 | `objective` | string \| null | No | objetivo de la sesión; máx. 1000; vacío → null |
 | `materials` | string \| null | No | materiales que deben llevar los jóvenes; máx. 1000; vacío → null |
@@ -619,7 +618,6 @@
 ```json
 {
   "startsAt": "2026-11-10T15:00:00Z",
-  "endsAt": "2026-11-10T17:00:00Z",
   "topic": "Ritmos básicos con percusión",
   "objective": "Reconocer y seguir un pulso constante en grupo",
   "materials": "Ropa cómoda y una botella de agua",
@@ -631,16 +629,16 @@
 
 | Caso | Cuerpo | Campos con error (`details[].path`) |
 |---|---|---|
-| Falta el fin | `{ "startsAt": "2026-11-10T15:00:00Z", "topic": "Ritmos" }` | `endsAt` |
-| Tema de 1 carácter | `{ "startsAt": "2026-11-10T15:00:00Z", "endsAt": "2026-11-10T17:00:00Z", "topic": "R" }` | `topic` |
-| Crear con estado | `{ "startsAt": "2026-11-10T15:00:00Z", "endsAt": "2026-11-10T17:00:00Z", "topic": "Ritmos", "status": "in_progress" }` | `status` |
+| Enviar el fin al crear (se da al finalizar) | `{ "startsAt": "2026-11-10T15:00:00Z", "endsAt": "2026-11-10T17:00:00Z", "topic": "Ritmos" }` | `endsAt` |
+| Tema de 1 carácter | `{ "startsAt": "2026-11-10T15:00:00Z", "topic": "R" }` | `topic` |
+| Crear con estado | `{ "startsAt": "2026-11-10T15:00:00Z", "topic": "Ritmos", "status": "in_progress" }` | `status` |
 
 **Reglas de negocio** (las valida el servicio, no el esquema):
 
-- Nace `planned`
+- Nace `planned` y sin fin (`endsAt: null`)
 - El taller debe estar `planned` o `active` → 409
-- `endsAt > startsAt` y dentro de las fechas del taller → 400
-- No se cruza con otra sesión del taller → 409
+- El inicio cae dentro de las fechas del taller → 400
+- No repite la hora de inicio de otra sesión ni cae dentro de una sesión ya dictada → 409
 
 ### workshopSessions.update
 
@@ -648,7 +646,7 @@
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
-| `startsAt, endsAt, topic, objective, materials, steps` | — | No | Las mismas reglas de crear |
+| `startsAt, topic, objective, materials, steps` | — | No | Las mismas reglas de crear |
 
 **Cuerpo válido:**
 
@@ -666,7 +664,7 @@
 
 **Reglas de negocio** (las valida el servicio, no el esquema):
 
-- `planned`: se edita todo (el horario es tentativo), sin cruzarse con otra sesión → 409
+- `planned`: se edita todo (el inicio es tentativo), sin chocar con otra sesión → 409
 - `in_progress`: solo el contenido (tema, objetivo, materiales, pasos) → 409
 - `finished`: no se edita → 409
 
@@ -676,7 +674,7 @@
 
 | Campo | Tipo JSON | Requerido | Reglas |
 |---|---|---|---|
-| `endsAt` | string | No | texto ISO 8601 con zona (ej. "2026-10-20T15:00:00Z"); fin real; por defecto, ahora |
+| `endsAt` | string | No | texto ISO 8601 con zona (ej. "2026-10-20T15:00:00Z"); fin real de la sesión (aquí se da el fin); por defecto, ahora |
 
 **Cuerpo válido:**
 
@@ -694,7 +692,7 @@
 
 - La sesión debe estar `in_progress` → 409
 - Fin real posterior al inicio, no futuro y dentro del taller → 400
-- No puede pisar otra sesión ya iniciada o finalizada → 409 (sí una `planned`, que deberá corregir su inicio)
+- Puede quedar encima del inicio de una sesión `planned`: esa deberá corregir su inicio antes de iniciarse
 - Carga las evaluaciones de la sesión a las calificaciones de los jóvenes
 
 ### attendance.register

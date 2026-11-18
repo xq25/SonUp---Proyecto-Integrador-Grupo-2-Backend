@@ -3983,7 +3983,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"startsAt\": \"2026-11-10T15:00:00Z\",\n  \"endsAt\": \"2026-11-10T17:00:00Z\",\n  \"topic\": \"Ritmos básicos con percusión\",\n  \"objective\": \"Reconocer y seguir un pulso constante en grupo\",\n  \"materials\": \"Ropa cómoda y una botella de agua\",\n  \"steps\": \"1. Calentamiento. 2. Ejercicios de ritmo. 3. Cierre.\"\n}",
+              "raw": "{\n  \"startsAt\": \"2026-11-10T15:00:00Z\",\n  \"topic\": \"Ritmos básicos con percusión\",\n  \"objective\": \"Reconocer y seguir un pulso constante en grupo\",\n  \"materials\": \"Ropa cómoda y una botella de agua\",\n  \"steps\": \"1. Calentamiento. 2. Ejercicios de ritmo. 3. Cierre.\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4004,7 +4004,7 @@
           }
         },
         {
-          "name": "Crear sesión de un taller · Falta el fin",
+          "name": "Crear sesión de un taller · Enviar el fin al crear (se da al finalizar)",
           "event": [
             {
               "listen": "test",
@@ -4032,7 +4032,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"startsAt\": \"2026-11-10T15:00:00Z\",\n  \"topic\": \"Ritmos\"\n}",
+              "raw": "{\n  \"startsAt\": \"2026-11-10T15:00:00Z\",\n  \"endsAt\": \"2026-11-10T17:00:00Z\",\n  \"topic\": \"Ritmos\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4081,7 +4081,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"startsAt\": \"2026-11-10T15:00:00Z\",\n  \"endsAt\": \"2026-11-10T17:00:00Z\",\n  \"topic\": \"R\"\n}",
+              "raw": "{\n  \"startsAt\": \"2026-11-10T15:00:00Z\",\n  \"topic\": \"R\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4130,7 +4130,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"startsAt\": \"2026-11-10T15:00:00Z\",\n  \"endsAt\": \"2026-11-10T17:00:00Z\",\n  \"topic\": \"Ritmos\",\n  \"status\": \"in_progress\"\n}",
+              "raw": "{\n  \"startsAt\": \"2026-11-10T15:00:00Z\",\n  \"topic\": \"Ritmos\",\n  \"status\": \"in_progress\"\n}",
               "options": {
                 "raw": {
                   "language": "json"

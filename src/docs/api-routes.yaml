@@ -5457,10 +5457,7 @@
               "type": "object",
               "properties": {
                 "startsAt": {
-                  "description": "string. texto ISO 8601 con zona (ej. \"2026-10-20T15:00:00Z\"); inicio tentativo"
-                },
-                "endsAt": {
-                  "description": "string. texto ISO 8601 con zona (ej. \"2026-10-20T15:00:00Z\"); posterior a startsAt"
+                  "description": "string. texto ISO 8601 con zona (ej. \"2026-10-20T15:00:00Z\"); inicio tentativo. El fin no se envía: se da al finalizar la sesión"
                 },
                 "topic": {
                   "type": "string",
@@ -5484,14 +5481,12 @@
               },
               "required": [
                 "startsAt",
-                "endsAt",
                 "topic"
               ],
               "additionalProperties": false
             },
             "example": {
               "startsAt": "2026-11-10T15:00:00Z",
-              "endsAt": "2026-11-10T17:00:00Z",
               "topic": "Ritmos básicos con percusión",
               "objective": "Reconocer y seguir un pulso constante en grupo",
               "materials": "Ropa cómoda y una botella de agua",
@@ -5632,7 +5627,7 @@
       "tags": [
         "Sesiones"
       ],
-      "summary": "Editar sesión (horario solo en `planned`; contenido también en `in_progress`)",
+      "summary": "Editar sesión (inicio solo en `planned`; contenido también en `in_progress`)",
       "description": "**Roles:** ADMIN, TALLERISTA",
       "security": [
         {
@@ -5660,7 +5655,6 @@
               "type": "object",
               "properties": {
                 "startsAt": {},
-                "endsAt": {},
                 "topic": {
                   "type": "string"
                 },
@@ -5937,7 +5931,7 @@
               "type": "object",
               "properties": {
                 "endsAt": {
-                  "description": "string. texto ISO 8601 con zona (ej. \"2026-10-20T15:00:00Z\"); fin real; por defecto, ahora"
+                  "description": "string. texto ISO 8601 con zona (ej. \"2026-10-20T15:00:00Z\"); fin real de la sesión (aquí se da el fin); por defecto, ahora"
                 }
               },
               "additionalProperties": false

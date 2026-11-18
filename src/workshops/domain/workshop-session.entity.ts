@@ -6,15 +6,17 @@ export type WorkshopSessionStatus = (typeof WORKSHOP_SESSION_STATUSES)[number];
 
 /**
  * Sesión de un taller: una clase o encuentro con su horario y su contenido.
- * - `planned`: programada; su horario es tentativo y se edita.
+ * - `planned`: programada; su inicio es tentativo y se edita.
  * - `in_progress`: en curso; se toma asistencia y se evalúa.
  * - `finished`: finalizada; `endsAt` es el fin real y sus evaluaciones cuentan en las calificaciones.
+ * El fin no se programa: solo lo tienen las sesiones finalizadas.
  */
 export interface WorkshopSession extends AuditableEntity {
   id: bigint;
   workshopId: bigint;
   startsAt: Date;
-  endsAt: Date;
+  /** Fin real: `null` hasta finalizar la sesión. */
+  endsAt: Date | null;
   /** Tema de la sesión. */
   topic: string;
   /** Objetivo de la sesión. */
@@ -26,20 +28,18 @@ export interface WorkshopSession extends AuditableEntity {
   status: WorkshopSessionStatus;
 }
 
-/** Toda sesión nace `planned`; el taller viene de la ruta. */
+/** Toda sesión nace `planned`, sin fin; el taller viene de la ruta. */
 export interface CreateWorkshopSessionInput {
   startsAt: Date;
-  endsAt: Date;
   topic: string;
   objective?: string | null;
   materials?: string | null;
   steps?: string | null;
 }
 
-/** El horario solo cambia en `planned`; el contenido también en `in_progress`. */
+/** El inicio solo cambia en `planned`; el contenido también en `in_progress`. El fin se da al finalizar. */
 export interface UpdateWorkshopSessionInput {
   startsAt?: Date;
-  endsAt?: Date;
   topic?: string;
   objective?: string | null;
   materials?: string | null;
@@ -54,4 +54,5 @@ export interface FinishWorkshopSessionInput {
 /** Lo que el repositorio guarda al actualizar: datos, estado y fin real. */
 export interface WorkshopSessionChanges extends UpdateWorkshopSessionInput {
   status?: WorkshopSessionStatus;
+  endsAt?: Date;
 }
