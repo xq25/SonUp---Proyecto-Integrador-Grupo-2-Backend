@@ -125,7 +125,6 @@ try {
           workshop.id,
           {
             startsAt: bogota(day),
-            endsAt: bogotaNoon(day),
             topic: `${def.name}: sesión ${sessionIndex + 1}`,
             objective: "Practicar las habilidades del taller en grupo",
             materials: sessionIndex === 0 ? "Ropa cómoda y una botella de agua" : null,

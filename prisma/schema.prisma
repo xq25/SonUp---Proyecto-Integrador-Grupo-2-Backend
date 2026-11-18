@@ -241,7 +241,7 @@ model WorkshopSession {
   id         BigInt    @id @default(autoincrement())
   workshopId BigInt    @map("workshop_id")
   startsAt   DateTime  @map("starts_at") @db.Timestamptz(6)
-  endsAt     DateTime  @map("ends_at") @db.Timestamptz(6)
+  endsAt     DateTime? @map("ends_at") @db.Timestamptz(6) // fin real: solo en sesiones finalizadas
   topic      String
   objective  String?
   materials  String?

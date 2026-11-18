@@ -115,7 +115,7 @@ Los tres niveles de validación ([VALIDACIONES.md §1](docs/VALIDACIONES.md)) so
 | `student_skills` | Único (`student_id`, `skill_id`); `evaluation_scale_id` con FK a la escala |
 | `workshops` | `name` 3–150; `status` ∈ `planned`, `active`, `finished`, `cancelled`; `ends_at ≥ starts_at`; `active` y `finished` exigen `starts_at`; `finished` exige `ends_at` |
 | `workshop_skills` | Único (`workshop_id`, `skill_id`) |
-| `workshop_sessions` | `topic` 2–150; `objective` ≤ 1000; `materials` ≤ 1000; `steps` ≤ 2000; `ends_at > starts_at`; `status` ∈ `planned`, `in_progress`, `finished`. **Sesiones iniciadas o finalizadas de un taller sin solapamiento** (restricción de exclusión `gist` sobre `(workshop_id, tstzrange(starts_at, ends_at, '[)'))`, con `btree_gist`) |
+| `workshop_sessions` | `topic` 2–150; `objective` ≤ 1000; `materials` ≤ 1000; `steps` ≤ 2000; `ends_at` (fin real) solo en las finalizadas y `> starts_at`; sin dos sesiones con la misma hora de inicio; `status` ∈ `planned`, `in_progress`, `finished`. **Sesiones iniciadas o finalizadas de un taller sin solapamiento** (restricción de exclusión `gist` sobre `(workshop_id, tstzrange(starts_at, ends_at, '[)'))`, con `btree_gist`) |
 | `workshop_attendances` | `observation` ≤ 1000; `workshop_session_id` obligatorio (FK); **una asistencia vigente por estudiante y sesión** (índice único parcial sobre `(workshop_session_id, student_id)`) |
 | `evaluation_skills` | Única (`workshop_attendance_id`, `workshop_skill_id`) |
 | `evidences` | `url` https ≤ 2048; `title` 2–150; `type` ∈ `IMAGE`, `VIDEO` |
@@ -231,7 +231,7 @@ planned ──(iniciar)──▶ in_progress ──(finalizar)──▶ finished
 horario tentativo      asistencia y evaluación      fin real; carga las calificaciones
 ```
 
-- **Horario:** dos sesiones de un taller no se cruzan. En `planned` el horario es tentativo y se edita; en `in_progress` solo cambia el contenido (tema, objetivo, materiales, pasos); `finished` es historial.
+- **Horario:** la sesión se programa solo con su inicio; **el fin se da al finalizarla**. Dos sesiones de un taller no se cruzan ni empiezan a la misma hora. En `planned` el inicio es tentativo y se edita; en `in_progress` solo cambia el contenido (tema, objetivo, materiales, pasos); `finished` es historial.
 - **Iniciar:** taller `active`, hora de inicio alcanzada y ninguna otra sesión en curso. Si una sesión anterior terminó más tarde de lo previsto y se cruza con esta, responde *"cambia primero la fecha de inicio de esta sesión antes de tomar asistencia y calificar"*.
 - **Finalizar:** guarda el fin real (puede pasarse del previsto) y **carga las evaluaciones a las calificaciones** ([§6.1](#61-recalcular-la-calificación-de-una-habilidad-gradingservice)).
 - **Asistencia:** a una sesión `in_progress`, de un joven **activo** en Saga (sin `exit_date` pasada); una por joven y sesión. El taller y la fecha son los de la sesión. Con la sesión finalizada solo se corrige la observación.
@@ -350,11 +350,11 @@ Authorization: Bearer <JWT> ─▶ authenticate ─▶ authorize (matriz) ─▶
 | Método | Ruta | Roles | Filtro / consulta |
 |---|---|---|---|
 | GET | `/workshops/:id/sessions` | A, T, E, Ac | Mismo filtro que `GET /workshops/:id`: jóvenes y acudientes ven tema, objetivo, materiales y pasos |
-| POST | `/workshops/:id/sessions` | A, T | T: su taller. Nace `planned`; sin cruzarse con otra sesión |
+| POST | `/workshops/:id/sessions` | A, T | T: su taller. Nace `planned`, solo con inicio (sin fin); no repite la hora de inicio ni cae dentro de una sesión ya dictada |
 | GET | `/sessions/:id` | A, T, E, Ac | Mismo filtro que su taller |
-| PATCH | `/sessions/:id` | A, T | T: su taller. Horario solo en `planned`; contenido también en `in_progress` |
+| PATCH | `/sessions/:id` | A, T | T: su taller. Inicio solo en `planned`; contenido también en `in_progress`. El fin no se edita: se da al finalizar |
 | POST | `/sessions/:id/start` | A, T | T: su taller. Abre la asistencia y la evaluación |
-| POST | `/sessions/:id/finish` | A, T | T: su taller. Cuerpo opcional `{ endsAt }` (fin real). Carga las calificaciones |
+| POST | `/sessions/:id/finish` | A, T | T: su taller. Cuerpo opcional `{ endsAt }`: aquí se da el fin real (por defecto, ahora). Carga las calificaciones |
 | DELETE | `/sessions/:id` | A, T | T: su taller. Solo `planned` |
 | GET | `/sessions/:id/attendances` | A, T | T: su taller |
 

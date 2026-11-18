@@ -372,14 +372,15 @@ select public.habilitar_auditoria('workshop_skills', 'id');
 
 -- Sesiones de un taller (ADR-009): cada clase o encuentro, con su horario y su
 -- contenido. Un taller tiene una o más sesiones ("sesión única" = una sola).
--- Ciclo de vida: planned (horario tentativo, editable) → in_progress (asistencia
+-- Ciclo de vida: planned (inicio tentativo, editable) → in_progress (asistencia
 -- y evaluación abiertas) → finished (fin real; sus evaluaciones cuentan en las
 -- calificaciones). Las transiciones las valida el servicio.
+-- El fin (ends_at) no se programa: se guarda al finalizar la sesión.
 create table public.workshop_sessions (
   id bigint generated always as identity primary key,
   workshop_id bigint not null references public.workshops (id) on delete restrict,
   starts_at timestamptz not null,
-  ends_at timestamptz not null,
+  ends_at timestamptz, -- fin real: solo en sesiones finalizadas
   topic text not null
     check (char_length(topic) between 2 and 150 and topic = btrim(topic) and topic !~ '\s{2,}'),
   objective text
@@ -390,12 +391,17 @@ create table public.workshop_sessions (
     check (char_length(steps) between 1 and 2000),
   status text not null default 'planned'
     check (status in ('planned', 'in_progress', 'finished')),
-  check (ends_at > starts_at)
+  check (ends_at > starts_at),
+  -- Solo una sesión finalizada tiene fin.
+  constraint workshop_sessions_ends_at_finished check ((status = 'finished') = (ends_at is not null))
 );
 select public.habilitar_auditoria('workshop_sessions', 'id');
-create index on public.workshop_sessions (workshop_id, starts_at);
+-- Dos sesiones vigentes de un taller no empiezan a la misma hora.
+create unique index workshop_sessions_start_key on public.workshop_sessions (workshop_id, starts_at)
+  where eliminado_en is null;
 -- Las sesiones ya iniciadas o finalizadas de un taller no se cruzan ([inicio, fin)).
--- Entre sesiones `planned` lo valida el servicio: su horario es tentativo y una
+-- Una sesión en curso aún no tiene fin: su rango queda abierto hacia adelante.
+-- Entre sesiones `planned` lo valida el servicio: su inicio es tentativo y una
 -- sesión que terminó tarde puede quedar encima de la siguiente, que debe
 -- corregir su inicio antes de iniciarse.
 alter table public.workshop_sessions

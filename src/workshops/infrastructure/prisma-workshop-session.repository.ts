@@ -49,7 +49,7 @@ export class PrismaWorkshopSessionRepository implements WorkshopSessionRepositor
     return withPrismaErrors("Sesión", async () =>
       toSession(
         await this.prisma.workshopSession.create({
-          data: { ...data, workshopId, status: "planned", ...audit.create(actor) },
+          data: { ...data, workshopId, status: "planned", endsAt: null, ...audit.create(actor) },
           select: sessionSelect,
         }),
       ),
