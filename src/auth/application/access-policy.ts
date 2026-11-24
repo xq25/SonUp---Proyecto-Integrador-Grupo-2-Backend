@@ -5,6 +5,7 @@ import { ForbiddenError } from "../../shared/domain/errors.js";
 import type { WorkshopAttendanceRepository } from "../../workshops/domain/workshop-attendance.repository.js";
 import type { WorkshopFilter, WorkshopStatus } from "../../workshops/domain/workshop.entity.js";
 import type { WorkshopRepository } from "../../workshops/domain/workshop.repository.js";
+import type { WorkshopSessionRepository } from "../../workshops/domain/workshop-session.repository.js";
 import type { ActorLinksResolver } from "../domain/actor-links.resolver.js";
 import type { Principal } from "../domain/principal.entity.js";
 import { ROLES } from "../domain/roles.js";
@@ -40,6 +41,7 @@ export class AccessPolicy {
     private readonly credentials: CredentialRepository,
     private readonly studentEvidences: StudentEvidenceRepository,
     private readonly links: ActorLinksResolver,
+    private readonly sessions: WorkshopSessionRepository,
   ) {}
 
   // ── Talleres ──
@@ -97,6 +99,24 @@ export class AccessPolicy {
     if (evaluatorId !== undefined) await this.assertOwnWorkshop(principal, evaluatorId);
   }
 
+  // ── Sesiones ──
+
+  /** Ver una sesión: las mismas reglas que ver su taller. */
+  async assertCanReadSession(principal: Principal, sessionId: bigint): Promise<void> {
+    if (this.isAdmin(principal)) return;
+    const session = await this.sessions.findById(sessionId);
+    if (!session) return;
+    await this.assertCanReadWorkshop(principal, session.workshopId);
+  }
+
+  /** Gestionar una sesión (editar, iniciar, finalizar, tomar asistencia): solo el tallerista del taller. */
+  async assertCanManageSession(principal: Principal, sessionId: bigint): Promise<void> {
+    if (this.isAdmin(principal)) return;
+    const session = await this.sessions.findById(sessionId);
+    if (!session) return;
+    await this.assertCanManageWorkshop(principal, session.workshopId);
+  }
+
   // ── Asistencias y evaluaciones ──
 
   /** Modificar una asistencia o sus evaluaciones: solo en los talleres del tallerista. */
@@ -117,6 +137,21 @@ export class AccessPolicy {
   }
 
   // ── Jóvenes y acudientes ──
+
+  /**
+   * Progreso mes a mes de un joven: ADMIN y talleristas, todos; el acudiente, solo
+   * sus jóvenes (vínculo vigente). El joven no lo consulta, ni siquiera el suyo, aunque
+   * su cuenta tenga además el rol de acudiente.
+   */
+  async assertCanReadStudentProgress(principal: Principal, studentId: bigint): Promise<void> {
+    if (this.isAdmin(principal) || this.isLeader(principal)) return;
+    const { guardianId } = await this.links.resolve(principal);
+    if (this.has(principal, ROLES.guardian) && guardianId !== undefined) {
+      const links = await this.childGuardians.findByGuardian(guardianId, true);
+      if (links.some((link) => link.childId === studentId)) return;
+    }
+    throw new ForbiddenError("Solo puedes consultar el progreso de los jóvenes a tu cargo");
+  }
 
   /** Datos y avance de un joven: ADMIN y talleristas, todos; el joven, él mismo; el acudiente, sus jóvenes. */
   async assertCanReadStudent(principal: Principal, studentId: bigint): Promise<void> {

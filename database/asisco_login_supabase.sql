@@ -23,6 +23,13 @@
 --   · Los valores de `status` de las tablas nuevas son PROVISIONALES.
 -- =====================================================================
 
+-- Extensiones ---------------------------------------------------------
+-- btree_gist: permite combinar `=` sobre bigint con rangos en una restricción
+-- de exclusión (sesiones de un taller sin solapamiento, ADR-009). Supabase la
+-- incluye; se instala en el esquema `extensions`, como recomienda Supabase.
+create schema if not exists extensions;
+create extension if not exists btree_gist with schema extensions;
+
 -- 0. Auditoría y borrado lógico ----------------------------------------
 -- *_por guarda el id del usuario que hizo la operación, como texto: el `sub`
 -- del token del servicio de seguridad (ADR-008). Desde Supabase (PostgREST)
@@ -363,22 +370,62 @@ create table public.workshop_skills (
 );
 select public.habilitar_auditoria('workshop_skills', 'id');
 
--- Asistencia de estudiantes a talleres: permite ver quién asistió a un
--- taller y a qué talleres asistió un estudiante.
--- Se registra solo en talleres activos, sin fechas futuras y dentro de las
--- fechas del taller (lo valida el servicio).
+-- Sesiones de un taller (ADR-009): cada clase o encuentro, con su horario y su
+-- contenido. Un taller tiene una o más sesiones ("sesión única" = una sola).
+-- Ciclo de vida: planned (inicio tentativo, editable) → in_progress (asistencia
+-- y evaluación abiertas) → finished (fin real; sus evaluaciones cuentan en las
+-- calificaciones). Las transiciones las valida el servicio.
+-- El fin (ends_at) no se programa: se guarda al finalizar la sesión.
+create table public.workshop_sessions (
+  id bigint generated always as identity primary key,
+  workshop_id bigint not null references public.workshops (id) on delete restrict,
+  starts_at timestamptz not null,
+  ends_at timestamptz, -- fin real: solo en sesiones finalizadas
+  topic text not null
+    check (char_length(topic) between 2 and 150 and topic = btrim(topic) and topic !~ '\s{2,}'),
+  objective text
+    check (char_length(objective) between 1 and 1000),
+  materials text
+    check (char_length(materials) between 1 and 1000),
+  steps text
+    check (char_length(steps) between 1 and 2000),
+  status text not null default 'planned'
+    check (status in ('planned', 'in_progress', 'finished')),
+  check (ends_at > starts_at),
+  -- Solo una sesión finalizada tiene fin.
+  constraint workshop_sessions_ends_at_finished check ((status = 'finished') = (ends_at is not null))
+);
+select public.habilitar_auditoria('workshop_sessions', 'id');
+-- Dos sesiones vigentes de un taller no empiezan a la misma hora.
+create unique index workshop_sessions_start_key on public.workshop_sessions (workshop_id, starts_at)
+  where eliminado_en is null;
+-- Las sesiones ya iniciadas o finalizadas de un taller no se cruzan ([inicio, fin)).
+-- Una sesión en curso aún no tiene fin: su rango queda abierto hacia adelante.
+-- Entre sesiones `planned` lo valida el servicio: su inicio es tentativo y una
+-- sesión que terminó tarde puede quedar encima de la siguiente, que debe
+-- corregir su inicio antes de iniciarse.
+alter table public.workshop_sessions
+  add constraint workshop_sessions_no_overlap
+  exclude using gist (workshop_id with =, tstzrange(starts_at, ends_at, '[)') with &&)
+  where (status <> 'planned' and eliminado_en is null);
+
+-- Asistencia de un estudiante a una sesión de un taller: permite ver quién
+-- asistió a cada sesión y a qué talleres asistió un estudiante.
+-- Se registra solo con la sesión en curso (in_progress); `attended_at` es el
+-- inicio de la sesión y `workshop_id` el taller de la sesión (lo pone el servicio).
 create table public.workshop_attendances (
   id bigint generated always as identity primary key,
   student_id bigint not null, -- administrativo.children.child_id
   workshop_id bigint not null references public.workshops (id) on delete restrict,
+  workshop_session_id bigint not null references public.workshop_sessions (id) on delete restrict,
   attended_at timestamptz not null default now(),
   observation text
     check (char_length(observation) between 1 and 1000)
 );
 select public.habilitar_auditoria('workshop_attendances', 'id');
--- Una asistencia vigente por estudiante, taller y día (día en hora de Bogotá).
-create unique index workshop_attendances_daily_key on public.workshop_attendances
-  (workshop_id, student_id, ((attended_at at time zone 'America/Bogota')::date))
+-- Una asistencia vigente por estudiante y sesión.
+create unique index workshop_attendances_session_key on public.workshop_attendances
+  (workshop_session_id, student_id)
   where eliminado_en is null;
 create index on public.workshop_attendances (student_id);
 create index on public.workshop_attendances (workshop_id);
@@ -460,6 +507,7 @@ alter table public.evaluation_scales enable row level security;
 alter table public.student_skills enable row level security;
 alter table public.workshops enable row level security;
 alter table public.workshop_skills enable row level security;
+alter table public.workshop_sessions enable row level security;
 alter table public.workshop_attendances enable row level security;
 alter table public.evaluation_skills enable row level security;
 alter table public.evidences enable row level security;
@@ -512,7 +560,7 @@ declare
 begin
   foreach t in array array[
     'skill_categories', 'skills', 'evaluation_scales', 'student_skills',
-    'workshops', 'workshop_skills', 'workshop_attendances', 'evaluation_skills',
+    'workshops', 'workshop_skills', 'workshop_sessions', 'workshop_attendances', 'evaluation_skills',
     'evidences', 'student_evidences', 'credentials'
   ] loop
     execute format(

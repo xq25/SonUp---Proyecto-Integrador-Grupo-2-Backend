@@ -114,9 +114,10 @@ const entities: { name: string; match: RegExp }[] = [
   { name: "Categorías de habilidades", match: /^\/skill-categories/ },
   { name: "Habilidades", match: /^\/skills/ },
   { name: "Escalas de evaluación", match: /^\/evaluation-scales/ },
-  { name: "Talleres", match: /^\/workshops/ },
+  { name: "Talleres", match: /^\/workshops(?!\/:id\/sessions)/ },
+  { name: "Sesiones", match: /^\/sessions|^\/workshops\/:id\/sessions/ },
   { name: "Asistencias", match: /^\/attendances(\/:id)?$|^\/students\/:studentId\/attendances/ },
-  { name: "Evaluaciones y calificaciones", match: /^\/evaluations|\/evaluations|^\/students\/:studentId\/(skills|category-averages)/ },
+  { name: "Evaluaciones y calificaciones", match: /^\/evaluations|\/evaluations|^\/students\/:studentId\/(skills|category-averages|progress)/ },
   { name: "Evidencias", match: /^\/evidences|^\/students\/:studentId\/evidences/ },
   { name: "Credenciales", match: /^\/credentials|^\/students\/:studentId\/credentials/ },
 ];
@@ -160,6 +161,7 @@ const variables: Record<string, string> = {
   evaluationScaleId: "1",
   workshopId: "1",
   workshopSkillId: "1",
+  sessionId: "1",
   attendanceId: "1",
   evidenceId: "1",
   credentialId: "1",
@@ -188,6 +190,7 @@ const idVariableByResource: Record<string, string> = {
   skills: "skillId",
   "evaluation-scales": "evaluationScaleId",
   workshops: "workshopId",
+  sessions: "sessionId",
   attendances: "attendanceId",
   evidences: "evidenceId",
   credentials: "credentialId",
@@ -679,7 +682,7 @@ Las variables de ids traen valores de la BD de pruebas (\`npm run db:seed:dev\` 
 **Archivo:** \`docs/api/postman-coleccion-libre.json\`. Para el front y para probar flujos a mano: **una petición por ruta** (${routes.length}), con un cuerpo válido de ejemplo y **sin protecciones ni pruebas**.
 
 - Cada petición **se envía siempre**, con los ids que tengan las variables o los que escribas en la URL (p. ej. \`/workshops/10/skills/1\`).
-- Crear y asociar guardan el id nuevo en su variable (\`workshopId\`, \`skillId\`, \`workshopSkillId\`…), así que un flujo como crear taller → asociar habilidad → activar funciona en orden.
+- Crear y asociar guardan el id nuevo en su variable (\`workshopId\`, \`skillId\`, \`workshopSkillId\`, \`sessionId\`…), así que un flujo como crear taller → asociar habilidad → crear sesión → activar → iniciar sesión → registrar asistencia → evaluar → finalizar sesión funciona en orden.
 - El login guarda el token en \`authToken\`, que usa \`GET /auth/profile\`.
 - Se configura igual: \`baseUrl\` y \`actorId\` (o \`token\`).
 - ⚠️ **Todo se ejecuta de verdad** sobre la BD de \`baseUrl\`: crear, actualizar y eliminar. Úsala solo con la BD de pruebas, y nunca pongas tu propio perfil en \`profileId\`.

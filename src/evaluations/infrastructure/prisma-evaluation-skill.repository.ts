@@ -3,7 +3,12 @@ import { audit, auditSelect, notDeleted } from "../../shared/infrastructure/pris
 import { decimalToNumber } from "../../shared/infrastructure/prisma/mappers.js";
 import { withPrismaErrors } from "../../shared/infrastructure/prisma/prisma-errors.js";
 import type { Prisma, PrismaClient } from "../../shared/infrastructure/prisma/prisma.client.js";
-import type { EvaluateSkillInput, EvaluationSkill, StudentSkillPair } from "../domain/evaluation-skill.entity.js";
+import type {
+  EvaluateSkillInput,
+  EvaluationSkill,
+  GradeTimelineEntry,
+  StudentSkillPair,
+} from "../domain/evaluation-skill.entity.js";
 import type { EvaluationSkillRepository } from "../domain/evaluation-skill.repository.js";
 
 const evaluationSelect = {
@@ -36,27 +41,44 @@ export class PrismaEvaluationSkillRepository implements EvaluationSkillRepositor
     const rows = await this.prisma.evaluationSkill.findMany({
       where: {
         ...notDeleted,
-        attendance: { studentId, ...notDeleted },
+        attendance: { studentId, ...notDeleted, session: { status: "finished", ...notDeleted } },
         workshopSkill: { skillId, ...notDeleted },
       },
       select: { scale: { select: { numValue: true } } },
-      orderBy: [{ attendance: { attendedAt: "asc" } }, { id: "asc" }],
+      orderBy: [{ attendance: { session: { startsAt: "asc" } } }, { id: "asc" }],
     });
     return rows.map((row) => decimalToNumber(row.scale.numValue));
   }
 
-  findGradedPairsByAttendance(workshopAttendanceId: bigint): Promise<StudentSkillPair[]> {
-    return this.findGradedPairs({ workshopAttendanceId });
-  }
-
-  findGradedPairsByWorkshopSkill(workshopSkillId: bigint): Promise<StudentSkillPair[]> {
-    return this.findGradedPairs({ workshopSkillId });
-  }
-
-  // No filtra la asistencia ni la habilidad del taller: se usa justo después de eliminarlas.
-  private async findGradedPairs(where: Prisma.EvaluationSkillWhereInput): Promise<StudentSkillPair[]> {
+  async findGradeTimeline(studentId: bigint): Promise<GradeTimelineEntry[]> {
     const rows = await this.prisma.evaluationSkill.findMany({
-      where: { ...where, ...notDeleted },
+      where: {
+        ...notDeleted,
+        attendance: { studentId, ...notDeleted, session: { status: "finished", ...notDeleted } },
+        workshopSkill: { ...notDeleted },
+      },
+      select: {
+        scale: { select: { numValue: true } },
+        attendance: { select: { session: { select: { startsAt: true } } } },
+        workshopSkill: {
+          select: { skill: { select: { id: true, name: true, category: { select: { id: true, name: true } } } } },
+        },
+      },
+      orderBy: [{ attendance: { session: { startsAt: "asc" } } }, { id: "asc" }],
+    });
+    return rows.map((row) => ({
+      skillId: row.workshopSkill.skill.id,
+      skillName: row.workshopSkill.skill.name,
+      skillCategoryId: row.workshopSkill.skill.category.id,
+      categoryName: row.workshopSkill.skill.category.name,
+      numValue: decimalToNumber(row.scale.numValue),
+      sessionStartsAt: row.attendance.session.startsAt,
+    }));
+  }
+
+  async findGradedPairsBySession(workshopSessionId: bigint): Promise<StudentSkillPair[]> {
+    const rows = await this.prisma.evaluationSkill.findMany({
+      where: { ...notDeleted, attendance: { sessionId: workshopSessionId, ...notDeleted } },
       select: { attendance: { select: { studentId: true } }, workshopSkill: { select: { skillId: true } } },
     });
     const unique = new Map<string, StudentSkillPair>();

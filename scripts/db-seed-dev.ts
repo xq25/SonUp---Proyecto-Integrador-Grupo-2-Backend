@@ -3,7 +3,7 @@
 //
 // - Usa los SERVICIOS del módulo (no SQL directo): cada registro pasa por las
 //   validaciones y reglas de negocio reales, queda auditado con el actor y las
-//   calificaciones (student_skills) se calculan solas al evaluar.
+//   calificaciones (student_skills) se calculan solas al finalizar cada sesión (ADR-009).
 // - Solo corre si la BD tiene los datos simulados del módulo administrativo
 //   (database/dev/administrativo_simulado.sql). En la BD general no existen,
 //   así que allí se niega a correr.
@@ -24,6 +24,8 @@ const count = (what: string) => (created[what] = (created[what] ?? 0) + 1);
 
 /** 10:00 a. m. en Bogotá (15:00 UTC) del día indicado. */
 const bogota = (day: string) => new Date(`${day}T15:00:00Z`);
+/** Mediodía en Bogotá (17:00 UTC): fin de cada sesión de 2 horas. */
+const bogotaNoon = (day: string) => new Date(`${day}T17:00:00Z`);
 
 try {
   await ensureTestDatabase();
@@ -73,7 +75,10 @@ try {
 
   // Los administrativos son personal (staff) del módulo administrativo: vienen del simulado (ADR-006).
 
-  // ── Talleres con asistencias y evaluaciones ──
+  // ── Talleres con sesiones, asistencias y evaluaciones ──
+  // Cada sesión (10:00–12:00) se inicia, toma asistencia, evalúa y se finaliza.
+  // En los talleres activos la última sesión queda en curso: sus evaluaciones
+  // aún no cuentan en las calificaciones.
   // Estudiantes activos del simulado: 1, 2, 4, 5 (el 3 ya salió de la fundación).
   // Talleristas simulados: 500 (música), 501 (psicología), 502 (artes plásticas).
   const workshopDefs = [
@@ -112,15 +117,34 @@ try {
     );
     const workshopSkills: WorkshopSkill[] = [];
     for (const skillName of def.skills) workshopSkills.push(await app.workshopSkills.add(workshop.id, skills.get(skillName)!.id, actor));
+    const sessions = [];
+    for (const [sessionIndex, day] of def.sessions.entries()) {
+      count("sesiones");
+      sessions.push(
+        await app.workshopSessions.create(
+          workshop.id,
+          {
+            startsAt: bogota(day),
+            topic: `${def.name}: sesión ${sessionIndex + 1}`,
+            objective: "Practicar las habilidades del taller en grupo",
+            materials: sessionIndex === 0 ? "Ropa cómoda y una botella de agua" : null,
+            steps: "1. Calentamiento. 2. Actividad principal. 3. Cierre y reflexión.",
+          },
+          actor,
+        ),
+      );
+    }
     await app.workshops.update(workshop.id, { status: "active" }, actor);
 
     for (const [sessionIndex, day] of def.sessions.entries()) {
+      const session = sessions[sessionIndex]!;
+      await app.workshopSessions.start(session.id, actor);
       for (const studentId of def.students) {
         // Algunas inasistencias, para que no todos tengan las mismas sesiones.
         if (hash(`${def.name}|${studentId}|${day}`) % 6 === 0) continue;
         count("asistencias");
         const attendance = await app.attendance.register(
-          { studentId, workshopId: workshop.id, attendedAt: bogota(day), observation: sessionIndex === 0 ? "Primera sesión" : null },
+          { sessionId: session.id, studentId, observation: sessionIndex === 0 ? "Primera sesión" : null },
           actor,
         );
         for (const workshopSkill of workshopSkills) {
@@ -135,6 +159,8 @@ try {
           );
         }
       }
+      const isLast = sessionIndex === def.sessions.length - 1;
+      if (def.endsAt || !isLast) await app.workshopSessions.finish(session.id, { endsAt: bogotaNoon(day) }, actor);
     }
     if (def.endsAt) await app.workshops.update(workshop.id, { status: "finished", endsAt: bogota(def.endsAt) }, actor);
   }

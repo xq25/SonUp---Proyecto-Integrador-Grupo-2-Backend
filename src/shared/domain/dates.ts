@@ -25,3 +25,21 @@ export function appDayRange(day: string): { start: Date; end: Date } {
 export function isoDate(value: Date): string {
   return value.toISOString().slice(0, 10);
 }
+
+/** Mes (YYYY-MM) en la zona horaria de la fundación al que pertenece un instante. */
+export function monthInAppTimeZone(instant: Date): string {
+  return todayIsoDate(instant).slice(0, 7);
+}
+
+/** Meses consecutivos (YYYY-MM) entre `from` y `to`, ambos incluidos. */
+export function monthsBetween(from: string, to: string): string[] {
+  const months: string[] = [];
+  let [year, month] = from.split("-").map(Number) as [number, number];
+  const [endYear, endMonth] = to.split("-").map(Number) as [number, number];
+  while (year < endYear || (year === endYear && month <= endMonth)) {
+    months.push(`${year}-${String(month).padStart(2, "0")}`);
+    month += 1;
+    if (month > 12) { month = 1; year += 1; }
+  }
+  return months;
+}

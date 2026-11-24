@@ -19,6 +19,11 @@ import { updateProfileSchema } from "../src/profiles/application/profile.schemas
 import { createSkillCategorySchema, updateSkillCategorySchema } from "../src/skills/application/skill-category.schemas.js";
 import { createSkillSchema, updateSkillSchema } from "../src/skills/application/skill.schemas.js";
 import { registerAttendanceSchema, updateAttendanceSchema } from "../src/workshops/application/attendance.schemas.js";
+import {
+  createWorkshopSessionSchema,
+  finishWorkshopSessionSchema,
+  updateWorkshopSessionSchema,
+} from "../src/workshops/application/workshop-session.schemas.js";
 import { createWorkshopSchema, updateWorkshopSchema } from "../src/workshops/application/workshop.schemas.js";
 
 export interface FieldDoc {
@@ -247,11 +252,11 @@ export const operations: Operation[] = [
       { name: "Id inválido", body: { workshopAttendanceId: "diez", workshopSkillId: 3, evaluationScaleId: 2 }, errorPaths: ["workshopAttendanceId"] },
     ],
     businessRules: [
-      "El taller debe estar `active` → 409",
+      "La sesión de la asistencia debe estar `in_progress` y el taller `active` → 409",
       "El estudiante no debe haber salido de la fundación → 400",
       "La habilidad debe ser del mismo taller de la asistencia → 400",
       "La escala debe estar activa → 400",
-      "Reevaluar cambia la escala y recalcula la calificación",
+      "Reevaluar cambia la escala. La calificación del joven se actualiza al finalizar la sesión, no al evaluar",
     ],
   },
 
@@ -295,8 +300,75 @@ export const operations: Operation[] = [
     businessRules: [
       "Transiciones: `planned → active → finished`; `planned`/`active → cancelled` → si no, 409",
       "Solo un taller `planned` se edita; en `active` solo cambia el estado (al finalizar puede llevar `endsAt`) → 409",
-      "`active` exige `startsAt` y al menos una habilidad → 400",
-      "`finished` exige `endsAt`, no anterior a la última asistencia → 400",
+      "`active` exige `startsAt`, al menos una habilidad y al menos una sesión → 400",
+      "`finished` exige `endsAt` y que todas sus sesiones estén finalizadas → 400/409",
+      "Las fechas del taller no pueden dejar sesiones por fuera → 400",
+    ],
+  },
+  {
+    id: "workshopSessions.create",
+    title: "Crear sesión de un taller",
+    feature: "workshops",
+    service: "app.workshopSessions.create(workshopId, body, actor)",
+    http: { method: "POST", path: "/workshops/:id/sessions", saveIdAs: "sessionId" },
+    schema: createWorkshopSessionSchema,
+    fields: [
+      { name: "startsAt", type: "string", required: true, rules: `${iso}; inicio tentativo. El fin no se envía: se da al finalizar la sesión` },
+      { name: "topic", type: "string", required: true, rules: "tema; 2–150" },
+      { name: "objective", type: "string | null", required: false, rules: "objetivo de la sesión; máx. 1000; vacío → null" },
+      { name: "materials", type: "string | null", required: false, rules: "materiales que deben llevar los jóvenes; máx. 1000; vacío → null" },
+      { name: "steps", type: "string | null", required: false, rules: "pasos o actividades; máx. 2000; vacío → null" },
+    ],
+    valid: {
+      startsAt: "2026-11-10T15:00:00Z",
+      topic: "Ritmos básicos con percusión",
+      objective: "Reconocer y seguir un pulso constante en grupo",
+      materials: "Ropa cómoda y una botella de agua",
+      steps: "1. Calentamiento. 2. Ejercicios de ritmo. 3. Cierre.",
+    },
+    invalid: [
+      { name: "Enviar el fin al crear (se da al finalizar)", body: { startsAt: "2026-11-10T15:00:00Z", endsAt: "2026-11-10T17:00:00Z", topic: "Ritmos" }, errorPaths: ["endsAt"] },
+      { name: "Tema de 1 carácter", body: { startsAt: "2026-11-10T15:00:00Z", topic: "R" }, errorPaths: ["topic"] },
+      { name: "Crear con estado", body: { startsAt: "2026-11-10T15:00:00Z", topic: "Ritmos", status: "in_progress" }, errorPaths: ["status"] },
+    ],
+    businessRules: [
+      "Nace `planned` y sin fin (`endsAt: null`)",
+      "El taller debe estar `planned` o `active` → 409",
+      "El inicio cae dentro de las fechas del taller → 400",
+      "No repite la hora de inicio de otra sesión ni cae dentro de una sesión ya dictada → 409",
+    ],
+  },
+  {
+    id: "workshopSessions.update",
+    title: "Editar sesión",
+    feature: "workshops",
+    service: "app.workshopSessions.update(id, body, actor)",
+    http: { method: "PATCH", path: "/sessions/:id" },
+    schema: updateWorkshopSessionSchema,
+    fields: [{ name: "startsAt, topic, objective, materials, steps", type: "—", required: false, rules: "Las mismas reglas de crear" }],
+    valid: { materials: "Ropa cómoda, agua y un cuaderno" },
+    invalid: [{ name: "Cambiar el estado", body: { status: "finished" }, errorPaths: ["status"] }],
+    businessRules: [
+      "`planned`: se edita todo (el inicio es tentativo), sin chocar con otra sesión → 409",
+      "`in_progress`: solo el contenido (tema, objetivo, materiales, pasos) → 409",
+      "`finished`: no se edita → 409",
+    ],
+  },
+  {
+    id: "workshopSessions.finish",
+    title: "Finalizar sesión",
+    feature: "workshops",
+    service: "app.workshopSessions.finish(id, body, actor)",
+    http: { method: "POST", path: "/sessions/:id/finish" },
+    schema: finishWorkshopSessionSchema,
+    fields: [{ name: "endsAt", type: "string", required: false, rules: `${iso}; fin real de la sesión (aquí se da el fin); por defecto, ahora` }],
+    valid: {},
+    invalid: [{ name: "Fecha inválida", body: { endsAt: "ya" }, errorPaths: ["endsAt"] }],
+    businessRules: [
+      "La sesión debe estar `in_progress` → 409",
+      "Fin real posterior al inicio, no futuro y dentro del taller → 400",
+      "Puede quedar encima del inicio de una sesión `planned`: esa deberá corregir su inicio antes de iniciarse",
+      "Carga las evaluaciones de la sesión a las calificaciones de los jóvenes",
     ],
   },
   {
@@ -307,22 +379,21 @@ export const operations: Operation[] = [
     http: { method: "POST", path: "/attendances", saveIdAs: "attendanceId" },
     schema: registerAttendanceSchema,
     fields: [
+      { name: "sessionId", type: "number | string", required: true, rules: `${id}; la sesión define el taller y la fecha` },
       { name: "studentId", type: "number | string", required: true, rules: `${id}; joven (child_id)` },
-      { name: "workshopId", type: "number | string", required: true, rules: id },
-      { name: "attendedAt", type: "string", required: false, rules: `${iso}; por defecto, ahora` },
       { name: "observation", type: "string | null", required: false, rules: "máx. 1000; vacía → null" },
     ],
-    valid: { studentId: 1, workshopId: 2, attendedAt: "2026-10-20T15:00:00Z", observation: "Participó activamente" },
+    valid: { sessionId: 1, studentId: 1, observation: "Participó activamente" },
     invalid: [
-      { name: "Falta el estudiante", body: { workshopId: 2 }, errorPaths: ["studentId"] },
-      { name: "Observación de más de 1000", body: { studentId: 1, workshopId: 2, observation: "a".repeat(1001) }, errorPaths: ["observation"] },
-      { name: "Campo no permitido", body: { studentId: 1, workshopId: 2, grade: 5 }, errorPaths: ["grade"] },
+      { name: "Falta el estudiante", body: { sessionId: 1 }, errorPaths: ["studentId"] },
+      { name: "Observación de más de 1000", body: { sessionId: 1, studentId: 1, observation: "a".repeat(1001) }, errorPaths: ["observation"] },
+      { name: "Campo no permitido (ya no se envía el taller)", body: { sessionId: 1, studentId: 1, workshopId: 2 }, errorPaths: ["workshopId"] },
     ],
     businessRules: [
-      "El taller debe estar `active` → 409",
+      "La sesión debe estar `in_progress` y el taller `active` → 409",
       "El estudiante debe existir y no haber salido de la fundación → 404/400",
-      "Fecha no futura y dentro de las fechas del taller → 400",
-      "Una asistencia por estudiante, taller y día (hora de Bogotá) → 409",
+      "Una asistencia por estudiante y sesión → 409",
+      "`attendedAt` es el inicio de la sesión",
     ],
   },
   {
@@ -332,13 +403,10 @@ export const operations: Operation[] = [
     service: "app.attendance.update(id, body, actor)",
     http: { method: "PATCH", path: "/attendances/:id" },
     schema: updateAttendanceSchema,
-    fields: [
-      { name: "attendedAt", type: "string", required: false, rules: iso },
-      { name: "observation", type: "string | null", required: false, rules: "máx. 1000; vacía → null" },
-    ],
+    fields: [{ name: "observation", type: "string | null", required: false, rules: "máx. 1000; vacía → null" }],
     valid: { observation: "Llegó tarde" },
-    invalid: [{ name: "Fecha inválida", body: { attendedAt: "ayer" }, errorPaths: ["attendedAt"] }],
-    businessRules: ["Con el taller cerrado (`finished`/`cancelled`) solo se cambia la observación → 409", "Cambiar la fecha recalcula las calificaciones"],
+    invalid: [{ name: "Cambiar la fecha (ya no se permite)", body: { attendedAt: "2026-10-20T15:00:00Z" }, errorPaths: ["attendedAt"] }],
+    businessRules: ["Solo se corrige la observación, también con la sesión finalizada", "Para cambiar de sesión se elimina y se registra en la otra"],
   },
 
   // ───────────── Evidencias y credenciales ─────────────
@@ -556,6 +624,7 @@ export const routes: RouteDoc[] = [
   { method: "DELETE", path: "/skills/:id", description: "Eliminar habilidad (sin historial)" },
   { method: "GET", path: "/students/:studentId/skills", description: "Calificaciones del estudiante (calculadas), con `skillName`, `categoryName` y su escala (`scale`: código, nombre y valor)" },
   { method: "GET", path: "/students/:studentId/category-averages", description: "Promedio por categoría del estudiante, con la escala en la que cae (`scale`)" },
+  { method: "GET", path: "/students/:studentId/progress", description: "Progreso mes a mes (ADMIN, TALLERISTA y el ACUDIENTE de sus jóvenes; el joven no): calificación acumulada de cada habilidad al cierre de cada mes, promedios por área y general (el mes en curso sale con `partial: true`)", query: "`from`, `to` (meses `YYYY-MM`; por defecto, desde la primera valoración hasta el mes actual; máx. 36 meses)" },
   // Escalas y evaluaciones
   { method: "GET", path: "/evaluation-scales", description: "Escalas, ordenadas por `numValue` (la leyenda de los niveles; la lee cualquier rol)", query: "`activeOnly` (por defecto `true`)" },
   { method: "GET", path: "/evaluation-scales/coverage-gaps", description: "Tramos de 0–5 sin escala activa" },
@@ -564,9 +633,9 @@ export const routes: RouteDoc[] = [
   { method: "POST", path: "/evaluation-scales", description: "Crear escala" },
   { method: "PATCH", path: "/evaluation-scales/:id", description: "Actualizar escala" },
   { method: "DELETE", path: "/evaluation-scales/:id", description: "Eliminar escala (si nunca se usó)" },
-  { method: "POST", path: "/evaluations", description: "Evaluar una habilidad en una asistencia (recalcula la calificación)" },
+  { method: "POST", path: "/evaluations", description: "Evaluar una habilidad en una asistencia (con la sesión en curso; cuenta al finalizarla)" },
   { method: "GET", path: "/attendances/:attendanceId/evaluations", description: "Evaluaciones de la asistencia" },
-  { method: "DELETE", path: "/attendances/:attendanceId/evaluations/:workshopSkillId", description: "Eliminar evaluación (recalcula)" },
+  { method: "DELETE", path: "/attendances/:attendanceId/evaluations/:workshopSkillId", description: "Eliminar evaluación (con la sesión en curso)" },
   { method: "POST", path: "/students/:studentId/skills/:skillId/recalculate", description: "Recalcular a mano una calificación" },
   // Talleres y asistencias
   { method: "GET", path: "/workshops", description: "Talleres", query: "`evaluatorId`, `status`, `search`, `includeDeleted`" },
@@ -576,13 +645,22 @@ export const routes: RouteDoc[] = [
   { method: "DELETE", path: "/workshops/:id", description: "Eliminar taller (sin asistencias)" },
   { method: "GET", path: "/workshops/:id/skills", description: "Habilidades del taller" },
   { method: "PUT", path: "/workshops/:id/skills/:skillId", description: "Asociar habilidad (o restaurarla)" },
-  { method: "DELETE", path: "/workshops/:id/skills/:skillId", description: "Quitar habilidad (recalcula)" },
+  { method: "DELETE", path: "/workshops/:id/skills/:skillId", description: "Quitar habilidad (solo `planned`)" },
+  // Sesiones (ADR-009)
+  { method: "GET", path: "/workshops/:id/sessions", description: "Sesiones del taller, en orden de inicio" },
+  { method: "POST", path: "/workshops/:id/sessions", description: "Crear sesión (nace `planned`)" },
+  { method: "GET", path: "/sessions/:id", description: "Sesión (tema, objetivo, materiales, pasos, horario y estado)" },
+  { method: "PATCH", path: "/sessions/:id", description: "Editar sesión (inicio solo en `planned`; contenido también en `in_progress`)" },
+  { method: "POST", path: "/sessions/:id/start", description: "Iniciar sesión: abre la asistencia y la evaluación" },
+  { method: "POST", path: "/sessions/:id/finish", description: "Finalizar sesión: guarda el fin real y carga las calificaciones" },
+  { method: "DELETE", path: "/sessions/:id", description: "Eliminar sesión (solo `planned`)" },
+  { method: "GET", path: "/sessions/:id/attendances", description: "Asistencias de la sesión" },
   { method: "GET", path: "/workshops/:id/attendances", description: "Asistencias del taller" },
   { method: "GET", path: "/students/:studentId/attendances", description: "Asistencias del estudiante" },
-  { method: "POST", path: "/attendances", description: "Registrar asistencia" },
+  { method: "POST", path: "/attendances", description: "Registrar asistencia a una sesión en curso" },
   { method: "GET", path: "/attendances/:id", description: "Asistencia" },
-  { method: "PATCH", path: "/attendances/:id", description: "Actualizar asistencia" },
-  { method: "DELETE", path: "/attendances/:id", description: "Eliminar asistencia (recalcula)" },
+  { method: "PATCH", path: "/attendances/:id", description: "Corregir la observación" },
+  { method: "DELETE", path: "/attendances/:id", description: "Eliminar asistencia (con la sesión en curso)" },
   // Evidencias y credenciales
   { method: "POST", path: "/evidences", description: "Subir evidencia" },
   { method: "GET", path: "/evidences/:id", description: "Evidencia" },

@@ -4,7 +4,7 @@ import { actorOf, idParams, principalOf, readParams, studentParams } from "../..
 import { bodyId } from "../../auth/application/access-policy.js";
 import type { AttendanceService } from "../application/attendance.service.js";
 
-// Asistencias a talleres.
+// Asistencias a las sesiones de los talleres (ADR-009).
 
 export function createAttendancesRouter({ attendance, access }: { attendance: AttendanceService; access: AccessPolicy }): Router {
   const router = Router();
@@ -19,9 +19,14 @@ export function createAttendancesRouter({ attendance, access }: { attendance: At
     await access.assertCanReadStudent(principalOf(res), studentId);
     res.json(await attendance.listByStudent(studentId));
   });
+  router.get("/sessions/:id/attendances", async (req, res) => {
+    const { id } = readParams(idParams, req);
+    await access.assertCanManageSession(principalOf(res), id);
+    res.json(await attendance.listBySession(id));
+  });
   router.post("/attendances", async (req, res) => {
-    const workshopId = bodyId(req.body, "workshopId");
-    if (workshopId !== undefined) await access.assertCanManageWorkshop(principalOf(res), workshopId);
+    const sessionId = bodyId(req.body, "sessionId");
+    if (sessionId !== undefined) await access.assertCanManageSession(principalOf(res), sessionId);
     res.status(201).json(await attendance.register(req.body, actorOf(res)));
   });
   router.get("/attendances/:id", async (req, res) => {

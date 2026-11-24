@@ -61,3 +61,56 @@ export interface CategoryAverage {
   /** Esa misma escala con su código, nombre y valor (null si cae en un hueco). */
   scale: GradeScaleSummary | null;
 }
+
+/** Rango de meses (YYYY-MM, hora de Bogotá) del progreso. Por defecto: desde el mes de la primera valoración hasta el mes actual. */
+export interface StudentProgressQuery {
+  from?: string;
+  to?: string;
+}
+
+/** Calificación acumulada de una habilidad al cierre de un mes. */
+export interface MonthlySkillGrade {
+  skillId: bigint;
+  skillName: string;
+  skillCategoryId: bigint;
+  categoryName: string;
+  /** `numValue` de la escala acumulada. */
+  value: number;
+  scale: GradeScaleSummary;
+}
+
+/** Promedio acumulado de un área al cierre de un mes. */
+export interface MonthlyAverage {
+  skillCount: number;
+  average: number;
+  /** Escala en la que cae el promedio (null si cae en un hueco entre escalas). */
+  scale: GradeScaleSummary | null;
+}
+
+export interface MonthlyCategoryAverage extends MonthlyAverage {
+  skillCategoryId: bigint;
+  categoryName: string;
+}
+
+/**
+ * Progreso de un mes: la calificación acumulada de cada habilidad al cierre del
+ * mes (con la misma fórmula de siempre) y sus promedios. `partial` marca el mes en
+ * curso: muestra lo acumulado hasta hoy.
+ */
+export interface MonthlyProgress {
+  month: string;
+  partial: boolean;
+  /** Valoraciones de sesiones finalizadas que se sumaron en el mes. */
+  evaluationCount: number;
+  skills: MonthlySkillGrade[];
+  categories: MonthlyCategoryAverage[];
+  /** Promedio de todas las habilidades calificadas (null si aún no tiene ninguna). */
+  overall: MonthlyAverage | null;
+}
+
+export interface StudentProgress {
+  studentId: bigint;
+  from: string;
+  to: string;
+  months: MonthlyProgress[];
+}

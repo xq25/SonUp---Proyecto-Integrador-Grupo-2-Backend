@@ -107,6 +107,10 @@
       "value": "1"
     },
     {
+      "key": "sessionId",
+      "value": "1"
+    },
+    {
       "key": "attendanceId",
       "value": "1"
     },
@@ -1460,7 +1464,7 @@
           }
         },
         {
-          "name": "Quitar habilidad (recalcula) · DELETE /workshops/:id/skills/:skillId",
+          "name": "Quitar habilidad (solo `planned`) · DELETE /workshops/:id/skills/:skillId",
           "event": [],
           "request": {
             "method": "DELETE",
@@ -1500,10 +1504,219 @@
       ]
     },
     {
+      "name": "Sesiones",
+      "item": [
+        {
+          "name": "Crear sesión (nace `planned`) · POST /workshops/:id/sessions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 200 || pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  if (body && body.id) pm.collectionVariables.set('sessionId', body.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startsAt\": \"2026-11-10T15:00:00Z\",\n  \"topic\": \"Ritmos básicos con percusión\",\n  \"objective\": \"Reconocer y seguir un pulso constante en grupo\",\n  \"materials\": \"Ropa cómoda y una botella de agua\",\n  \"steps\": \"1. Calentamiento. 2. Ejercicios de ritmo. 3. Cierre.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/workshops/{{workshopId}}/sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workshops",
+                "{{workshopId}}",
+                "sessions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Finalizar sesión: guarda el fin real y carga las calificaciones · POST /sessions/:id/finish",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}/finish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sessions",
+                "{{sessionId}}",
+                "finish"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Sesiones del taller, en orden de inicio · GET /workshops/:id/sessions",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workshops/{{workshopId}}/sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workshops",
+                "{{workshopId}}",
+                "sessions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Sesión (tema, objetivo, materiales, pasos, horario y estado) · GET /sessions/:id",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sessions",
+                "{{sessionId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Asistencias de la sesión · GET /sessions/:id/attendances",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}/attendances",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sessions",
+                "{{sessionId}}",
+                "attendances"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Editar sesión (inicio solo en `planned`; contenido también en `in_progress`) · PATCH /sessions/:id",
+          "event": [],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"materials\": \"Ropa cómoda, agua y un cuaderno\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sessions",
+                "{{sessionId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Iniciar sesión: abre la asistencia y la evaluación · POST /sessions/:id/start",
+          "event": [],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sessions",
+                "{{sessionId}}",
+                "start"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Eliminar sesión (solo `planned`) · DELETE /sessions/:id",
+          "event": [],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sessions",
+                "{{sessionId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Asistencias",
       "item": [
         {
-          "name": "Registrar asistencia · POST /attendances",
+          "name": "Registrar asistencia a una sesión en curso · POST /attendances",
           "event": [
             {
               "listen": "test",
@@ -1528,7 +1741,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"studentId\": 1,\n  \"workshopId\": 2,\n  \"attendedAt\": \"2026-10-20T15:00:00Z\",\n  \"observation\": \"Participó activamente\"\n}",
+              "raw": "{\n  \"sessionId\": 1,\n  \"studentId\": 1,\n  \"observation\": \"Participó activamente\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1584,7 +1797,7 @@
           }
         },
         {
-          "name": "Actualizar asistencia · PATCH /attendances/:id",
+          "name": "Corregir la observación · PATCH /attendances/:id",
           "event": [],
           "request": {
             "method": "PATCH",
@@ -1616,7 +1829,7 @@
           }
         },
         {
-          "name": "Eliminar asistencia (recalcula) · DELETE /attendances/:id",
+          "name": "Eliminar asistencia (con la sesión en curso) · DELETE /attendances/:id",
           "event": [],
           "request": {
             "method": "DELETE",
@@ -1639,7 +1852,7 @@
       "name": "Evaluaciones y calificaciones",
       "item": [
         {
-          "name": "Evaluar una habilidad en una asistencia (recalcula la calificación) · POST /evaluations",
+          "name": "Evaluar una habilidad en una asistencia (con la sesión en curso; cuenta al finalizarla) · POST /evaluations",
           "event": [],
           "request": {
             "method": "POST",
@@ -1708,6 +1921,25 @@
           }
         },
         {
+          "name": "Progreso mes a mes (ADMIN, TALLERISTA y el ACUDIENTE de sus jóvenes; el joven no): calificación acumulada de cada habilidad al cierre de cada mes, promedios por área y general (el mes en curso sale con `partial: true`) · GET /students/:studentId/progress",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/students/{{studentId}}/progress",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "{{studentId}}",
+                "progress"
+              ]
+            }
+          }
+        },
+        {
           "name": "Evaluaciones de la asistencia · GET /attendances/:attendanceId/evaluations",
           "event": [],
           "request": {
@@ -1748,7 +1980,7 @@
           }
         },
         {
-          "name": "Eliminar evaluación (recalcula) · DELETE /attendances/:attendanceId/evaluations/:workshopSkillId",
+          "name": "Eliminar evaluación (con la sesión en curso) · DELETE /attendances/:attendanceId/evaluations/:workshopSkillId",
           "event": [],
           "request": {
             "method": "DELETE",

@@ -6,8 +6,6 @@ export interface WorkshopRepository {
   findMany(filter?: WorkshopFilter): Promise<Workshop[]>;
   /** ¿Tiene asistencias vigentes? */
   hasAttendances(id: bigint): Promise<boolean>;
-  /** Fecha de la última asistencia vigente del taller, o null si no tiene. */
-  findLastAttendedAt(id: bigint): Promise<Date | null>;
   create(data: CreateWorkshopInput, actor: ActorId): Promise<Workshop>;
   update(id: bigint, data: UpdateWorkshopInput, actor: ActorId): Promise<Workshop>;
   /** Borrado lógico. */

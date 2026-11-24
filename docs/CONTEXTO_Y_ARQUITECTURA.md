@@ -103,7 +103,7 @@ El módulo tiene su **propio proyecto de Supabase para pruebas**. El código lee
 - **Qué carga:**
   - 3 categorías y 8 habilidades.
   - 4 escalas que cubren 0–5 sin huecos (`BAJO` 1, `BASICO` 2.5, `ALTO` 3.5, `SUPERIOR` 4.5).
-  - 3 talleres: "Música y ritmo" (finalizado), "Teatro y expresión" y "Pintura creativa" (activos). En total, unas 31 asistencias con 90 evaluaciones.
+  - 3 talleres con 12 sesiones (10:00–12:00): "Música y ritmo" (finalizado), "Teatro y expresión" y "Pintura creativa" (activos; su última sesión queda en curso). En total, unas 31 asistencias con 90 evaluaciones.
   - 3 evidencias.
   - 2 credenciales (una validada).
 - **Determinista e idempotente:** produce siempre los mismos datos y, si se repite, no duplica nada.
@@ -124,8 +124,8 @@ El módulo tiene su **propio proyecto de Supabase para pruebas**. El código lee
    children ──< children_guardians >── guardians        professionals
       │  (student_id, sin FK)                                │ (evaluator_id, sin FK)
       ▼                                                      ▼
- workshop_attendances >──────────────────────────────── workshops ──< workshop_skills >── skills >── skill_categories
-      │                                                      │               │              │
+ workshop_attendances >── workshop_sessions >─────────── workshops ──< workshop_skills >── skills >── skill_categories
+      │                   (horario, tema, estado)            │               │              │
       └──< evaluation_skills >── evaluation_scales           │               │              └──< student_skills (student_id)
                └───────────────── workshop_skills ───────────┘               │
                                                                              │
@@ -153,7 +153,7 @@ Los administrativos no tienen tabla propia: son personal (`staff`) del módulo a
 | `skills` | `Skill` | `name` (2–100, **único por categoría** sin distinguir mayúsculas), categoría, `status` (`active` \| `inactive`). Con historial no se elimina: se inactiva. Validaciones: [VALIDACIONES.md §3.3](VALIDACIONES.md) |
 | `student_skills` | `StudentSkill` | Calificación de una habilidad en un estudiante, como **referencia a una escala** (`evaluation_scale_id`, relación `RATTED_ON`). **Se calcula** a partir de las evaluaciones (sección 3.4); no se asigna a mano. Único (`student_id`, `skill_id`) |
 | `evaluation_scales` | `EvaluationScale` | Escala de calificación: `code` (solo mayúsculas, números y `_`: `^[A-Z0-9_]{1,30}$`, único), `name` (único sin distinguir mayúsculas), `num_value` (valor de la calificación; da el orden y es lo que se promedia), `min_value`–`max_value` (intervalo inclusivo de promedios que caen en la escala). Todo en el **rango 0–5** y `min ≤ num ≤ max`. Entre escalas vigentes, los intervalos no se solapan (restricción de exclusión en la BD) y se permiten huecos. Si está en uso, sus valores no cambian. Validaciones: [VALIDACIONES.md §3.4](VALIDACIONES.md) |
-| `evaluation_skills` | `EvaluationSkill` | Escala asignada a una habilidad del taller en una asistencia. Única (`workshop_attendance_id`, `workshop_skill_id`). Solo se evalúa en talleres `active`; con el taller cerrado no se cambia ni se elimina. Validaciones: [VALIDACIONES.md §3.9](VALIDACIONES.md) |
+| `evaluation_skills` | `EvaluationSkill` | Escala asignada a una habilidad del taller en una asistencia. Única (`workshop_attendance_id`, `workshop_skill_id`). Solo se crea, cambia o elimina con la sesión de la asistencia en curso; cuenta en las calificaciones al finalizar la sesión. Validaciones: [VALIDACIONES.md §3.9](VALIDACIONES.md) |
 
 **Talleres.**
 
@@ -161,7 +161,8 @@ Los administrativos no tienen tabla propia: son personal (`staff`) del módulo a
 |---|---|---|
 | `workshops` | `Workshop` | `evaluator_id` → tallerista, `name` (3–150), `starts_at`/`ends_at` (fin ≥ inicio), `status` con ciclo de vida (siempre nace `planned`) `planned → active → finished` y `planned`/`active` → `cancelled`. `active` exige inicio y `finished` exige fin. Solo `planned` se edita; con asistencias no se elimina, se cancela. Validaciones: [VALIDACIONES.md §3.6](VALIDACIONES.md) |
 | `workshop_skills` | `WorkshopSkill` | Habilidades del taller. Único (`workshop_id`, `skill_id`). Solo se cambian con el taller `planned`; con evaluaciones vigentes no se quitan; activar un taller exige al menos una. Validaciones: [VALIDACIONES.md §3.7](VALIDACIONES.md) |
-| `workshop_attendances` | `WorkshopAttendance` | Asistencia de un estudiante activo a un taller `active`: `attended_at` (no futura, dentro de las fechas del taller) y `observation` (máx. 1000). Una por estudiante, taller y día (hora de Bogotá). Con el taller cerrado solo se corrige la observación. Validaciones: [VALIDACIONES.md §3.8](VALIDACIONES.md) |
+| `workshop_sessions` | `WorkshopSession` | Sesiones del taller ([ADR-009](decisiones/ADR-009-sesiones-de-taller.md)): `starts_at` (tentativo) y `ends_at` (fin real, se da al finalizar), `topic` (2–150), `objective` (≤ 1000), `materials` (≤ 1000) y `steps` (≤ 2000) opcionales, `status` `planned → in_progress → finished`. No repiten hora de inicio ni se cruzan dentro de un taller (servicio + índice único y exclusión en la BD entre las iniciadas). Activar un taller exige al menos una; finalizarlo, que todas estén finalizadas. Validaciones: [VALIDACIONES.md §3.13](VALIDACIONES.md) |
+| `workshop_attendances` | `WorkshopAttendance` | Asistencia de un estudiante activo a una **sesión en curso** (`workshop_session_id`); `workshop_id` y `attended_at` los toma de la sesión; `observation` (máx. 1000). Una por estudiante y sesión. Con la sesión finalizada solo se corrige la observación. Validaciones: [VALIDACIONES.md §3.8 y §3.13](VALIDACIONES.md) |
 
 **Evidencias.**
 
@@ -242,17 +243,15 @@ Los valores de `status` de todas las tablas del módulo están aprobados (ver [V
 
 **Calificación de una habilidad en un estudiante** (`student_skills`):
 
-1. Cada vez que se evalúa una habilidad en un taller (`evaluation_skills`), la calificación del estudiante en esa habilidad se actualiza así:
+1. Al **finalizar una sesión** (ADR-009), las evaluaciones de la sesión (`evaluation_skills`) se cargan a la calificación del estudiante en cada habilidad así:
    - **Primera evaluación:** la calificación es la escala con que se evaluó.
    - **Siguientes:** `(num_value de la calificación anterior + num_value de la nueva evaluación) / 2`, **redondeado a 2 decimales**. El resultado se clasifica en la escala activa cuyo intervalo `[min_value, max_value]` lo contiene. Sin el redondeo, `(1 + 2.99) / 2 = 1.995` caería entre 1.99 y 2.00.
-2. La calificación se **recalcula desde el historial**: todas las evaluaciones vigentes del estudiante en esa habilidad, en orden de fecha de asistencia. Solo cuentan las evaluaciones cuya asistencia y habilidad de taller siguen vigentes. Si no quedan evaluaciones, la calificación se elimina (borrado lógico).
-3. Se recalcula automáticamente cuando:
-   - se evalúa, se reevalúa o se elimina una evaluación;
-   - se **elimina una asistencia**: se recalculan las habilidades evaluadas en ella;
-   - se **quita una habilidad de un taller**: se recalculan los estudiantes evaluados en ella. Solo se permite si sus evaluaciones vigentes ya no existen (§3.7), así que en la práctica cubre evaluaciones de asistencias eliminadas;
-   - se **vuelve a asociar** esa habilidad al taller: sus evaluaciones vuelven a contar.
+2. La calificación se **recalcula desde el historial**: todas las evaluaciones vigentes del estudiante en esa habilidad, **de sesiones finalizadas**, en orden de inicio de la sesión. Solo cuentan las evaluaciones cuya asistencia, sesión y habilidad de taller siguen vigentes. Si no quedan evaluaciones, la calificación se elimina (borrado lógico).
+3. Se recalcula cuando:
+   - se **finaliza una sesión**: los estudiantes y habilidades evaluados en ella (`recalculateForSession`);
+   - se pide **a mano** (`POST /students/:studentId/skills/:skillId/recalculate`).
 
-   El recálculo vive en `GradingService`, detrás del puerto `SkillGradeRecalculator` ([src/evaluations/domain/skill-grade-recalculator.ts](../src/evaluations/domain/skill-grade-recalculator.ts)). Talleres y asistencias dependen solo de esa interfaz.
+   Evaluar, reevaluar o eliminar evaluaciones y asistencias ocurre con la sesión en curso, cuando todavía no cuentan: no recalculan. El recálculo vive en `GradingService`, detrás del puerto `SkillGradeRecalculator` ([src/evaluations/domain/skill-grade-recalculator.ts](../src/evaluations/domain/skill-grade-recalculator.ts)). El servicio de sesiones depende solo de esa interfaz.
 
 Ejemplo, con las escalas Bajo (1) [0–1.99], En proceso (3) [2–3.49] y Logrado (4.5) [3.5–5]:
 
@@ -265,6 +264,15 @@ Ejemplo, con las escalas Bajo (1) [0–1.99], En proceso (3) [2–3.49] y Lograd
 Como `student_skills` guarda la **escala** y no el número, cada paso parte del `num_value` de la escala anterior (3 en el ejemplo, no 2.75). Así lo define el modelo actual.
 
 **Promedio por categoría** (`SkillsService.getCategoryAverages`): suma de los `num_value` de las calificaciones del estudiante en las habilidades de la categoría, dividida entre la cantidad de habilidades calificadas. Se redondea a 2 decimales y se indica la escala en la que cae. Por ejemplo, 3.75 en "Socioemocional" cae en Logrado.
+
+**Progreso mes a mes** (`StudentSkillsService.getProgress`, `GET /students/:studentId/progress?from=YYYY-MM&to=YYYY-MM`). **Lo consultan la administración, los talleristas y el acudiente (solo de sus jóvenes); el joven no**:
+
+- **Qué muestra cada mes:** la **calificación acumulada al cierre del mes** (hora de Bogotá), con la misma fórmula de siempre. Para cada habilidad, se reconstruye la calificación solo con las valoraciones de sesiones finalizadas hasta ese mes.
+- **Además, por mes:** el promedio por área, el promedio general y `evaluationCount` (cuántas valoraciones se sumaron en ese mes).
+- **Mes en curso:** sale con `partial: true` y muestra lo acumulado hasta hoy; coincide con la calificación actual.
+- **Mes sin sesiones:** repite lo que el estudiante traía.
+- **La curva puede bajar:** una valoración baja arrastra el promedio, pero suavizado, porque se promedia con la calificación anterior.
+- **Rango:** por defecto, desde el mes de la primera valoración hasta el mes actual; máximo 36 meses.
 
 Las reglas están en funciones puras del dominio ([src/evaluations/domain/grading.ts](../src/evaluations/domain/grading.ts)): `accumulateSkillGrade`, `findScaleForValue` y `average`.
 
@@ -307,7 +315,7 @@ src/
 ├── access/           # aplicaciones, roles, usuario_roles
 ├── skills/           # skill_categories, skills, student_skills
 ├── evaluations/      # evaluation_scales, evaluation_skills
-├── workshops/        # workshops, workshop_skills, workshop_attendances
+├── workshops/        # workshops, workshop_skills, workshop_sessions, workshop_attendances
 └── evidences/        # evidences, student_evidences, credentials
 ```
 
@@ -366,12 +374,13 @@ Todos los métodos que escriben reciben `actor`. Eliminar es siempre borrado ló
 | `userRoles` | `UserRolesService` | `assign`, `revoke`, `getUserRoles`, `hasRole` |
 | `skillCategories` | `SkillCategoriesService` | CRUD (nombre único sin distinguir mayúsculas; no se elimina con habilidades vigentes) |
 | `skills` | `SkillsService` | CRUD (nombre único por categoría sin distinguir mayúsculas; con historial no se elimina, se inactiva) |
-| `studentSkills` | `StudentSkillsService` | `listByStudent` (calificaciones calculadas, con el nombre de la habilidad, su categoría y su escala), `getCategoryAverages` (promedio por categoría, con su escala) |
+| `studentSkills` | `StudentSkillsService` | `listByStudent` (calificaciones calculadas, con el nombre de la habilidad, su categoría y su escala), `getCategoryAverages` (promedio por categoría, con su escala), `getProgress` (progreso mes a mes: calificación acumulada al cierre de cada mes) |
 | `evaluationScales` | `EvaluationScalesService` | CRUD con las reglas de §3.4 (rango 0–5, sin solapamiento, valores fijos si está en uso), ordenadas por `num_value`. `classify(valor)` (redondea a 2 decimales), `getCoverageGaps()` |
-| `evaluations` | `EvaluationsService` | `evaluate` y `remove` (validan taller `active`/no cerrado, escala y que el estudiante siga activo, y **recalculan la calificación** de la habilidad del estudiante), `recalculateStudentSkill`, `listByAttendance` |
-| `workshops` | `WorkshopsService` | CRUD de talleres con ciclo de vida (§3.6: transiciones, fechas por estado, solo `planned` editable, con asistencias no se elimina) |
-| `workshopSkills` | `WorkshopSkillsService` | `add` y `remove` (solo en `planned`; no se quita con evaluaciones; recalculan calificaciones), `listByWorkshop` |
-| `attendance` | `AttendanceService` | `register` (§3.8: taller `active`, estudiante activo, fecha válida, una por día), `listByWorkshop`, `listByStudent`, `update` (con el taller cerrado solo la observación; si cambia la fecha, recalcula calificaciones), `delete` (no con el taller cerrado; recalcula calificaciones) |
+| `evaluations` | `EvaluationsService` | `evaluate` y `remove` (validan sesión `in_progress`, taller `active`, escala y que el estudiante siga activo; la calificación se carga al finalizar la sesión), `recalculateStudentSkill`, `listByAttendance` |
+| `workshops` | `WorkshopsService` | CRUD de talleres con ciclo de vida (§3.6: transiciones, fechas por estado, solo `planned` editable, con asistencias no se elimina; activar exige una sesión y finalizar, todas finalizadas) |
+| `workshopSkills` | `WorkshopSkillsService` | `add` y `remove` (solo en `planned`; no se quita con evaluaciones), `listByWorkshop` |
+| `workshopSessions` | `WorkshopSessionsService` | `create` (sin fin), `update` (inicio solo en `planned`), `start` (abre asistencia y evaluación; no se cruza con otra sesión), `finish` (aquí se da el fin real; **carga las calificaciones**), `delete` (solo `planned`), `listByWorkshop` (ADR-009, §3.13) |
+| `attendance` | `AttendanceService` | `register` (§3.13: sesión `in_progress`, estudiante activo, una por sesión), `listByWorkshop`, `listBySession`, `listByStudent`, `update` (solo la observación), `delete` (con la sesión en curso) |
 | `evidences` | `EvidencesService` | `upload` (1 a 50 estudiantes activos, de forma atómica), `update`, `delete` (oculta también sus relaciones) |
 | `studentEvidences` | `StudentEvidencesService` | `link` (estudiante activo, máx. 50), `unlink` (no el último), `listByStudent`, `listByEvidence` |
 | `credentials` | `CredentialsService` | `register` (nace `pending`; taller opcional `finished` y con asistencia), `update` (transiciones; datos solo en `pending`), `listByStudent`, `delete` (solo `pending`) |
@@ -382,11 +391,14 @@ Ejemplo de uso:
 import { createContainer } from "./container.js";
 
 const app = createContainer();
-const attendance = await app.attendance.register({ studentId: 1n, workshopId: 3n }, actorId);
+// La asistencia se toma en una sesión en curso; la calificación se carga al finalizarla (ADR-009).
+const session = await app.workshopSessions.start(sessionId, actorId);
+const attendance = await app.attendance.register({ sessionId: session.id, studentId: 1n }, actorId);
 await app.evaluations.evaluate(
   { workshopAttendanceId: attendance.id, workshopSkillId: 7n, evaluationScaleId: 2n },
   actorId,
 );
+await app.workshopSessions.finish(session.id, {}, actorId);
 ```
 
 ### Cómo agregar una feature nueva
@@ -426,9 +438,11 @@ await app.evaluations.evaluate(
 - [ ] BD de pruebas del módulo: completar la contraseña en `.env`, ejecutar los dos SQL (§2.1) y pasar `npm run db:check` contra Supabase.
 - [ ] BD general: reemplazar las URLs en `.env`, confirmar el nombre del esquema administrativo y comparar con `prisma db pull --print`.
 - [ ] Probar los repositorios y las políticas RLS en Supabase con usuarios reales.
-- [ ] Hacer atómicos el cambio y su recálculo (transacción). Hoy, si el recálculo falla (p. ej. un promedio cae en un hueco entre escalas), el cambio ya quedó guardado y la calificación queda desactualizada hasta el próximo recálculo.
+- [ ] Hacer atómicos finalizar una sesión y su recálculo (transacción). Hoy, si el recálculo falla (p. ej. un promedio cae en un hueco entre escalas), la sesión ya quedó finalizada y la calificación queda desactualizada hasta el próximo recálculo.
 - [ ] Decidir qué pasa con las calificaciones ya calculadas si cambia el `num_value` o el intervalo de una escala.
-- [ ] Ligar el `actor` (cuenta) con su tallerista para que solo el tallerista del taller pueda evaluar (§3.9 de VALIDACIONES.md).
+- [x] Ligar el `actor` (cuenta) con su tallerista para que solo el tallerista del taller pueda evaluar: `AccessPolicy` con el enlace `security_user_id` de Saga ([ADR-008](decisiones/ADR-008-seguridad-por-roles.md)).
+- [x] Sesiones de taller ([ADR-009](decisiones/ADR-009-sesiones-de-taller.md)): implementadas en `feat/sesiones-taller` (2026-11-11).
+- [ ] Antes de integrar `feat/sesiones-taller` a `main`: decidir qué pasa con la BD de despliegue (recrearla o migrarla) y coordinar el cambio con el front (`POST /attendances` pide `sessionId`).
 - [x] Capa de entrada HTTP: Express 5 bajo `/api`, actor del JWT de Supabase ([ADR-002](decisiones/ADR-002-capa-http-express.md)).
 - [x] Autenticación del front a través de nuestra API: `/auth/register`, `/auth/login`, `/auth/profile` remiten al módulo administrativo ([ADR-003](decisiones/ADR-003-autenticacion-modulo-administrativo.md)).
 - [x] Seguridad de nuestras rutas con el token y los roles del servicio de seguridad ([ADR-008](decisiones/ADR-008-seguridad-por-roles.md)): verificación JWT/endpoint, matriz de roles, token reenviado a Saga, actor = `sub` (texto).

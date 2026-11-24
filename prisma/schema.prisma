@@ -207,6 +207,7 @@ model Workshop {
   deletedBy   String?   @map("eliminado_por")
 
   skills      WorkshopSkill[]
+  sessions    WorkshopSession[]
   attendances WorkshopAttendance[]
   credentials Credential[]
 
@@ -234,10 +235,38 @@ model WorkshopSkill {
   @@schema("public")
 }
 
+// Sesión de un taller (ADR-009). La restricción de exclusión (sin solapamiento
+// entre sesiones iniciadas o finalizadas) solo existe en el SQL.
+model WorkshopSession {
+  id         BigInt    @id @default(autoincrement())
+  workshopId BigInt    @map("workshop_id")
+  startsAt   DateTime  @map("starts_at") @db.Timestamptz(6)
+  endsAt     DateTime? @map("ends_at") @db.Timestamptz(6) // fin real: solo en sesiones finalizadas
+  topic      String
+  objective  String?
+  materials  String?
+  steps      String?
+  status     String    @default("planned") // check: planned | in_progress | finished
+  createdAt  DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
+  createdBy  String?   @map("creado_por")
+  updatedAt  DateTime  @default(now()) @map("actualizado_en") @db.Timestamptz(6)
+  updatedBy  String?   @map("actualizado_por")
+  deletedAt  DateTime? @map("eliminado_en") @db.Timestamptz(6)
+  deletedBy  String?   @map("eliminado_por")
+
+  workshop    Workshop             @relation(fields: [workshopId], references: [id], onDelete: Restrict)
+  attendances WorkshopAttendance[]
+
+  @@index([workshopId, startsAt])
+  @@map("workshop_sessions")
+  @@schema("public")
+}
+
 model WorkshopAttendance {
   id          BigInt    @id @default(autoincrement())
   studentId   BigInt    @map("student_id") // administrativo.children
   workshopId  BigInt    @map("workshop_id")
+  sessionId   BigInt    @map("workshop_session_id")
   attendedAt  DateTime  @default(now()) @map("attended_at") @db.Timestamptz(6)
   observation String?
   createdAt   DateTime  @default(now()) @map("creado_en") @db.Timestamptz(6)
@@ -248,6 +277,7 @@ model WorkshopAttendance {
   deletedBy   String?   @map("eliminado_por")
 
   workshop    Workshop          @relation(fields: [workshopId], references: [id], onDelete: Restrict)
+  session     WorkshopSession   @relation(fields: [sessionId], references: [id], onDelete: Restrict)
   evaluations EvaluationSkill[]
 
   @@index([studentId])

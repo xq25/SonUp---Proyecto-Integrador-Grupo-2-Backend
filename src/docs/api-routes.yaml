@@ -37,6 +37,9 @@
       "name": "Talleres"
     },
     {
+      "name": "Sesiones"
+    },
+    {
       "name": "Asistencias"
     },
     {
@@ -3641,6 +3644,94 @@
       }
     }
   },
+  "/students/{studentId}/progress": {
+    "get": {
+      "tags": [
+        "Evaluaciones y calificaciones"
+      ],
+      "summary": "Progreso mes a mes (ADMIN, TALLERISTA y el ACUDIENTE de sus jóvenes; el joven no): calificación acumulada de cada habilidad al cierre de cada mes, promedios por área y general (el mes en curso sale con `partial: true`)",
+      "description": "**Roles:** ADMIN, TALLERISTA, ACUDIENTE\n\nConsulta: `from`, `to` (meses `YYYY-MM`; por defecto, desde la primera valoración hasta el mes actual; máx. 36 meses)",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "studentId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "from",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        },
+        {
+          "name": "to",
+          "in": "query",
+          "required": false,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "El rol del usuario no tiene permiso (o el servicio de seguridad lo rechaza)",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
   "/evaluation-scales": {
     "get": {
       "tags": [
@@ -4271,7 +4362,7 @@
       "tags": [
         "Evaluaciones y calificaciones"
       ],
-      "summary": "Evaluar una habilidad en una asistencia (recalcula la calificación)",
+      "summary": "Evaluar una habilidad en una asistencia (con la sesión en curso; cuenta al finalizarla)",
       "description": "**Roles:** ADMIN, TALLERISTA",
       "security": [
         {
@@ -4447,7 +4538,7 @@
       "tags": [
         "Evaluaciones y calificaciones"
       ],
-      "summary": "Eliminar evaluación (recalcula)",
+      "summary": "Eliminar evaluación (con la sesión en curso)",
       "description": "**Roles:** ADMIN, TALLERISTA",
       "security": [
         {
@@ -5266,7 +5357,7 @@
       "tags": [
         "Talleres"
       ],
-      "summary": "Quitar habilidad (recalcula)",
+      "summary": "Quitar habilidad (solo `planned`)",
       "description": "**Roles:** ADMIN, TALLERISTA",
       "security": [
         {
@@ -5340,6 +5431,721 @@
         },
         "409": {
           "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/workshops/{id}/sessions": {
+    "get": {
+      "tags": [
+        "Sesiones"
+      ],
+      "summary": "Sesiones del taller, en orden de inicio",
+      "description": "**Roles:** ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "El rol del usuario no tiene permiso (o el servicio de seguridad lo rechaza)",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "post": {
+      "tags": [
+        "Sesiones"
+      ],
+      "summary": "Crear sesión (nace `planned`)",
+      "description": "**Roles:** ADMIN, TALLERISTA",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "startsAt": {
+                  "description": "string. texto ISO 8601 con zona (ej. \"2026-10-20T15:00:00Z\"); inicio tentativo. El fin no se envía: se da al finalizar la sesión"
+                },
+                "topic": {
+                  "type": "string",
+                  "description": "string. tema; 2–150"
+                },
+                "objective": {
+                  "nullable": true,
+                  "type": "string",
+                  "description": "string | null. objetivo de la sesión; máx. 1000; vacío → null"
+                },
+                "materials": {
+                  "nullable": true,
+                  "type": "string",
+                  "description": "string | null. materiales que deben llevar los jóvenes; máx. 1000; vacío → null"
+                },
+                "steps": {
+                  "nullable": true,
+                  "type": "string",
+                  "description": "string | null. pasos o actividades; máx. 2000; vacío → null"
+                }
+              },
+              "required": [
+                "startsAt",
+                "topic"
+              ],
+              "additionalProperties": false
+            },
+            "example": {
+              "startsAt": "2026-11-10T15:00:00Z",
+              "topic": "Ritmos básicos con percusión",
+              "objective": "Reconocer y seguir un pulso constante en grupo",
+              "materials": "Ropa cómoda y una botella de agua",
+              "steps": "1. Calentamiento. 2. Ejercicios de ritmo. 3. Cierre."
+            }
+          }
+        }
+      },
+      "responses": {
+        "201": {
+          "description": "Creado"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "El rol del usuario no tiene permiso (o el servicio de seguridad lo rechaza)",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/sessions/{id}": {
+    "get": {
+      "tags": [
+        "Sesiones"
+      ],
+      "summary": "Sesión (tema, objetivo, materiales, pasos, horario y estado)",
+      "description": "**Roles:** ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "El rol del usuario no tiene permiso (o el servicio de seguridad lo rechaza)",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "patch": {
+      "tags": [
+        "Sesiones"
+      ],
+      "summary": "Editar sesión (inicio solo en `planned`; contenido también en `in_progress`)",
+      "description": "**Roles:** ADMIN, TALLERISTA",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "startsAt": {},
+                "topic": {
+                  "type": "string"
+                },
+                "objective": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "materials": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "steps": {
+                  "nullable": true,
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            },
+            "example": {
+              "materials": "Ropa cómoda, agua y un cuaderno"
+            }
+          }
+        }
+      },
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "El rol del usuario no tiene permiso (o el servicio de seguridad lo rechaza)",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    },
+    "delete": {
+      "tags": [
+        "Sesiones"
+      ],
+      "summary": "Eliminar sesión (solo `planned`)",
+      "description": "**Roles:** ADMIN, TALLERISTA",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "204": {
+          "description": "Eliminado (sin cuerpo)"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "El rol del usuario no tiene permiso (o el servicio de seguridad lo rechaza)",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/sessions/{id}/start": {
+    "post": {
+      "tags": [
+        "Sesiones"
+      ],
+      "summary": "Iniciar sesión: abre la asistencia y la evaluación",
+      "description": "**Roles:** ADMIN, TALLERISTA",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "El rol del usuario no tiene permiso (o el servicio de seguridad lo rechaza)",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/sessions/{id}/finish": {
+    "post": {
+      "tags": [
+        "Sesiones"
+      ],
+      "summary": "Finalizar sesión: guarda el fin real y carga las calificaciones",
+      "description": "**Roles:** ADMIN, TALLERISTA",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "properties": {
+                "endsAt": {
+                  "description": "string. texto ISO 8601 con zona (ej. \"2026-10-20T15:00:00Z\"); fin real de la sesión (aquí se da el fin); por defecto, ahora"
+                }
+              },
+              "additionalProperties": false
+            },
+            "example": {}
+          }
+        }
+      },
+      "responses": {
+        "201": {
+          "description": "Creado"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "El rol del usuario no tiene permiso (o el servicio de seguridad lo rechaza)",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "409": {
+          "description": "Conflicto con el estado actual",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "/sessions/{id}/attendances": {
+    "get": {
+      "tags": [
+        "Sesiones"
+      ],
+      "summary": "Asistencias de la sesión",
+      "description": "**Roles:** ADMIN, TALLERISTA",
+      "security": [
+        {
+          "bearerAuth": []
+        },
+        {
+          "actorId": []
+        }
+      ],
+      "parameters": [
+        {
+          "name": "id",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "type": "string"
+          }
+        }
+      ],
+      "responses": {
+        "200": {
+          "description": "Correcto"
+        },
+        "400": {
+          "description": "Datos inválidos",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "401": {
+          "description": "Sin autenticación válida",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "403": {
+          "description": "El rol del usuario no tiene permiso (o el servicio de seguridad lo rechaza)",
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApiError"
+              }
+            }
+          }
+        },
+        "404": {
+          "description": "No existe",
           "content": {
             "application/json": {
               "schema": {
@@ -5500,7 +6306,7 @@
       "tags": [
         "Asistencias"
       ],
-      "summary": "Registrar asistencia",
+      "summary": "Registrar asistencia a una sesión en curso",
       "description": "**Roles:** ADMIN, TALLERISTA",
       "security": [
         {
@@ -5517,14 +6323,11 @@
             "schema": {
               "type": "object",
               "properties": {
+                "sessionId": {
+                  "description": "number | string. número o texto con un entero > 0 (ej. 12 o \"12\"); la sesión define el taller y la fecha"
+                },
                 "studentId": {
                   "description": "number | string. número o texto con un entero > 0 (ej. 12 o \"12\"); joven (child_id)"
-                },
-                "workshopId": {
-                  "description": "number | string. número o texto con un entero > 0 (ej. 12 o \"12\")"
-                },
-                "attendedAt": {
-                  "description": "string. texto ISO 8601 con zona (ej. \"2026-10-20T15:00:00Z\"); por defecto, ahora"
                 },
                 "observation": {
                   "nullable": true,
@@ -5533,15 +6336,14 @@
                 }
               },
               "required": [
-                "studentId",
-                "workshopId"
+                "sessionId",
+                "studentId"
               ],
               "additionalProperties": false
             },
             "example": {
+              "sessionId": 1,
               "studentId": 1,
-              "workshopId": 2,
-              "attendedAt": "2026-10-20T15:00:00Z",
               "observation": "Participó activamente"
             }
           }
@@ -5679,7 +6481,7 @@
       "tags": [
         "Asistencias"
       ],
-      "summary": "Actualizar asistencia",
+      "summary": "Corregir la observación",
       "description": "**Roles:** ADMIN, TALLERISTA",
       "security": [
         {
@@ -5706,9 +6508,6 @@
             "schema": {
               "type": "object",
               "properties": {
-                "attendedAt": {
-                  "description": "string. texto ISO 8601 con zona (ej. \"2026-10-20T15:00:00Z\")"
-                },
                 "observation": {
                   "nullable": true,
                   "type": "string",
@@ -5783,7 +6582,7 @@
       "tags": [
         "Asistencias"
       ],
-      "summary": "Eliminar asistencia (recalcula)",
+      "summary": "Eliminar asistencia (con la sesión en curso)",
       "description": "**Roles:** ADMIN, TALLERISTA",
       "security": [
         {

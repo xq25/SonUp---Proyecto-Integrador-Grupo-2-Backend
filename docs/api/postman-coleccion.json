@@ -111,6 +111,10 @@
       "value": "1"
     },
     {
+      "key": "sessionId",
+      "value": "1"
+    },
+    {
       "key": "attendanceId",
       "value": "1"
     },
@@ -3827,7 +3831,7 @@
           }
         },
         {
-          "name": "Quitar habilidad (recalcula) · DELETE /workshops/:id/skills/:skillId",
+          "name": "Quitar habilidad (solo `planned`) · DELETE /workshops/:id/skills/:skillId",
           "event": [
             {
               "listen": "prerequest",
@@ -3929,6 +3933,647 @@
       ]
     },
     {
+      "name": "Sesiones",
+      "item": [
+        {
+          "name": "Crear sesión de un taller · válido",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"workshopId\"].filter((v) => !pm.collectionVariables.get('created_' + v));",
+                  "if (missing.length) {",
+                  "  console.log('Omitida: la colección aún no creó ' + missing.join(', '));",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const code = pm.response.code;",
+                  "const body = code === 204 ? {} : pm.response.json();",
+                  "pm.test('Pasa la validación de forma (nivel 1)', () => {",
+                  "  pm.expect(code === 400 && body.error && body.error.details, 'error de esquema').to.not.be.ok;",
+                  "});",
+                  "pm.test('Sin error de autenticación ni interno', () => pm.expect(code).to.be.oneOf([200, 201, 204, 400, 404, 409]));",
+                  "pm.test('La ruta existe', () => pm.expect(code === 404 && /^La ruta/.test(body.error.message)).to.not.be.ok);",
+                  "// 404/409/400 sin details = regla de negocio (depende de los datos de la BD).",
+                  "if (code >= 400) console.log(code, body.error && body.error.message);",
+                  "if (code === 201) {",
+                  "  pm.collectionVariables.set('sessionId', body.id);",
+                  "  pm.collectionVariables.set('created_sessionId', 'true');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startsAt\": \"2026-11-10T15:00:00Z\",\n  \"topic\": \"Ritmos básicos con percusión\",\n  \"objective\": \"Reconocer y seguir un pulso constante en grupo\",\n  \"materials\": \"Ropa cómoda y una botella de agua\",\n  \"steps\": \"1. Calentamiento. 2. Ejercicios de ritmo. 3. Cierre.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/workshops/{{workshopId}}/sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workshops",
+                "{{workshopId}}",
+                "sessions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear sesión de un taller · Enviar el fin al crear (se da al finalizar)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 · error de validación', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('code = VALIDATION', () => pm.expect(body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('Campos con error: endsAt', () => {",
+                  "  const paths = (body.error.details || []).map((d) => d.path).sort();",
+                  "  pm.expect(paths).to.eql([\"endsAt\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startsAt\": \"2026-11-10T15:00:00Z\",\n  \"endsAt\": \"2026-11-10T17:00:00Z\",\n  \"topic\": \"Ritmos\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/workshops/{{workshopId}}/sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workshops",
+                "{{workshopId}}",
+                "sessions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear sesión de un taller · Tema de 1 carácter",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 · error de validación', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('code = VALIDATION', () => pm.expect(body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('Campos con error: topic', () => {",
+                  "  const paths = (body.error.details || []).map((d) => d.path).sort();",
+                  "  pm.expect(paths).to.eql([\"topic\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startsAt\": \"2026-11-10T15:00:00Z\",\n  \"topic\": \"R\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/workshops/{{workshopId}}/sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workshops",
+                "{{workshopId}}",
+                "sessions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Crear sesión de un taller · Crear con estado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 · error de validación', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('code = VALIDATION', () => pm.expect(body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('Campos con error: status', () => {",
+                  "  const paths = (body.error.details || []).map((d) => d.path).sort();",
+                  "  pm.expect(paths).to.eql([\"status\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startsAt\": \"2026-11-10T15:00:00Z\",\n  \"topic\": \"Ritmos\",\n  \"status\": \"in_progress\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/workshops/{{workshopId}}/sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workshops",
+                "{{workshopId}}",
+                "sessions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Finalizar sesión · válido",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"sessionId\"].filter((v) => !pm.collectionVariables.get('created_' + v));",
+                  "if (missing.length) {",
+                  "  console.log('Omitida: la colección aún no creó ' + missing.join(', '));",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const code = pm.response.code;",
+                  "const body = code === 204 ? {} : pm.response.json();",
+                  "pm.test('Pasa la validación de forma (nivel 1)', () => {",
+                  "  pm.expect(code === 400 && body.error && body.error.details, 'error de esquema').to.not.be.ok;",
+                  "});",
+                  "pm.test('Sin error de autenticación ni interno', () => pm.expect(code).to.be.oneOf([200, 201, 204, 400, 404, 409]));",
+                  "pm.test('La ruta existe', () => pm.expect(code === 404 && /^La ruta/.test(body.error.message)).to.not.be.ok);",
+                  "// 404/409/400 sin details = regla de negocio (depende de los datos de la BD).",
+                  "if (code >= 400) console.log(code, body.error && body.error.message);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}/finish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sessions",
+                "{{sessionId}}",
+                "finish"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Finalizar sesión · Fecha inválida",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 · error de validación', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('code = VALIDATION', () => pm.expect(body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('Campos con error: endsAt', () => {",
+                  "  const paths = (body.error.details || []).map((d) => d.path).sort();",
+                  "  pm.expect(paths).to.eql([\"endsAt\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"endsAt\": \"ya\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}/finish",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sessions",
+                "{{sessionId}}",
+                "finish"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Sesiones del taller, en orden de inicio · GET /workshops/:id/sessions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const code = pm.response.code;",
+                  "pm.test('Responde 200 (o 404 si el id no existe en esta BD)', () => pm.expect(code).to.be.oneOf([200, 404]));",
+                  "if (code === 404) {",
+                  "  pm.test('La ruta existe', () => pm.expect(pm.response.json().error.message).to.not.match(/^La ruta/));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/workshops/{{workshopId}}/sessions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "workshops",
+                "{{workshopId}}",
+                "sessions"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Sesión (tema, objetivo, materiales, pasos, horario y estado) · GET /sessions/:id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const code = pm.response.code;",
+                  "pm.test('Responde 200 (o 404 si el id no existe en esta BD)', () => pm.expect(code).to.be.oneOf([200, 404]));",
+                  "if (code === 404) {",
+                  "  pm.test('La ruta existe', () => pm.expect(pm.response.json().error.message).to.not.match(/^La ruta/));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sessions",
+                "{{sessionId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Asistencias de la sesión · GET /sessions/:id/attendances",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const code = pm.response.code;",
+                  "pm.test('Responde 200 (o 404 si el id no existe en esta BD)', () => pm.expect(code).to.be.oneOf([200, 404]));",
+                  "if (code === 404) {",
+                  "  pm.test('La ruta existe', () => pm.expect(pm.response.json().error.message).to.not.match(/^La ruta/));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}/attendances",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sessions",
+                "{{sessionId}}",
+                "attendances"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Editar sesión · válido",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"sessionId\"].filter((v) => !pm.collectionVariables.get('created_' + v));",
+                  "if (missing.length) {",
+                  "  console.log('Omitida: la colección aún no creó ' + missing.join(', '));",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const code = pm.response.code;",
+                  "const body = code === 204 ? {} : pm.response.json();",
+                  "pm.test('Pasa la validación de forma (nivel 1)', () => {",
+                  "  pm.expect(code === 400 && body.error && body.error.details, 'error de esquema').to.not.be.ok;",
+                  "});",
+                  "pm.test('Sin error de autenticación ni interno', () => pm.expect(code).to.be.oneOf([200, 201, 204, 400, 404, 409]));",
+                  "pm.test('La ruta existe', () => pm.expect(code === 404 && /^La ruta/.test(body.error.message)).to.not.be.ok);",
+                  "// 404/409/400 sin details = regla de negocio (depende de los datos de la BD).",
+                  "if (code >= 400) console.log(code, body.error && body.error.message);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"materials\": \"Ropa cómoda, agua y un cuaderno\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sessions",
+                "{{sessionId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Editar sesión · Cambiar el estado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400 · error de validación', () => pm.response.to.have.status(400));",
+                  "const body = pm.response.json();",
+                  "pm.test('code = VALIDATION', () => pm.expect(body.error.code).to.eql('VALIDATION'));",
+                  "pm.test('Campos con error: status', () => {",
+                  "  const paths = (body.error.details || []).map((d) => d.path).sort();",
+                  "  pm.expect(paths).to.eql([\"status\"]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"finished\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sessions",
+                "{{sessionId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Iniciar sesión: abre la asistencia y la evaluación · POST /sessions/:id/start",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"sessionId\"].filter((v) => !pm.collectionVariables.get('created_' + v));",
+                  "if (missing.length) {",
+                  "  console.log('Omitida: la colección aún no creó ' + missing.join(', '));",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const code = pm.response.code;",
+                  "const body = code === 204 ? {} : pm.response.json();",
+                  "pm.test('Pasa la validación de forma (nivel 1)', () => {",
+                  "  pm.expect(code === 400 && body.error && body.error.details, 'error de esquema').to.not.be.ok;",
+                  "});",
+                  "pm.test('Sin error de autenticación ni interno', () => pm.expect(code).to.be.oneOf([200, 201, 204, 400, 404, 409]));",
+                  "pm.test('La ruta existe', () => pm.expect(code === 404 && /^La ruta/.test(body.error.message)).to.not.be.ok);",
+                  "// 404/409/400 sin details = regla de negocio (depende de los datos de la BD).",
+                  "if (code >= 400) console.log(code, body.error && body.error.message);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sessions",
+                "{{sessionId}}",
+                "start"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Eliminar sesión (solo `planned`) · DELETE /sessions/:id",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const missing = [\"sessionId\"].filter((v) => !pm.collectionVariables.get('created_' + v));",
+                  "if (missing.length) {",
+                  "  console.log('Omitida: la colección aún no creó ' + missing.join(', '));",
+                  "  pm.execution.skipRequest();",
+                  "}"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const code = pm.response.code;",
+                  "const body = code === 204 ? {} : pm.response.json();",
+                  "pm.test('Pasa la validación de forma (nivel 1)', () => {",
+                  "  pm.expect(code === 400 && body.error && body.error.details, 'error de esquema').to.not.be.ok;",
+                  "});",
+                  "pm.test('Sin error de autenticación ni interno', () => pm.expect(code).to.be.oneOf([200, 201, 204, 400, 404, 409]));",
+                  "pm.test('La ruta existe', () => pm.expect(code === 404 && /^La ruta/.test(body.error.message)).to.not.be.ok);",
+                  "// 404/409/400 sin details = regla de negocio (depende de los datos de la BD).",
+                  "if (code >= 400) console.log(code, body.error && body.error.message);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sessions/{{sessionId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sessions",
+                "{{sessionId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
       "name": "Asistencias",
       "item": [
         {
@@ -3973,7 +4618,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"studentId\": 1,\n  \"workshopId\": 2,\n  \"attendedAt\": \"2026-10-20T15:00:00Z\",\n  \"observation\": \"Participó activamente\"\n}",
+              "raw": "{\n  \"sessionId\": 1,\n  \"studentId\": 1,\n  \"observation\": \"Participó activamente\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4020,7 +4665,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"workshopId\": 2\n}",
+              "raw": "{\n  \"sessionId\": 1\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4067,7 +4712,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"studentId\": 1,\n  \"workshopId\": 2,\n  \"observation\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\n}",
+              "raw": "{\n  \"sessionId\": 1,\n  \"studentId\": 1,\n  \"observation\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4086,7 +4731,7 @@
           }
         },
         {
-          "name": "Registrar asistencia · Campo no permitido",
+          "name": "Registrar asistencia · Campo no permitido (ya no se envía el taller)",
           "event": [
             {
               "listen": "test",
@@ -4096,9 +4741,9 @@
                   "pm.test('400 · error de validación', () => pm.response.to.have.status(400));",
                   "const body = pm.response.json();",
                   "pm.test('code = VALIDATION', () => pm.expect(body.error.code).to.eql('VALIDATION'));",
-                  "pm.test('Campos con error: grade', () => {",
+                  "pm.test('Campos con error: workshopId', () => {",
                   "  const paths = (body.error.details || []).map((d) => d.path).sort();",
-                  "  pm.expect(paths).to.eql([\"grade\"]);",
+                  "  pm.expect(paths).to.eql([\"workshopId\"]);",
                   "});"
                 ]
               }
@@ -4114,7 +4759,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"studentId\": 1,\n  \"workshopId\": 2,\n  \"grade\": 5\n}",
+              "raw": "{\n  \"sessionId\": 1,\n  \"studentId\": 1,\n  \"workshopId\": 2\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4261,7 +4906,7 @@
           }
         },
         {
-          "name": "Actualizar asistencia · Fecha inválida",
+          "name": "Actualizar asistencia · Cambiar la fecha (ya no se permite)",
           "event": [
             {
               "listen": "test",
@@ -4289,7 +4934,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"attendedAt\": \"ayer\"\n}",
+              "raw": "{\n  \"attendedAt\": \"2026-10-20T15:00:00Z\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -4309,7 +4954,7 @@
           }
         },
         {
-          "name": "Eliminar asistencia (recalcula) · DELETE /attendances/:id",
+          "name": "Eliminar asistencia (con la sesión en curso) · DELETE /attendances/:id",
           "event": [
             {
               "listen": "prerequest",
@@ -4579,6 +5224,39 @@
           }
         },
         {
+          "name": "Progreso mes a mes (ADMIN, TALLERISTA y el ACUDIENTE de sus jóvenes; el joven no): calificación acumulada de cada habilidad al cierre de cada mes, promedios por área y general (el mes en curso sale con `partial: true`) · GET /students/:studentId/progress",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const code = pm.response.code;",
+                  "pm.test('Responde 200 (o 404 si el id no existe en esta BD)', () => pm.expect(code).to.be.oneOf([200, 404]));",
+                  "if (code === 404) {",
+                  "  pm.test('La ruta existe', () => pm.expect(pm.response.json().error.message).to.not.match(/^La ruta/));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/students/{{studentId}}/progress",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "{{studentId}}",
+                "progress"
+              ]
+            }
+          }
+        },
+        {
           "name": "Evaluaciones de la asistencia · GET /attendances/:attendanceId/evaluations",
           "event": [
             {
@@ -4664,7 +5342,7 @@
           }
         },
         {
-          "name": "Eliminar evaluación (recalcula) · DELETE /attendances/:attendanceId/evaluations/:workshopSkillId",
+          "name": "Eliminar evaluación (con la sesión en curso) · DELETE /attendances/:attendanceId/evaluations/:workshopSkillId",
           "event": [
             {
               "listen": "prerequest",

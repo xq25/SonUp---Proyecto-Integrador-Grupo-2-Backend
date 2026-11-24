@@ -401,12 +401,94 @@
     ]
   },
   {
+    "operation": "workshopSessions.create",
+    "method": "POST",
+    "path": "/workshops/{{workshopId}}/sessions",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"startsAt\":\"2026-11-10T15:00:00Z\",\"topic\":\"Ritmos básicos con percusión\",\"objective\":\"Reconocer y seguir un pulso constante en grupo\",\"materials\":\"Ropa cómoda y una botella de agua\",\"steps\":\"1. Calentamiento. 2. Ejercicios de ritmo. 3. Cierre.\"}",
+    "errorPaths": []
+  },
+  {
+    "operation": "workshopSessions.create",
+    "method": "POST",
+    "path": "/workshops/{{workshopId}}/sessions",
+    "case": "Enviar el fin al crear (se da al finalizar)",
+    "expect": "invalid",
+    "body": "{\"startsAt\":\"2026-11-10T15:00:00Z\",\"endsAt\":\"2026-11-10T17:00:00Z\",\"topic\":\"Ritmos\"}",
+    "errorPaths": [
+      "endsAt"
+    ]
+  },
+  {
+    "operation": "workshopSessions.create",
+    "method": "POST",
+    "path": "/workshops/{{workshopId}}/sessions",
+    "case": "Tema de 1 carácter",
+    "expect": "invalid",
+    "body": "{\"startsAt\":\"2026-11-10T15:00:00Z\",\"topic\":\"R\"}",
+    "errorPaths": [
+      "topic"
+    ]
+  },
+  {
+    "operation": "workshopSessions.create",
+    "method": "POST",
+    "path": "/workshops/{{workshopId}}/sessions",
+    "case": "Crear con estado",
+    "expect": "invalid",
+    "body": "{\"startsAt\":\"2026-11-10T15:00:00Z\",\"topic\":\"Ritmos\",\"status\":\"in_progress\"}",
+    "errorPaths": [
+      "status"
+    ]
+  },
+  {
+    "operation": "workshopSessions.update",
+    "method": "PATCH",
+    "path": "/sessions/{{sessionId}}",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{\"materials\":\"Ropa cómoda, agua y un cuaderno\"}",
+    "errorPaths": []
+  },
+  {
+    "operation": "workshopSessions.update",
+    "method": "PATCH",
+    "path": "/sessions/{{sessionId}}",
+    "case": "Cambiar el estado",
+    "expect": "invalid",
+    "body": "{\"status\":\"finished\"}",
+    "errorPaths": [
+      "status"
+    ]
+  },
+  {
+    "operation": "workshopSessions.finish",
+    "method": "POST",
+    "path": "/sessions/{{sessionId}}/finish",
+    "case": "Cuerpo válido",
+    "expect": "valid",
+    "body": "{}",
+    "errorPaths": []
+  },
+  {
+    "operation": "workshopSessions.finish",
+    "method": "POST",
+    "path": "/sessions/{{sessionId}}/finish",
+    "case": "Fecha inválida",
+    "expect": "invalid",
+    "body": "{\"endsAt\":\"ya\"}",
+    "errorPaths": [
+      "endsAt"
+    ]
+  },
+  {
     "operation": "attendance.register",
     "method": "POST",
     "path": "/attendances",
     "case": "Cuerpo válido",
     "expect": "valid",
-    "body": "{\"studentId\":1,\"workshopId\":2,\"attendedAt\":\"2026-10-20T15:00:00Z\",\"observation\":\"Participó activamente\"}",
+    "body": "{\"sessionId\":1,\"studentId\":1,\"observation\":\"Participó activamente\"}",
     "errorPaths": []
   },
   {
@@ -415,7 +497,7 @@
     "path": "/attendances",
     "case": "Falta el estudiante",
     "expect": "invalid",
-    "body": "{\"workshopId\":2}",
+    "body": "{\"sessionId\":1}",
     "errorPaths": [
       "studentId"
     ]
@@ -426,7 +508,7 @@
     "path": "/attendances",
     "case": "Observación de más de 1000",
     "expect": "invalid",
-    "body": "{\"studentId\":1,\"workshopId\":2,\"observation\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}",
+    "body": "{\"sessionId\":1,\"studentId\":1,\"observation\":\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"}",
     "errorPaths": [
       "observation"
     ]
@@ -435,11 +517,11 @@
     "operation": "attendance.register",
     "method": "POST",
     "path": "/attendances",
-    "case": "Campo no permitido",
+    "case": "Campo no permitido (ya no se envía el taller)",
     "expect": "invalid",
-    "body": "{\"studentId\":1,\"workshopId\":2,\"grade\":5}",
+    "body": "{\"sessionId\":1,\"studentId\":1,\"workshopId\":2}",
     "errorPaths": [
-      "grade"
+      "workshopId"
     ]
   },
   {
@@ -455,9 +537,9 @@
     "operation": "attendance.update",
     "method": "PATCH",
     "path": "/attendances/{{attendanceId}}",
-    "case": "Fecha inválida",
+    "case": "Cambiar la fecha (ya no se permite)",
     "expect": "invalid",
-    "body": "{\"attendedAt\":\"ayer\"}",
+    "body": "{\"attendedAt\":\"2026-10-20T15:00:00Z\"}",
     "errorPaths": [
       "attendedAt"
     ]
