@@ -19,6 +19,8 @@ const LEADERS = [admin, workshopLeader];
 const EVERYONE = [admin, workshopLeader, student, guardian];
 /** Administración y el acudiente mismo. */
 const FAMILY = [admin, guardian];
+/** Administración, talleristas y acudientes (sus jóvenes), pero no el joven. */
+const MENTORS = [admin, workshopLeader, guardian];
 
 export const ROUTE_PERMISSIONS: Readonly<Record<string, readonly string[]>> = {
   // ── Módulo administrativo (Saga, solo lectura) ──
@@ -108,6 +110,9 @@ export const ROUTE_PERMISSIONS: Readonly<Record<string, readonly string[]>> = {
   "POST /students/:studentId/skills/:skillId/recalculate": ADMIN,
   "GET /students/:studentId/skills": EVERYONE,
   "GET /students/:studentId/category-averages": EVERYONE,
+  // Progreso mes a mes (calificación acumulada al cierre de cada mes): administración, talleristas
+  // y el acudiente de sus jóvenes; el joven no lo consulta.
+  "GET /students/:studentId/progress": MENTORS,
 
   // ── Evidencias: las suben administración y talleristas; jóvenes y acudientes ven las suyas ──
   "POST /evidences": LEADERS,

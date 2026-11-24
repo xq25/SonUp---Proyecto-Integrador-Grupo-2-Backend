@@ -194,6 +194,7 @@
 |---|---|---|---|---|---|
 | `GET` | `/students/:studentId/skills` | Calificaciones del estudiante (calculadas), con `skillName`, `categoryName` y su escala (`scale`: código, nombre y valor) | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
 | `GET` | `/students/:studentId/category-averages` | Promedio por categoría del estudiante, con la escala en la que cae (`scale`) | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
+| `GET` | `/students/:studentId/progress` | Progreso mes a mes (ADMIN, TALLERISTA y el ACUDIENTE de sus jóvenes; el joven no): calificación acumulada de cada habilidad al cierre de cada mes, promedios por área y general (el mes en curso sale con `partial: true`) | ADMIN, TALLERISTA, ACUDIENTE | `from`, `to` (meses `YYYY-MM`; por defecto, desde la primera valoración hasta el mes actual; máx. 36 meses) |  |
 | `POST` | `/evaluations` | Evaluar una habilidad en una asistencia (con la sesión en curso; cuenta al finalizarla) | ADMIN, TALLERISTA |  | [`evaluations.evaluate`](#evaluationsevaluate) |
 | `GET` | `/attendances/:attendanceId/evaluations` | Evaluaciones de la asistencia | ADMIN, TALLERISTA, ESTUDIANTE, ACUDIENTE |  |  |
 | `DELETE` | `/attendances/:attendanceId/evaluations/:workshopSkillId` | Eliminar evaluación (con la sesión en curso) | ADMIN, TALLERISTA |  |  |
@@ -1039,7 +1040,7 @@
 
 ## Uso en Postman
 
-**Archivo:** `docs/api/postman-coleccion.json` (Postman v2.1). Trae las 88 rutas en 139 peticiones, **una carpeta por entidad**: Estado, Autenticación, Estudiantes, Acudientes, Talleristas, Personal (administrativos), Acceso (roles y aplicaciones), Perfiles, Categorías de habilidades, Habilidades, Escalas de evaluación, Talleres, Sesiones, Asistencias, Evaluaciones y calificaciones, Evidencias, Credenciales.
+**Archivo:** `docs/api/postman-coleccion.json` (Postman v2.1). Trae las 89 rutas en 140 peticiones, **una carpeta por entidad**: Estado, Autenticación, Estudiantes, Acudientes, Talleristas, Personal (administrativos), Acceso (roles y aplicaciones), Perfiles, Categorías de habilidades, Habilidades, Escalas de evaluación, Talleres, Sesiones, Asistencias, Evaluaciones y calificaciones, Evidencias, Credenciales.
 
 1. En Postman: *Import → File* y elige `docs/api/postman-coleccion.json`.
 2. En la pestaña *Variables* de la colección llena:
@@ -1069,7 +1070,7 @@ Las variables de ids traen valores de la BD de pruebas (`npm run db:seed:dev` y 
 
 ### Colección libre (pruebas a mano)
 
-**Archivo:** `docs/api/postman-coleccion-libre.json`. Para el front y para probar flujos a mano: **una petición por ruta** (88), con un cuerpo válido de ejemplo y **sin protecciones ni pruebas**.
+**Archivo:** `docs/api/postman-coleccion-libre.json`. Para el front y para probar flujos a mano: **una petición por ruta** (89), con un cuerpo válido de ejemplo y **sin protecciones ni pruebas**.
 
 - Cada petición **se envía siempre**, con los ids que tengan las variables o los que escribas en la URL (p. ej. `/workshops/10/skills/1`).
 - Crear y asociar guardan el id nuevo en su variable (`workshopId`, `skillId`, `workshopSkillId`, `sessionId`…), así que un flujo como crear taller → asociar habilidad → crear sesión → activar → iniciar sesión → registrar asistencia → evaluar → finalizar sesión funciona en orden.

@@ -5224,6 +5224,39 @@
           }
         },
         {
+          "name": "Progreso mes a mes (ADMIN, TALLERISTA y el ACUDIENTE de sus jóvenes; el joven no): calificación acumulada de cada habilidad al cierre de cada mes, promedios por área y general (el mes en curso sale con `partial: true`) · GET /students/:studentId/progress",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const code = pm.response.code;",
+                  "pm.test('Responde 200 (o 404 si el id no existe en esta BD)', () => pm.expect(code).to.be.oneOf([200, 404]));",
+                  "if (code === 404) {",
+                  "  pm.test('La ruta existe', () => pm.expect(pm.response.json().error.message).to.not.match(/^La ruta/));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/students/{{studentId}}/progress",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "{{studentId}}",
+                "progress"
+              ]
+            }
+          }
+        },
+        {
           "name": "Evaluaciones de la asistencia · GET /attendances/:attendanceId/evaluations",
           "event": [
             {

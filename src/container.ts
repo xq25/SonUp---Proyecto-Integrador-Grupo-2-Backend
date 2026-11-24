@@ -194,7 +194,7 @@ export function createContainer(prisma: PrismaClient = createPrismaClient()) {
     // Habilidades
     skillCategories: new SkillCategoriesService(skillCategoryRepository, skillRepository),
     skills: new SkillsService(skillRepository, skillCategoryRepository),
-    studentSkills: new StudentSkillsService(studentSkillRepository, scaleRepository, childReader),
+    studentSkills: new StudentSkillsService(studentSkillRepository, scaleRepository, childReader, evaluationSkillRepository),
     // Evaluaciones
     evaluationScales: new EvaluationScalesService(scaleRepository),
     evaluations: new EvaluationsService(

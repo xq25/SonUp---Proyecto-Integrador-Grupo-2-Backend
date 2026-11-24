@@ -117,7 +117,7 @@ const entities: { name: string; match: RegExp }[] = [
   { name: "Talleres", match: /^\/workshops(?!\/:id\/sessions)/ },
   { name: "Sesiones", match: /^\/sessions|^\/workshops\/:id\/sessions/ },
   { name: "Asistencias", match: /^\/attendances(\/:id)?$|^\/students\/:studentId\/attendances/ },
-  { name: "Evaluaciones y calificaciones", match: /^\/evaluations|\/evaluations|^\/students\/:studentId\/(skills|category-averages)/ },
+  { name: "Evaluaciones y calificaciones", match: /^\/evaluations|\/evaluations|^\/students\/:studentId\/(skills|category-averages|progress)/ },
   { name: "Evidencias", match: /^\/evidences|^\/students\/:studentId\/evidences/ },
   { name: "Credenciales", match: /^\/credentials|^\/students\/:studentId\/credentials/ },
 ];

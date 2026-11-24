@@ -624,6 +624,7 @@ export const routes: RouteDoc[] = [
   { method: "DELETE", path: "/skills/:id", description: "Eliminar habilidad (sin historial)" },
   { method: "GET", path: "/students/:studentId/skills", description: "Calificaciones del estudiante (calculadas), con `skillName`, `categoryName` y su escala (`scale`: código, nombre y valor)" },
   { method: "GET", path: "/students/:studentId/category-averages", description: "Promedio por categoría del estudiante, con la escala en la que cae (`scale`)" },
+  { method: "GET", path: "/students/:studentId/progress", description: "Progreso mes a mes (ADMIN, TALLERISTA y el ACUDIENTE de sus jóvenes; el joven no): calificación acumulada de cada habilidad al cierre de cada mes, promedios por área y general (el mes en curso sale con `partial: true`)", query: "`from`, `to` (meses `YYYY-MM`; por defecto, desde la primera valoración hasta el mes actual; máx. 36 meses)" },
   // Escalas y evaluaciones
   { method: "GET", path: "/evaluation-scales", description: "Escalas, ordenadas por `numValue` (la leyenda de los niveles; la lee cualquier rol)", query: "`activeOnly` (por defecto `true`)" },
   { method: "GET", path: "/evaluation-scales/coverage-gaps", description: "Tramos de 0–5 sin escala activa" },
