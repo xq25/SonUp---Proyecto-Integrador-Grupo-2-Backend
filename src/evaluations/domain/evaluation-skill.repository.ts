@@ -1,5 +1,5 @@
 import type { ActorId } from "../../shared/domain/auditable.js";
-import type { EvaluateSkillInput, EvaluationSkill, StudentSkillPair } from "./evaluation-skill.entity.js";
+import type { EvaluateSkillInput, EvaluationSkill, GradeTimelineEntry, StudentSkillPair } from "./evaluation-skill.entity.js";
 
 export interface EvaluationSkillRepository {
   /** Evaluación vigente de esa habilidad en esa asistencia. */
@@ -12,6 +12,11 @@ export interface EvaluationSkillRepository {
    * `finished` (ADR-009).
    */
   findGradeHistory(studentId: bigint, skillId: bigint): Promise<number[]>;
+  /**
+   * Todas las valoraciones del estudiante que cuentan en sus calificaciones (las
+   * mismas de `findGradeHistory`, de todas sus habilidades), en orden de inicio de la sesión.
+   */
+  findGradeTimeline(studentId: bigint): Promise<GradeTimelineEntry[]>;
   /** Pares estudiante–habilidad evaluados en las asistencias vigentes de una sesión. */
   findGradedPairsBySession(workshopSessionId: bigint): Promise<StudentSkillPair[]>;
   /** Crea, cambia la escala o restaura la evaluación (única por asistencia y habilidad). */

@@ -205,6 +205,15 @@ Evaluar, reevaluar o eliminar evaluaciones y asistencias ocurre con la sesión e
 
 **Promedio por categoría** (`StudentSkillsService.getCategoryAverages`): promedio de los `num_value` de las habilidades calificadas de cada categoría, redondeado y clasificado en su escala. `listByStudent` devuelve cada calificación con el nombre de la habilidad, su categoría y su escala.
 
+**Progreso mes a mes** (crecimiento del joven en el tiempo) (`getProgress`, `GET /students/:studentId/progress?from=YYYY-MM&to=YYYY-MM`). **Lo consultan la administración, los talleristas y el acudiente (solo de sus jóvenes); el joven no**:
+
+- **Qué muestra cada mes:** la **calificación acumulada al cierre del mes** (hora de Bogotá), con la misma fórmula de siempre. Para cada habilidad, se reconstruye la calificación solo con las valoraciones de sesiones finalizadas hasta ese mes.
+- **Además, por mes:** el promedio por área, el promedio general y `evaluationCount` (cuántas valoraciones se sumaron en ese mes).
+- **Mes en curso:** sale con `partial: true` y muestra lo acumulado hasta hoy; coincide con la calificación actual.
+- **Mes sin sesiones:** repite lo que el estudiante traía.
+- **La curva puede bajar:** una valoración baja arrastra el promedio, pero suavizado, porque se promedia con la calificación anterior.
+- **Rango:** por defecto, desde el mes de la primera valoración hasta el mes actual; máximo 36 meses.
+
 > Pendiente: hacer atómicos el cambio y su recálculo (transacción).
 
 ### 6.2 Ciclo de vida de un taller (`WorkshopsService`, `WorkshopSkillsService`)
@@ -332,6 +341,7 @@ Authorization: Bearer <JWT> ─▶ authenticate ─▶ authorize (matriz) ─▶
 | POST · PATCH · DELETE | `/evaluation-scales[/:id]` | A | En uso: valores fijos y no se elimina |
 | GET | `/students/:studentId/skills` | A, T, E, Ac | E: él mismo · Ac: sus jóvenes. Con `skillName`, `categoryName` y `scale` |
 | GET | `/students/:studentId/category-averages` | A, T, E, Ac | Igual. Promedio y escala por categoría |
+| GET | `/students/:studentId/progress` | A, T, Ac | Ac: solo sus jóvenes. **El joven no lo consulta.** Progreso mes a mes (calificación acumulada al cierre de cada mes, promedios por área y general; el mes en curso con `partial: true`) · Consulta: `from`, `to` (`YYYY-MM`) |
 
 **Talleres**
 

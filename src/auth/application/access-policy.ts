@@ -138,6 +138,21 @@ export class AccessPolicy {
 
   // ── Jóvenes y acudientes ──
 
+  /**
+   * Progreso mes a mes de un joven: ADMIN y talleristas, todos; el acudiente, solo
+   * sus jóvenes (vínculo vigente). El joven no lo consulta, ni siquiera el suyo, aunque
+   * su cuenta tenga además el rol de acudiente.
+   */
+  async assertCanReadStudentProgress(principal: Principal, studentId: bigint): Promise<void> {
+    if (this.isAdmin(principal) || this.isLeader(principal)) return;
+    const { guardianId } = await this.links.resolve(principal);
+    if (this.has(principal, ROLES.guardian) && guardianId !== undefined) {
+      const links = await this.childGuardians.findByGuardian(guardianId, true);
+      if (links.some((link) => link.childId === studentId)) return;
+    }
+    throw new ForbiddenError("Solo puedes consultar el progreso de los jóvenes a tu cargo");
+  }
+
   /** Datos y avance de un joven: ADMIN y talleristas, todos; el joven, él mismo; el acudiente, sus jóvenes. */
   async assertCanReadStudent(principal: Principal, studentId: bigint): Promise<void> {
     if (this.isAdmin(principal) || this.isLeader(principal)) return;

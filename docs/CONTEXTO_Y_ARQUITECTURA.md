@@ -265,6 +265,15 @@ Como `student_skills` guarda la **escala** y no el número, cada paso parte del 
 
 **Promedio por categoría** (`SkillsService.getCategoryAverages`): suma de los `num_value` de las calificaciones del estudiante en las habilidades de la categoría, dividida entre la cantidad de habilidades calificadas. Se redondea a 2 decimales y se indica la escala en la que cae. Por ejemplo, 3.75 en "Socioemocional" cae en Logrado.
 
+**Progreso mes a mes** (`StudentSkillsService.getProgress`, `GET /students/:studentId/progress?from=YYYY-MM&to=YYYY-MM`). **Lo consultan la administración, los talleristas y el acudiente (solo de sus jóvenes); el joven no**:
+
+- **Qué muestra cada mes:** la **calificación acumulada al cierre del mes** (hora de Bogotá), con la misma fórmula de siempre. Para cada habilidad, se reconstruye la calificación solo con las valoraciones de sesiones finalizadas hasta ese mes.
+- **Además, por mes:** el promedio por área, el promedio general y `evaluationCount` (cuántas valoraciones se sumaron en ese mes).
+- **Mes en curso:** sale con `partial: true` y muestra lo acumulado hasta hoy; coincide con la calificación actual.
+- **Mes sin sesiones:** repite lo que el estudiante traía.
+- **La curva puede bajar:** una valoración baja arrastra el promedio, pero suavizado, porque se promedia con la calificación anterior.
+- **Rango:** por defecto, desde el mes de la primera valoración hasta el mes actual; máximo 36 meses.
+
 Las reglas están en funciones puras del dominio ([src/evaluations/domain/grading.ts](../src/evaluations/domain/grading.ts)): `accumulateSkillGrade`, `findScaleForValue` y `average`.
 
 ---
@@ -365,7 +374,7 @@ Todos los métodos que escriben reciben `actor`. Eliminar es siempre borrado ló
 | `userRoles` | `UserRolesService` | `assign`, `revoke`, `getUserRoles`, `hasRole` |
 | `skillCategories` | `SkillCategoriesService` | CRUD (nombre único sin distinguir mayúsculas; no se elimina con habilidades vigentes) |
 | `skills` | `SkillsService` | CRUD (nombre único por categoría sin distinguir mayúsculas; con historial no se elimina, se inactiva) |
-| `studentSkills` | `StudentSkillsService` | `listByStudent` (calificaciones calculadas, con el nombre de la habilidad, su categoría y su escala), `getCategoryAverages` (promedio por categoría, con su escala) |
+| `studentSkills` | `StudentSkillsService` | `listByStudent` (calificaciones calculadas, con el nombre de la habilidad, su categoría y su escala), `getCategoryAverages` (promedio por categoría, con su escala), `getProgress` (progreso mes a mes: calificación acumulada al cierre de cada mes) |
 | `evaluationScales` | `EvaluationScalesService` | CRUD con las reglas de §3.4 (rango 0–5, sin solapamiento, valores fijos si está en uso), ordenadas por `num_value`. `classify(valor)` (redondea a 2 decimales), `getCoverageGaps()` |
 | `evaluations` | `EvaluationsService` | `evaluate` y `remove` (validan sesión `in_progress`, taller `active`, escala y que el estudiante siga activo; la calificación se carga al finalizar la sesión), `recalculateStudentSkill`, `listByAttendance` |
 | `workshops` | `WorkshopsService` | CRUD de talleres con ciclo de vida (§3.6: transiciones, fechas por estado, solo `planned` editable, con asistencias no se elimina; activar exige una sesión y finalizar, todas finalizadas) |

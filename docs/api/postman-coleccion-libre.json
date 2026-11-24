@@ -1921,6 +1921,25 @@
           }
         },
         {
+          "name": "Progreso mes a mes (ADMIN, TALLERISTA y el ACUDIENTE de sus jóvenes; el joven no): calificación acumulada de cada habilidad al cierre de cada mes, promedios por área y general (el mes en curso sale con `partial: true`) · GET /students/:studentId/progress",
+          "event": [],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/students/{{studentId}}/progress",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "students",
+                "{{studentId}}",
+                "progress"
+              ]
+            }
+          }
+        },
+        {
           "name": "Evaluaciones de la asistencia · GET /attendances/:attendanceId/evaluations",
           "event": [],
           "request": {
